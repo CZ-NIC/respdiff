@@ -150,42 +150,46 @@ def diff_pair(answers, criteria, name1, name2):
     """
     yield from match(answers[name1], answers[name2], criteria)
 
-def diff_pairs(answers, criteria, pairs):
+# TODO name!
+def diff_pair_dict(answers, criteria, name1, name2):
     """
     Returns: dict(pair: diff as {'field': DataMismatch()})
     """
-    #print('diff_pairs: %s %s %s' % (answers, pairs, criteria))
     result = {}
-    for pair in pairs:
-        diff = dict(diff_pair(answers, criteria, *pair))
-        if diff:
-           result[pair] = diff
+    diff = dict(diff_pair(answers, criteria, name1, name2))
+    if diff:
+       result[(name1, name2)] = diff
     return result
+
+def transitive_equality(answers, criteria, resolvers):
+    """
+    Compare answers from all resolvers.
+    Optimization is based on transitivity of equivalence relation.
+    """
+    assert len(resolvers) >= 2
+    res_a = resolvers[0]  # compare all others to this resolver
+    res_others = resolvers[1:]
+    return all(map(
+        lambda res_b: not any(diff_pair(answers, criteria, res_a, res_b)),
+        res_others))
+
 
 def compare(target, workdir, criteria):
     #print('compare: %s %s %s' %(target, workdir, criteria))
     answers = read_answers(workdir)
-    names = list(answers.keys())
-    names.remove(target)
-    names.append(target)  # must be last
-    all_pairs = list(itertools.combinations(names, 2))
-    target_pairs = list(itertools.filterfalse(lambda x: target not in x, all_pairs))
+    others = list(answers.keys())
+    others.remove(target)
+    random_other = others[0]
 
-    # are there at least two other resolvers?
-    other_pairs = list(itertools.filterfalse(lambda x: target in x, all_pairs))
-    assert other_pairs  # TODO
-    #if other_pairs:
+    assert len(others) >= 1
     # do others agree on the answer?
-    #from IPython.core.debugger import Tracer
+    from IPython.core.debugger import Tracer
     #Tracer()()
-    others_agree = all(map(
-        lambda names: not any(diff_pair(answers, criteria, *names)),
-        other_pairs))
+    others_agree = transitive_equality(answers, criteria, others)
     if not others_agree:
         return (workdir, False, None)
 
-    assert target_pairs  # TODO
-    target_diffs = diff_pairs(answers, criteria, target_pairs)
+    target_diffs = diff_pair_dict(answers, criteria, target, random_other)
     return (workdir, others_agree, target_diffs)
     #target_agree = not any(target_diffs.values())
         #if not target_agree:
