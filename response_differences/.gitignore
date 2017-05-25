@@ -1,0 +1,15 @@
+/.project
+/.pydevproject
+/.settings
+
+# Ignore SWP files
+*.swp
+
+# Ignore .log files
+*.log
+
+# Result directory
+/results/**
+
+# Keep default config
+!/config/respdif.cfg

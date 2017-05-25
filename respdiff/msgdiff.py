@@ -1,0 +1,290 @@
+import collections
+import cProfile
+import json
+from pprint import pprint
+import sys
+
+import dns.message
+
+#m1 = dns.message.from_wire(open(sys.argv[1], 'rb').read())
+#print('--- m1 ---')
+#print(m1)
+#print('--- m1 EOM ---')
+#m2 = dns.message.from_wire(open(sys.argv[2], 'rb').read())
+#print('--- m2 ---')
+#print(m2)
+#print('--- m2 EOM ---')
+
+
+class DataMismatch(Exception):
+    def __init__(self, exp_val, got_val):
+        self.exp_val = exp_val
+        self.got_val = got_val
+
+    def __str__(self):
+        return 'expected "{0.exp_val}" got "{0.got_val}"'.format(self)
+
+def compare_val(exp_val, got_val):
+    """ Compare values, throw exception if different. """
+    if exp_val != got_val:
+        raise DataMismatch(exp_val, got_val)
+    return True
+
+def compare_rrs(expected, got):
+    """ Compare lists of RR sets, throw exception if different. """
+    for rr in expected:
+        if rr not in got:
+            raise DataMismatch(expected, got)
+    for rr in got:
+        if rr not in expected:
+            raise DataMismatch(expected, got)
+    if len(expected) != len(got):
+            raise DataMismatch(expected, got)
+        #raise Exception("expected %s records but got %s records "
+        #                "(a duplicate RR somewhere?)"
+        #                % (len(expected), len(got)))
+    return True
+
+def match_part(exp_msg, got_msg, code):
+    """ Compare scripted reply to given message using single criteria. """
+    if code == 'opcode':
+        return compare_val(exp_msg.opcode(), got_msg.opcode())
+    elif code == 'qtype':
+        if len(exp_msg.question) == 0:
+            return True
+        return compare_val(exp_msg.question[0].rdtype, got_msg.question[0].rdtype)
+    elif code == 'qname':
+        if len(exp_msg.question) == 0:
+            return True
+        qname = dns.name.from_text(got_msg.question[0].name.to_text().lower())
+        return compare_val(exp_msg.question[0].name, qname)
+    elif code == 'qcase':
+        return compare_val(got_msg.question[0].name.labels, exp_msg.question[0].name.labels)
+    #elif code == 'subdomain':
+    #    if len(exp_msg.question) == 0:
+    #        return True
+    #    qname = dns.name.from_text(got_msg.question[0].name.to_text().lower())
+    #    return compare_sub(exp_msg.question[0].name, qname)
+    elif code == 'flags':
+        return compare_val(dns.flags.to_text(exp_msg.flags), dns.flags.to_text(got_msg.flags))
+    elif code == 'rcode':
+        return compare_val(dns.rcode.to_text(exp_msg.rcode()), dns.rcode.to_text(got_msg.rcode()))
+    elif code == 'question':
+        return compare_rrs(exp_msg.question, got_msg.question)
+    elif code == 'answer' or code == 'ttl':
+        return compare_rrs(exp_msg.answer, got_msg.answer)
+    elif code == 'authority':
+        return compare_rrs(exp_msg.authority, got_msg.authority)
+    elif code == 'additional':
+        return compare_rrs(exp_msg.additional, got_msg.additional)
+    elif code == 'edns':
+        if got_msg.edns != exp_msg.edns:
+            raise DataMismatch(exp_msg.edns, got_msg.edns)
+        if got_msg.payload != exp_msg.payload:
+            raise DataMismatch(exp_msg.payload, got_msg.payload)
+    elif code == 'nsid':
+        nsid_opt = None
+        for opt in exp_msg.options:
+            if opt.otype == dns.edns.NSID:
+                nsid_opt = opt
+                break
+        # Find matching NSID
+        for opt in got_msg.options:
+            if opt.otype == dns.edns.NSID:
+                if not nsid_opt:
+                    raise DataMismatch(None, opt.data)
+                if opt == nsid_opt:
+                    return True
+                else:
+                    raise DataMismatch(nsid_opt.data, opt.data)
+        if nsid_opt:
+            raise DataMismatch(nsid_opt.data, None)
+    else:
+        raise NotImplementedError('unknown match request "%s"' % code)
+
+def match(expected, got, match_fields):
+    """ Compare scripted reply to given message based on match criteria. """
+    for code in match_fields:
+        try:
+            res = match_part(expected, got, code)
+        except DataMismatch as ex:
+            yield (code, ex)
+
+
+import itertools
+import multiprocessing
+import multiprocessing.pool as pool
+import os
+
+def find_querydirs(workdir):
+    #i = 0
+    for root, dirs, files in os.walk(workdir):
+        dirs.sort()
+        if not 'q.dns' in files:
+            continue
+        #i += 1
+        #if i == 10000:
+        #    return
+        #print('yield %s' % root)
+        yield root
+
+def read_answers(workdir):
+    answers = {}
+    for filename in os.listdir(workdir):
+        if filename == 'q.dns':
+            continue
+        #if filename == 'bind.dns':
+        #    continue
+        if not filename.endswith('.dns'):
+            continue
+        name = filename[:-4]
+        filename = os.path.join(workdir, filename)
+        with open(filename, 'rb') as msgfile:
+            msg = dns.message.from_wire(msgfile.read())
+        answers[name] = msg
+    return answers
+
+def diff_pair(answers, criteria, name1, name2):
+    """
+    Returns: sequence of (field, DataMismatch())
+    """
+    yield from match(answers[name1], answers[name2], criteria)
+
+def diff_pairs(answers, criteria, pairs):
+    """
+    Returns: dict(pair: diff as {'field': DataMismatch()})
+    """
+    #print('diff_pairs: %s %s %s' % (answers, pairs, criteria))
+    result = {}
+    for pair in pairs:
+        diff = dict(diff_pair(answers, criteria, *pair))
+        if diff:
+           result[pair] = diff
+    return result
+
+def compare(target, workdir, criteria):
+    #print('compare: %s %s %s' %(target, workdir, criteria))
+    answers = read_answers(workdir)
+    names = list(answers.keys())
+    names.remove(target)
+    names.append(target)  # must be last
+    all_pairs = list(itertools.combinations(names, 2))
+    target_pairs = list(itertools.filterfalse(lambda x: target not in x, all_pairs))
+
+    # are there at least two other resolvers?
+    other_pairs = list(itertools.filterfalse(lambda x: target in x, all_pairs))
+    assert other_pairs  # TODO
+    #if other_pairs:
+    # do others agree on the answer?
+    #from IPython.core.debugger import Tracer
+    #Tracer()()
+    others_agree = all(map(
+        lambda names: not any(diff_pair(answers, criteria, *names)),
+        other_pairs))
+    if not others_agree:
+        return (workdir, False, None)
+
+    assert target_pairs  # TODO
+    target_diffs = diff_pairs(answers, criteria, target_pairs)
+    return (workdir, others_agree, target_diffs)
+    #target_agree = not any(target_diffs.values())
+        #if not target_agree:
+        #    print('target:')
+        #    pprint(target_diffs)
+
+    #if not all([target_agree, others_agree]):
+        #write_txt(workdir, answers)
+        #print('target agree %s, others agree %s' % (target_agree, others_agree))
+#    for a, b in other_pairs:
+#        diff = match(answers[a], answers[b], criteria)
+#        print('diff %s ? %s: %s' % (a, b, diff))
+
+def write_txt(workdir, answers):
+    # target name goes first
+    for name, answer in answers.items():
+        path = os.path.join(workdir, '%s.txt' % name)
+        with open(path, 'w') as txtfile:
+            txtfile.write(str(answer))
+
+
+def worker_init(criteria_arg, target_arg):
+    global criteria
+    global target
+    global prof
+    global i
+    i = 0
+    #prof = cProfile.Profile()
+    #prof.enable()
+
+    criteria = criteria_arg
+    target = target_arg
+    #print('criteria: %s target: %s' % (criteria, target))
+
+def compare_wrapper(workdir):
+    global criteria
+    global target
+    #global result
+    global i
+    #global prof
+    #return compare(target, workdir, criteria)
+    result = compare(target, workdir, criteria)
+    #i += 1
+    #if i == 10000:
+    #    prof.disable()
+    #    prof.dump_stats('prof%s.prof' % multiprocessing.current_process().name)
+    #prof.runctx('global result; result = compare(target, workdir, criteria)', globals(), locals(), 'prof%s.prof' % multiprocessing.current_process().name)
+    return result
+
+def process_results(diff_generator):
+    stats = {
+        'diff_n': 0,
+        'target_only_diff_n': 0,
+        'diff_field_c': collections.Counter()
+        }
+
+    for qid, others_agree, target_diff in diff_generator:
+        #print(qid, others_agree, target_diff)
+        if not others_agree:
+            stats['diff_n'] += 1
+            continue
+
+        if target_diff:
+            stats['target_only_diff_n'] += 1
+            print('"%s": ' % qid)
+            pprint(target_diff)
+            print(',')
+            diff_fields = list(target_diff.values()).pop().keys()
+            stats['diff_field_c'].update(diff_fields)
+
+    print('}')
+    stats['diff_field_c'] = dict(stats['diff_field_c'])
+    print('stats = ')
+    pprint(stats)
+
+target = 'kresd'
+ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer']  #'authority', 'additional', 'edns']
+#ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer', 'authority', 'additional', 'edns', 'nsid']
+if False:
+    dir_names = itertools.tee(find_querydirs(sys.argv[1]), 2)
+    for d in dir_names:
+        print(d)
+
+workdirs = itertools.islice(find_querydirs(sys.argv[1]), 100000)
+print('diffs = {')
+
+serial = False
+if serial:
+    worker_init(ccriteria, target)
+    process_results(map(compare_wrapper, workdirs))
+else:
+
+    with pool.Pool(
+            processes=4,
+            initializer=worker_init,
+            initargs=(ccriteria, target)
+        ) as p:
+        process_results(p.imap_unordered(compare_wrapper, workdirs, chunksize=100))
+
+
+
+
