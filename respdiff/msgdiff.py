@@ -277,30 +277,30 @@ def process_results(diff_generator):
         uniq[field] = collections.OrderedDict(uniq[field].most_common(20))
     pprint(uniq)
 
-target = 'kresd'
-ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer']  #'authority', 'additional', 'edns']
+def main():
+    target = 'kresd'
+    ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer']  #'authority', 'additional', 'edns']
 #ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer', 'authority', 'additional', 'edns', 'nsid']
-if False:
-    dir_names = itertools.tee(find_querydirs(sys.argv[1]), 2)
-    for d in dir_names:
-        print(d)
+    if False:
+        dir_names = itertools.tee(find_querydirs(sys.argv[1]), 2)
+        for d in dir_names:
+            print(d)
 
-workdirs = itertools.islice(find_querydirs(sys.argv[1]), 100000)
-print('diffs = {')
+    workdirs = itertools.islice(find_querydirs(sys.argv[1]), 100000)
+    print('diffs = {')
 
-serial = False
-if serial:
-    worker_init(ccriteria, target)
-    process_results(map(compare_wrapper, workdirs))
-else:
+    serial = False
+    if serial:
+        worker_init(ccriteria, target)
+        process_results(map(compare_wrapper, workdirs))
+    else:
 
-    with pool.Pool(
-            processes=4,
-            initializer=worker_init,
-            initargs=(ccriteria, target)
-        ) as p:
-        process_results(p.imap_unordered(compare_wrapper, workdirs, chunksize=100))
+        with pool.Pool(
+                processes=4,
+                initializer=worker_init,
+                initargs=(ccriteria, target)
+            ) as p:
+            process_results(p.imap_unordered(compare_wrapper, workdirs, chunksize=100))
 
-
-
-
+if __name__ == '__main__':
+    main()
