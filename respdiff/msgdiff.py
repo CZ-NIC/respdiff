@@ -181,7 +181,8 @@ def read_answer_file(filename):
             name, wire_len = struct.unpack('10p H', set_binary[sidx:sidx+12])
             sidx += 12
             name = name.decode('ascii')
-            msg = dns.message.from_wire(set_binary[sidx:sidx+wire_len])
+            #msg = dns.message.from_wire(set_binary[sidx:sidx+wire_len])
+            msg = set_binary[sidx:sidx+wire_len]
             sidx += wire_len
             answers[name] = msg
         yield answers
@@ -209,6 +210,9 @@ def transitive_equality(answers, criteria, resolvers):
 def compare(target, answers, criteria):
     #print('compare: %s %s %s' %(target, workdir, criteria))
     #answers = read_answers(workdir)
+    # convert from wire format to DNS message object
+    answers = {name: dns.message.from_wire(wire)
+               for name, wire in answers.items()}
     others = list(answers.keys())
     others.remove(target)
     random_other = others[0]
