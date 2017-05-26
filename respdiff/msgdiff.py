@@ -24,6 +24,20 @@ class DataMismatch(Exception):
     def __str__(self):
         return 'expected "{0.exp_val}" got "{0.got_val}"'.format(self)
 
+    def __eq__(self, other):
+        return (isinstance(other, DataMismatch)
+                and self.exp_val == other.exp_val
+                and self.got_val == other.got_val)
+
+    def __ne__(self, other):
+        return self.__eq__(other)
+
+    def __hash__(self):
+        try:
+            return hash(self.exp_val) + hash(self.got_val)
+        except TypeError:  # FIXME: unhashable types
+            return 0
+
 def compare_val(exp_val, got_val):
     """ Compare values, throw exception if different. """
     if exp_val != got_val:
@@ -150,17 +164,6 @@ def diff_pair(answers, criteria, name1, name2):
     """
     yield from match(answers[name1], answers[name2], criteria)
 
-# TODO name!
-def diff_pair_dict(answers, criteria, name1, name2):
-    """
-    Returns: dict(pair: diff as {'field': DataMismatch()})
-    """
-    result = {}
-    diff = dict(diff_pair(answers, criteria, name1, name2))
-    if diff:
-       result[(name1, name2)] = diff
-    return result
-
 def transitive_equality(answers, criteria, resolvers):
     """
     Compare answers from all resolvers.
@@ -189,7 +192,7 @@ def compare(target, workdir, criteria):
     if not others_agree:
         return (workdir, False, None)
 
-    target_diffs = diff_pair_dict(answers, criteria, target, random_other)
+    target_diffs = dict(diff_pair(answers, criteria, random_other, target))
     return (workdir, others_agree, target_diffs)
     #target_agree = not any(target_diffs.values())
         #if not target_agree:
@@ -241,29 +244,38 @@ def compare_wrapper(workdir):
 
 def process_results(diff_generator):
     stats = {
-        'diff_n': 0,
-        'target_only_diff_n': 0,
-        'diff_field_c': collections.Counter()
+        'queries': 0,
+        'others_disagree': 0,
+        'target_disagrees': 0,
+        'diff_field_count': collections.Counter()
         }
+    uniq = {}
 
     for qid, others_agree, target_diff in diff_generator:
+        stats['queries'] += 1
         #print(qid, others_agree, target_diff)
         if not others_agree:
-            stats['diff_n'] += 1
+            stats['others_disagree'] += 1
             continue
 
         if target_diff:
-            stats['target_only_diff_n'] += 1
+            stats['target_disagrees'] += 1
             print('"%s": ' % qid)
             pprint(target_diff)
             print(',')
-            diff_fields = list(target_diff.values()).pop().keys()
-            stats['diff_field_c'].update(diff_fields)
+            diff_fields = list(target_diff.keys())
+            stats['diff_field_count'].update(diff_fields)
+            for field, value in target_diff.items():
+                uniq.setdefault(field, collections.Counter()).update([value])
 
     print('}')
-    stats['diff_field_c'] = dict(stats['diff_field_c'])
+    stats['diff_field_count'] = dict(stats['diff_field_count'])
     print('stats = ')
     pprint(stats)
+    print('uniq = ')
+    for field in uniq:
+        uniq[field] = collections.OrderedDict(uniq[field].most_common(20))
+    pprint(uniq)
 
 target = 'kresd'
 ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer']  #'authority', 'additional', 'edns']
