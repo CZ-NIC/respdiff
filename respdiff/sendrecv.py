@@ -34,14 +34,15 @@ def send_recv_parallel(what, selector, sockets, timeout):
     # receive replies
 
     while len(replies) != len(sockets):
-        events = selector.select()  #timeout=timeout)  # BLEH! timeout shortening
+        events = selector.select(timeout=timeout)  # BLEH! timeout shortening
         for key, _ in events:
             name = key.data
             sock = key.fileobj
             (wire, from_address) = sock.recvfrom(65535)
-            assert len(wire) > 14
+            #assert len(wire) > 14
             replies.append((name, wire))
-            # TIMEOUT !!!!
+        if not events:
+            break  # TIMEOUT
 
     return replies
 
