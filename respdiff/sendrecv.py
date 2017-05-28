@@ -1,6 +1,7 @@
 import os
 import selectors
 import socket
+import threading
 
 import dns.inet
 import dns.message
@@ -46,17 +47,24 @@ def send_recv_parallel(what, selector, sockets, timeout):
 
     return replies
 
+global network_state
+network_state = {}  # shared by all workers
+
 def worker_init(resolvers, init_timeout):
-    global selector
-    global sockets
+    """
+    make sure it works with distincts processes and threads as well
+    """
+    global network_state  # initialized to empty dict
     global timeout
     timeout = init_timeout
-    selector, sockets = sock_init(resolvers)
+    tid = threading.current_thread().ident
+    network_state[tid] = sock_init(resolvers)
 
 def query_resolvers(workdir):
-    global selector
-    global sockets
+    global network_state  # initialized in worker_init
     global timeout
+    tid = threading.current_thread().ident
+    selector, sockets = network_state[tid]
 
     qfilename = os.path.join(workdir, 'q.dns')
     #print(qfilename)

@@ -1,4 +1,4 @@
-import multiprocessing.pool as pool
+import multiprocessing.dummy as pool
 import os
 
 import sendrecv
@@ -27,7 +27,7 @@ def find_querydirs(workdir):
 #selector.close()  # TODO
 
 with pool.Pool(
-        processes=64,
+        processes=4,
         initializer=sendrecv.worker_init,
         initargs=[resolvers, timeout]) as p:
     for i in p.imap_unordered(sendrecv.query_resolvers, find_querydirs('.'), chunksize=1000):
