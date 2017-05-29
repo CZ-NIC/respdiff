@@ -206,12 +206,14 @@ def transitive_equality(answers, criteria, resolvers):
         res_others))
 
 
-def compare(target, answers, criteria):
+def compare(target, workdir, criteria):
     #print('compare: %s %s %s' %(target, workdir, criteria))
     #answers = read_answers(workdir)
     # convert from wire format to DNS message object
-    answers = {name: dns.message.from_wire(wire)
-               for name, wire in answers.items()}
+    try:
+        answers = read_answers(workdir)
+    except ValueError:
+        return (None, False, None)  # malformed reply!
     others = list(answers.keys())
     try:
         others.remove(target)
@@ -263,14 +265,14 @@ def worker_init(criteria_arg, target_arg):
     target = target_arg
     #print('criteria: %s target: %s' % (criteria, target))
 
-def compare_wrapper(answers):
+def compare_wrapper(workdir):
     global criteria
     global target
     #global result
     global i
     #global prof
     #return compare(target, workdir, criteria)
-    result = compare(target, answers, criteria)
+    result = compare(target, workdir, criteria)
     #i += 1
     #if i == 10000:
     #    prof.disable()
@@ -320,7 +322,12 @@ def main():
     target = 'kresd'
     ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer']  #'authority', 'additional', 'edns']
 #ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer', 'authority', 'additional', 'edns', 'nsid']
-    answers_stream = itertools.islice(read_answer_file('/tmp/all.dns2'), 100000)
+    #answers_stream = itertools.islice(read_answer_file('/tmp/all.dns2'), 100000)
+    #answers_stream = itertools.islice(find_querydirs(sys.argv[1]), 90140, 90141)
+    answers_stream = itertools.islice(find_querydirs(sys.argv[1]), 300000)
+    #answers_stream = find_querydirs(sys.argv[1])
+    #for a in answers_stream:
+    #    print(a)
     print('diffs = {')
 
     serial = False
