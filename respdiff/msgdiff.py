@@ -297,6 +297,8 @@ def process_results(diff_generator):
             diff_fields = list(target_diff.keys())
             stats['diff_field_count'].update(diff_fields)
             for field, value in target_diff.items():
+                if field == 'answer':
+                    continue
                 uniq.setdefault(field, collections.Counter()).update([value])
 
     print('}')
