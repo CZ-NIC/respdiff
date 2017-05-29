@@ -217,10 +217,12 @@ def compare(target, answers, criteria):
         others.remove(target)
     except ValueError:
         return (None, False, None)  # HACK, target did not reply
+    if len(others) <= 1:
+        return (qid, False, None)  # HACK, not enough targets to compare
     random_other = others[0]
     qid = str(answers[target].question[0])
 
-    assert len(others) >= 1
+    assert len(others) >= 2
     # do others agree on the answer?
     others_agree = transitive_equality(answers, criteria, others)
     if not others_agree:
