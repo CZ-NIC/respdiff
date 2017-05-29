@@ -219,10 +219,11 @@ def compare(target, workdir, criteria):
         others.remove(target)
     except ValueError:
         return (None, False, None)  # HACK, target did not reply
+    #qid = str(answers[target].question[0])
+    qid = (workdir, answers[target].question[0].name, answers[target].question[0].rdtype)
     if len(others) <= 1:
         return (qid, False, None)  # HACK, not enough targets to compare
     random_other = others[0]
-    qid = str(answers[target].question[0])
 
     assert len(others) >= 2
     # do others agree on the answer?
@@ -288,6 +289,7 @@ def process_results(diff_generator):
         'diff_field_count': collections.Counter()
         }
     uniq = {}
+    queries = collections.Counter()
 
     for qid, others_agree, target_diff in diff_generator:
         stats['queries'] += 1
@@ -298,7 +300,7 @@ def process_results(diff_generator):
 
         if target_diff:
             stats['target_disagrees'] += 1
-            print('"%s": ' % qid)
+            print('("%s", "%s", "%s"): ' % qid)
             pprint(target_diff)
             print(',')
             diff_fields = list(target_diff.keys())
@@ -306,6 +308,10 @@ def process_results(diff_generator):
             for field, value in target_diff.items():
                 if field == 'answer':
                     continue
+                question = qid[1:]
+                queries.update([question])
+                print(type(question))
+                print(question)
                 uniq.setdefault(field, collections.Counter()).update([value])
 
     print('}')
@@ -313,9 +319,16 @@ def process_results(diff_generator):
     print('stats = ')
     pprint(stats)
     print('uniq = ')
-    for field in uniq:
-        uniq[field] = collections.OrderedDict(uniq[field].most_common(20))
+    print(uniq)
+    #for field in uniq:
+    #    uniq[field] = collections.OrderedDict(uniq[field].most_common(100))
     pprint(uniq)
+    print('most common mismatches (not counting answer section):')
+    for query, count in queries.most_common(100):
+        qname, qtype = query
+        qtype = dns.rdatatype.to_text(qtype)
+        print("%s %s: %s mismatches" % (qname, qtype, count))
+    #pprint(collections.OrderedDict(queries.most_common(100)))
 
 
 def main():
