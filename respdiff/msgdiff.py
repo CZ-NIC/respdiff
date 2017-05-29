@@ -213,7 +213,10 @@ def compare(target, answers, criteria):
     answers = {name: dns.message.from_wire(wire)
                for name, wire in answers.items()}
     others = list(answers.keys())
-    others.remove(target)
+    try:
+        others.remove(target)
+    except ValueError:
+        return (None, False, None)  # HACK, target did not reply
     random_other = others[0]
     qid = str(answers[target].question[0])
 
