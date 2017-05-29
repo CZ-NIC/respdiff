@@ -72,8 +72,7 @@ def match_part(exp_msg, got_msg, code):
     elif code == 'qname':
         if len(exp_msg.question) == 0:
             return True
-        qname = dns.name.from_text(got_msg.question[0].name.to_text().lower())
-        return compare_val(exp_msg.question[0].name, qname)
+        return compare_val(exp_msg.question[0].name, got_msg.question[0].name)
     elif code == 'qcase':
         return compare_val(got_msg.question[0].name.labels, exp_msg.question[0].name.labels)
     #elif code == 'subdomain':
