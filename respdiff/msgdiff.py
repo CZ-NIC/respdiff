@@ -7,6 +7,7 @@ from pprint import pprint
 import sys
 
 import dns.message
+import dns.exception
 
 #m1 = dns.message.from_wire(open(sys.argv[1], 'rb').read())
 #print('--- m1 ---')
@@ -212,7 +213,7 @@ def compare(target, workdir, criteria):
     # convert from wire format to DNS message object
     try:
         answers = read_answers(workdir)
-    except ValueError:
+    except (ValueError, dns.exception.DNSException):
         return (None, False, None)  # malformed reply!
     others = list(answers.keys())
     try:
