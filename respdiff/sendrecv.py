@@ -40,7 +40,8 @@ def send_recv_parallel(what, selector, sockets, timeout):
             sock = key.fileobj
             (wire, from_address) = sock.recvfrom(65535)
             #assert len(wire) > 14
-            # TODO: check msgid to detect delayed answers
+            if what[0:2] != wire[0:2]:
+                continue  # wrong msgid, this might be a delayed answer - ignore it
             replies[name] = wire
         if not events:
             break  # TIMEOUT
