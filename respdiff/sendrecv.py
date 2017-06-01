@@ -1,7 +1,6 @@
 import os
 import selectors
 import socket
-import threading
 
 import dns.inet
 import dns.message
@@ -29,11 +28,11 @@ def sock_init(resolvers):
     return selector, sockets
 
 def send_recv_parallel(what, selector, sockets, timeout):
-    replies = []
+    replies = {}
     for _, sock, destination in sockets:
         sock.sendto(what, destination)
-    # receive replies
 
+    # receive replies
     while len(replies) != len(sockets):
         events = selector.select(timeout=timeout)  # BLEH! timeout shortening
         for key, _ in events:
@@ -41,38 +40,9 @@ def send_recv_parallel(what, selector, sockets, timeout):
             sock = key.fileobj
             (wire, from_address) = sock.recvfrom(65535)
             #assert len(wire) > 14
-            replies.append((name, wire))
+            # TODO: check msgid to detect delayed answers
+            replies[name] = wire
         if not events:
             break  # TIMEOUT
 
     return replies
-
-global network_state
-network_state = {}  # shared by all workers
-
-def worker_init(resolvers, init_timeout):
-    """
-    make sure it works with distincts processes and threads as well
-    """
-    global network_state  # initialized to empty dict
-    global timeout
-    timeout = init_timeout
-    tid = threading.current_thread().ident
-    network_state[tid] = sock_init(resolvers)
-
-def query_resolvers(workdir):
-    global network_state  # initialized in worker_init
-    global timeout
-    tid = threading.current_thread().ident
-    selector, sockets = network_state[tid]
-
-    qfilename = os.path.join(workdir, 'q.dns')
-    #print(qfilename)
-    with open(qfilename, 'rb') as qfile:
-        qwire = qfile.read()
-    replies = send_recv_parallel(qwire, selector, sockets, timeout)
-    for answer in replies:
-        afilename = os.path.join(workdir, "%s.dns" % answer[0])
-        with open(afilename, 'wb') as afile:
-            afile.write(answer[1])
-    #print('%s DONE' % qfilename)
