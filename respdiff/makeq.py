@@ -21,7 +21,7 @@ def int_or_fromtext(value, fromtext):
 def qfromtext(*args):
     arglist = ['--'] + args[0]
     args = qparser.parse_args(arglist)
-    return dns.message.make_query(args.qname, args.qtype, args.qclass, want_dnssec=True)
+    return dns.message.make_query(args.qname, args.qtype, args.qclass, want_dnssec=True, payload=4096)
 
 def qsfrompcap(pcapname):
     pass
