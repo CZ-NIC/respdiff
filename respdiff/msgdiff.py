@@ -247,21 +247,23 @@ def compare(target, qid, criteria):
     try:
         others.remove(target)
     except ValueError:
-        return (None, False, None)  # HACK, target did not reply
+        return (None, None, False, None)  # HACK, target did not reply
     #qid = str(answers[target].question[0])
     #qid = (workdir, answers[target].question[0].name, answers[target].question[0].rdtype)
     if len(others) <= 1:
-        return (qid, False, None)  # HACK, not enough targets to compare
+        return (qid, None, False, None)  # HACK, not enough targets to compare
     random_other = others[0]
 
     assert len(others) >= 2
     # do others agree on the answer?
     others_agree = transitive_equality(answers, criteria, others)
     if not others_agree:
-        return (qid, False, None)
+        return (qid, None, False, None)
 
     target_diffs = dict(diff_pair(answers, criteria, random_other, target))
-    return (qid, others_agree, target_diffs)
+    qs = answers[target].question[0]
+    question = (qs.name, qs.rdtype)
+    return (qid, question, others_agree, target_diffs)
     #target_agree = not any(target_diffs.values())
         #if not target_agree:
         #    print('target:')
@@ -333,7 +335,7 @@ def process_results(diff_generator):
     uniq = {}
     queries = collections.Counter()
 
-    for qid, others_agree, target_diff in diff_generator:
+    for qid, question, others_agree, target_diff in diff_generator:
         stats['queries'] += 1
         #print(qid, others_agree, target_diff)
         if not others_agree:
@@ -343,7 +345,7 @@ def process_results(diff_generator):
         if target_diff:
             stats['target_disagrees'] += 1
             #print('("%s", "%s", "%s"): ' % qid)
-            print('"%s": ' % qid)
+            print('(%s, %s): ' % (qid, question))
             pprint(target_diff)
             print(',')
             diff_fields = list(target_diff.keys())
@@ -351,8 +353,7 @@ def process_results(diff_generator):
             for field, value in target_diff.items():
                 if field == 'answer':
                     continue
-                #question = qid[1:]
-                #queries.update([question])
+                queries.update([question])
                 #print(type(question))
                 #print(question)
                 uniq.setdefault(field, collections.Counter()).update([value])
@@ -362,15 +363,14 @@ def process_results(diff_generator):
     print('stats = ')
     pprint(stats)
     print('uniq = ')
-    print(uniq)
     #for field in uniq:
     #    uniq[field] = collections.OrderedDict(uniq[field].most_common(100))
     pprint(uniq)
-    #print('most common mismatches (not counting answer section):')
-    #for query, count in queries.most_common(100):
-    #    qname, qtype = query
-    #    qtype = dns.rdatatype.to_text(qtype)
-    #    print("%s %s: %s mismatches" % (qname, qtype, count))
+    print('most common mismatches (not counting answer section):')
+    for query, count in queries.most_common(100):
+        qname, qtype = query
+        qtype = dns.rdatatype.to_text(qtype)
+        print("%s %s: %s mismatches" % (qname, qtype, count))
     #pprint(collections.OrderedDict(queries.most_common(100)))
 
 
@@ -396,7 +396,9 @@ def main():
     db = lenv.open_db(key=b'answers', create=False, **lmdbcfg.db_open)
 
     #qid_stream = itertools.islice(find_answer_qids(lenv, db), 300000)
+    #qid_stream = itertools.islice(find_answer_qids(lenv, db), 300000)
     qid_stream = find_answer_qids(lenv, db)
+    #qid_stream = itertools.islice(find_answer_qids(lenv, db), 10000)
     print('diffs = {')
 
     serial = False
@@ -406,7 +408,7 @@ def main():
     else:
 
         with pool.Pool(
-                #processes=4,
+                #processes=10,
                 initializer=worker_init,
                 initargs=(ccriteria, target)
             ) as p:
