@@ -1,4 +1,4 @@
-import multiprocessing.dummy as pool
+import multiprocessing.pool as pool
 import os
 import pickle
 import sys
@@ -35,12 +35,15 @@ def worker_init(envdir, resolvers, init_timeout):
     config.update({
         'path': envdir,
         'writemap': True,
+        'sync': False,
+        'map_async': True,
         'readonly': False
         })
     lenv = lmdb.Environment(**config)
     adb = lenv.open_db(key=b'answers', create=True, **lmdbcfg.db_open)
 
     worker_state[tid] = (lenv, adb, selector, sockets)
+
 
 def worker_query_lmdb_wrapper(args):
     global worker_state  # initialized in worker_init
@@ -51,6 +54,7 @@ def worker_query_lmdb_wrapper(args):
 
     replies = sendrecv.send_recv_parallel(qwire, selector, sockets, timeout)
     blob = pickle.dumps(replies)
+
     with lenv.begin(adb, write=True) as txn:
         txn.put(qid, blob)
 
@@ -79,10 +83,10 @@ def main():
     qstream = read_queries_lmdb(lenv, qdb)
 
     with pool.Pool(
-            processes=4,
+            processes=64,
             initializer=worker_init,
             initargs=[envdir, resolvers, timeout]) as p:
-        for i in p.imap_unordered(worker_query_lmdb_wrapper, qstream, chunksize=10):
+        for i in p.imap_unordered(worker_query_lmdb_wrapper, qstream, chunksize=100):
             pass
 
 if __name__ == "__main__":
