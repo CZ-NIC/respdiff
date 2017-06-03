@@ -9,8 +9,28 @@ import lmdb
 import dbhelper
 from msgdiff import DataMismatch  # needed for unpickling
 
+def process_diff(field_weights, field_stats, question, diff):
+    found = False
+    for field in field_weights:
+        if field in diff:
+            significant_field = field
+            break
+    assert significant_field  # field must be in field_weights
+    if significant_field == 'answer':
+        return
+
+    field_mismatches = field_stats.setdefault(field, {})
+    mismatch = diff[significant_field]
+    mismatch_key = (mismatch.exp_val, mismatch.got_val)
+    mismatch_counter = field_mismatches.setdefault(mismatch_key, collections.Counter())
+    mismatch_counter[question] += 1
+
+
 def process_results(field_weights, diff_generator):
-    field_counters = {}
+    """
+    field_stats { field: value_stats { (exp, got): Counter(queries) } }
+    """
+    field_stats = {}
 
     stats = {
         'queries': 0,
@@ -21,7 +41,7 @@ def process_results(field_weights, diff_generator):
     uniq = {}
     queries = collections.Counter()
 
-    print('diffs = {')
+    #print('diffs = {')
     for qid, question, others_agree, target_diff in diff_generator:
         stats['queries'] += 1  # FIXME
         #print(qid, others_agree, target_diff)
@@ -32,21 +52,14 @@ def process_results(field_weights, diff_generator):
         if not target_diff:  # everybody agreed, nothing to count
             continue
 
-        print('(%s, %s): ' % (qid, question))
-        print(target_diff, ',')
+        #print('(%s, %s): ' % (qid, question))
+        #print(target_diff, ',')
 
         stats['target_disagrees'] += 1
-        found = False
-        for field in field_weights:
-            if field in target_diff:
-                significant_field = field
-                break
-        assert significant_field  # field must be in field_weights
+        process_diff(field_weights, field_stats, question, target_diff)
 
-        field_counters.setdefault(field, collections.Counter())[question] += 1
-
-    print('}')
-    return field_counters
+    #print('}')
+    return field_stats
 
 def print_results(weights, counters, n=10):
     # global stats
@@ -110,8 +123,9 @@ def main():
     lenv, qdb, adb, ddb = open_db(sys.argv[1])
     diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
     field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answer', 'authority']  #, 'additional', 'edns']
-    field_counters = process_results(field_weights, diff_stream)
-    print_results(field_weights, field_counters)
+    field_stats = process_results(field_weights, diff_stream)
+    pprint(field_stats)
+    #print_results(field_weights, field_counters)
 
 if __name__ == '__main__':
     main()
