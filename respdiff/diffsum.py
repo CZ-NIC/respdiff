@@ -117,6 +117,8 @@ def read_diffs_lmdb(levn, qdb, ddb):
                     qwire = txn.get(qid, db=qdb)
                     qmsg = dns.message.from_wire(qwire)
                     question = (qmsg.question[0].name, qmsg.question[0].rdtype)
+                else:
+                    question = None
                 yield (qid, question, others_agree, diff)
 
 def main():
