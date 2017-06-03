@@ -249,12 +249,12 @@ def main():
         })
     lenv = lmdb.Environment(**config)
     db = lenv.open_db(key=b'answers', create=False, **dbhelper.db_open)
-    try:
+    try:  # FIXME: drop database for now, debug only
         diffs_db = lenv.open_db(key=b'diffs', create=False, **dbhelper.db_open)
         with lenv.begin(write=True) as txn:
             txn.drop(diffs_db)
-    finally:
-        pass  # TODO
+    except lmdb.NotFoundError:
+        pass
 
     qid_stream = dbhelper.key_stream(lenv, db)
     #qid_stream = itertools.islice(find_answer_qids(lenv, db), 10000)
