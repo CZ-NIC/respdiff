@@ -30,23 +30,17 @@ def process_results(field_weights, diff_generator):
     """
     field_stats { field: value_stats { (exp, got): Counter(queries) } }
     """
-    field_stats = {}
-
-    stats = {
-        'queries': 0,
+    global_stats = {
         'others_disagree': 0,
         'target_disagrees': 0,
-        'diff_field_count': collections.Counter()
         }
-    uniq = {}
-    queries = collections.Counter()
+    field_stats = {}
 
     #print('diffs = {')
     for qid, question, others_agree, target_diff in diff_generator:
-        stats['queries'] += 1  # FIXME
         #print(qid, others_agree, target_diff)
         if not others_agree:
-            stats['others_disagree'] += 1
+            global_stats['others_disagree'] += 1
             continue
 
         if not target_diff:  # everybody agreed, nothing to count
@@ -55,45 +49,63 @@ def process_results(field_weights, diff_generator):
         #print('(%s, %s): ' % (qid, question))
         #print(target_diff, ',')
 
-        stats['target_disagrees'] += 1
+        global_stats['target_disagrees'] += 1
         process_diff(field_weights, field_stats, question, target_diff)
 
     #print('}')
-    return field_stats
+    return global_stats, field_stats
 
-def print_results(weights, counters, n=10):
+def combine_stats(counters):
+    field_mismatch_sums = {}
+    for field in counters:
+        field_mismatch_sums[field] = collections.Counter(
+                {mismatch: sum(counter.values())
+                 for mismatch, counter in counters[field].items()})
+
+    field_sums = collections.Counter(
+        {field: sum(counter.values())
+         for field, counter in field_mismatch_sums.items()})
+    return field_sums, field_mismatch_sums
+
+def print_results(global_stats, field_weights, counters, n=10):
     # global stats
-    field_totals = {field: sum(counter.values()) for field, counter in counters.items()}
-    pprint(field_totals)
+    field_sums, field_mismatch_sums = combine_stats(counters)
 
-    for field in weights:
-        if field in counters:
-            counter = counters[field]
-            print('mismatches in field %s: %s mismatches' % (field, sum(counter.values())))
-            print_field_queries(field, counter, n)
+    print('== Global statistics')
+    print('others diagree : %s' % (global_stats['others_disagree']))
+    target_disagrees = global_stats['target_disagrees']
+    print('target diagrees:', target_disagrees)
+
+    print('')
+    print('== Field statistics: field - count - % of mismatches')
+    for field, n in (field_sums.most_common()):
+        #print('%s\t%i\t%4.01f %%' % (field, n, float(n)/target_disagrees*100))
+        print('%s\t%i' % (field, n))
+
+    for field in field_weights:
+        if not field in field_mismatch_sums:
+            continue
+        print('')
+        print('== Field "%s" mismatch statistics' % field)
+        for mismatch, n in (field_mismatch_sums[field].most_common()):
+            print('%s\t%i' % (mismatch, n))
+
+    for field in field_weights:
+        if not field in counters:
+            continue
+        for mismatch, n in (field_mismatch_sums[field].most_common(n)):
             print('')
-    return
-        #if field == 'answer':
-        #    continue
-        #queries.update([question])
-        ##print(type(question))
-        ##print(question)
-        #uniq.setdefault(field, collections.Counter()).update([value])
+            print('== Field "%s" mismatch "%s" query details' % (field, mismatch))
+            counter = counters[field][mismatch]
+            print_field_queries(field, counter, n)
 
-    stats['diff_field_count'] = dict(stats['diff_field_count'])
-    print('stats = ')
-    pprint(stats)
-    print('uniq = ')
-    #for field in uniq:
-    #    uniq[field] = collections.OrderedDict(uniq[field].most_common(100))
-    pprint(uniq)
 
 def print_field_queries(field, counter, n):
     #print('queries leading to mismatch in field "%s":' % field)
     for query, count in counter.most_common(n):
         qname, qtype = query
         qtype = dns.rdatatype.to_text(qtype)
-        print("%s %s: %s mismatches" % (qname, qtype, count))
+        print("%s %s\t\t%s mismatches" % (qname, qtype, count))
 
 def open_db(envdir):
     config = dbhelper.env_open.copy()
@@ -125,9 +137,9 @@ def main():
     lenv, qdb, adb, ddb = open_db(sys.argv[1])
     diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
     field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answer', 'authority']  #, 'additional', 'edns']
-    field_stats = process_results(field_weights, diff_stream)
-    pprint(field_stats)
-    #print_results(field_weights, field_counters)
+    global_stats, field_stats = process_results(field_weights, diff_stream)
+    #pprint(field_stats)
+    print_results(global_stats, field_weights, field_stats)
 
 if __name__ == '__main__':
     main()
