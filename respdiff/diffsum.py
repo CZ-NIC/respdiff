@@ -7,8 +7,11 @@ import dns.rdatatype
 import lmdb
 
 import dbhelper
+from msgdiff import DataMismatch  # needed for unpickling
 
-def process_results(diff_generator):
+def process_results(field_weights, diff_generator):
+    field_counters = {}
+
     stats = {
         'queries': 0,
         'others_disagree': 0,
@@ -20,29 +23,50 @@ def process_results(diff_generator):
 
     print('diffs = {')
     for qid, question, others_agree, target_diff in diff_generator:
-        stats['queries'] += 1
+        stats['queries'] += 1  # FIXME
         #print(qid, others_agree, target_diff)
         if not others_agree:
             stats['others_disagree'] += 1
             continue
 
-        if target_diff:
-            stats['target_disagrees'] += 1
-            #print('("%s", "%s", "%s"): ' % qid)
-            print('(%s, %s): ' % (qid, question))
-            pprint(target_diff)
-            print(',')
-            diff_fields = list(target_diff.keys())
-            stats['diff_field_count'].update(diff_fields)
-            for field, value in target_diff.items():
-                if field == 'answer':
-                    continue
-                queries.update([question])
-                #print(type(question))
-                #print(question)
-                uniq.setdefault(field, collections.Counter()).update([value])
+        if not target_diff:  # everybody agreed, nothing to count
+            continue
+
+        print('(%s, %s): ' % (qid, question))
+        print(target_diff, ',')
+
+        stats['target_disagrees'] += 1
+        found = False
+        for field in field_weights:
+            if field in target_diff:
+                significant_field = field
+                break
+        assert significant_field  # field must be in field_weights
+
+        field_counters.setdefault(field, collections.Counter())[question] += 1
 
     print('}')
+    return field_counters
+
+def print_results(weights, counters, n=10):
+    # global stats
+    field_totals = {field: sum(counter.values()) for field, counter in counters.items()}
+    pprint(field_totals)
+
+    for field in weights:
+        if field in counters:
+            counter = counters[field]
+            print('mismatches in field %s: %s mismatches' % (field, sum(counter.values())))
+            print_field_queries(field, counter, n)
+            print('')
+    return
+        #if field == 'answer':
+        #    continue
+        #queries.update([question])
+        ##print(type(question))
+        ##print(question)
+        #uniq.setdefault(field, collections.Counter()).update([value])
+
     stats['diff_field_count'] = dict(stats['diff_field_count'])
     print('stats = ')
     pprint(stats)
@@ -50,12 +74,13 @@ def process_results(diff_generator):
     #for field in uniq:
     #    uniq[field] = collections.OrderedDict(uniq[field].most_common(100))
     pprint(uniq)
-    print('most common mismatches (not counting answer section):')
-    for query, count in queries.most_common(100):
+
+def print_field_queries(field, counter, n):
+    #print('queries leading to mismatch in field "%s":' % field)
+    for query, count in counter.most_common(n):
         qname, qtype = query
         qtype = dns.rdatatype.to_text(qtype)
         print("%s %s: %s mismatches" % (qname, qtype, count))
-    #pprint(collections.OrderedDict(queries.most_common(100)))
 
 def open_db(envdir):
     config = dbhelper.env_open.copy()
@@ -70,8 +95,23 @@ def open_db(envdir):
     ddb = lenv.open_db(key=b'diffs', create=False, **dbhelper.db_open)
     return lenv, qdb, adb, ddb
 
+def read_diffs_lmdb(levn, qdb, ddb):
+    with levn.begin() as txn:
+        with txn.cursor(ddb) as diffcur:
+            for qid, diffblob in diffcur:
+                others_agree, diff = pickle.loads(diffblob)
+                if others_agree:
+                    qwire = txn.get(qid, db=qdb)
+                    qmsg = dns.message.from_wire(qwire)
+                    question = (qmsg.question[0].name, qmsg.question[0].rdtype)
+                yield (qid, question, others_agree, diff)
+
 def main():
     lenv, qdb, adb, ddb = open_db(sys.argv[1])
+    diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
+    field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answer', 'authority']  #, 'additional', 'edns']
+    field_counters = process_results(field_weights, diff_stream)
+    print_results(field_weights, field_counters)
 
 if __name__ == '__main__':
     main()
