@@ -7,7 +7,7 @@ import sys
 
 import lmdb
 
-import lmdbcfg
+import dbhelper
 import makeq
 
 
@@ -59,14 +59,14 @@ def lmdb_init(envdir):
     global env
     global db
 
-    config = lmdbcfg.env_open.copy()
+    config = dbhelper.env_open.copy()
     config.update({
         'path': envdir,
         'sync': False,    # unsafe but fast
         'writemap': True  # we do not care, this is a new database
         })
     env = lmdb.Environment(**config)
-    db = env.open_db(key=b'queries', **lmdbcfg.db_open)
+    db = env.open_db(key=b'queries', **dbhelper.db_open)
 
 def gen_wrapper_lmdb(args):
     qid, qtext = args

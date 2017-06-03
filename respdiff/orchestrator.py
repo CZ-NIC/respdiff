@@ -6,7 +6,7 @@ import threading
 
 import lmdb
 
-import lmdbcfg
+import dbhelper
 import sendrecv
 
 timeout = 5
@@ -31,7 +31,7 @@ def worker_init(envdir, resolvers, init_timeout):
     tid = threading.current_thread().ident
     selector, sockets = sendrecv.sock_init(resolvers)
 
-    config = lmdbcfg.env_open.copy()
+    config = dbhelper.env_open.copy()
     config.update({
         'path': envdir,
         'writemap': True,
@@ -40,7 +40,7 @@ def worker_init(envdir, resolvers, init_timeout):
         'readonly': False
         })
     lenv = lmdb.Environment(**config)
-    adb = lenv.open_db(key=b'answers', create=True, **lmdbcfg.db_open)
+    adb = lenv.open_db(key=b'answers', create=True, **dbhelper.db_open)
 
     worker_state[tid] = (lenv, adb, selector, sockets)
 
@@ -68,13 +68,13 @@ def read_queries_lmdb(lenv, qdb):
 
 # init LMDB
 def reader_init(envdir):
-    config = lmdbcfg.env_open.copy()
+    config = dbhelper.env_open.copy()
     config.update({
         'path': envdir,
         'readonly': True
         })
     lenv = lmdb.Environment(**config)
-    qdb = lenv.open_db(key=b'queries', **lmdbcfg.db_open, create=False)
+    qdb = lenv.open_db(key=b'queries', **dbhelper.db_open, create=False)
     return (lenv, qdb)
 
 def main():

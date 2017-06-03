@@ -11,16 +11,7 @@ import dns.message
 import dns.exception
 import lmdb
 
-import lmdbcfg
-
-#m1 = dns.message.from_wire(open(sys.argv[1], 'rb').read())
-#print('--- m1 ---')
-#print(m1)
-#print('--- m1 EOM ---')
-#m2 = dns.message.from_wire(open(sys.argv[2], 'rb').read())
-#print('--- m2 ---')
-#print(m2)
-#print('--- m2 EOM ---')
+import dbhelper
 
 
 class DataMismatch(Exception):
@@ -292,15 +283,15 @@ def worker_init(criteria_arg, target_arg):
 
     global lenv
     global answers_db
-    config = lmdbcfg.env_open.copy()
+    global diffs_db
+    config = dbhelper.env_open.copy()
     config.update({
         'path': sys.argv[1],
         'readonly': False,
         'create': False
         })
     lenv = lmdb.Environment(**config)
-    answers_db = lenv.open_db(key=b'answers', create=True, **lmdbcfg.db_open)
-
+    answers_db = lenv.open_db(key=b'answers', create=False, **dbhelper.db_open)
 
     i = 0
     #prof = cProfile.Profile()
@@ -386,18 +377,17 @@ def main():
     #    print(a)
     #answers_stream = itertools.islice(find_querydirs(sys.argv[1]), 300000)
 
-    config = lmdbcfg.env_open.copy()
+
+    config = dbhelper.env_open.copy()
     config.update({
         'path': sys.argv[1],
         'readonly': True,
         'create': False
         })
     lenv = lmdb.Environment(**config)
-    db = lenv.open_db(key=b'answers', create=False, **lmdbcfg.db_open)
+    db = lenv.open_db(key=b'answers', create=False, **dbhelper.db_open)
 
-    #qid_stream = itertools.islice(find_answer_qids(lenv, db), 300000)
-    #qid_stream = itertools.islice(find_answer_qids(lenv, db), 300000)
-    qid_stream = find_answer_qids(lenv, db)
+    qid_stream = dbhelper.key_stream(lenv, db)
     #qid_stream = itertools.islice(find_answer_qids(lenv, db), 10000)
     print('diffs = {')
 

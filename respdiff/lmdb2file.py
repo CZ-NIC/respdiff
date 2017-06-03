@@ -5,7 +5,7 @@ import sys
 
 import lmdb
 
-import lmdbcfg
+import dbhelper
 import msgdiff
 
 
@@ -24,13 +24,13 @@ def write_blobs(blob_dict, workdir):
             outfile.write(v)
 
 
-config = lmdbcfg.env_open.copy()
+config = dbhelper.env_open.copy()
 config.update({
     'path': sys.argv[1],
     'readonly': True
     })
 lenv = lmdb.Environment(**config)
-db = lenv.open_db(key=b'answers', **lmdbcfg.db_open, create=False)
+db = lenv.open_db(key=b'answers', **dbhelper.db_open, create=False)
 
 qid = str(int(sys.argv[2])).encode('ascii')
 blobs = read_blobs_lmdb(lenv, db, qid)
