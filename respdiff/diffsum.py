@@ -67,35 +67,78 @@ def combine_stats(counters):
          for field, counter in field_mismatch_sums.items()})
     return field_sums, field_mismatch_sums
 
-def print_results(global_stats, field_weights, counters, n=10):
+def mismatch2str(mismatch):
+    if not isinstance(mismatch[0], str):
+        return (' '.join(mismatch[0]), ' '.join(mismatch[1]))
+    else:
+        return mismatch
+
+def maxlen(iterable):
+    return max(len(str(it)) for it in iterable)
+
+def print_results(gstats, field_weights, counters, n=10):
     # global stats
     field_sums, field_mismatch_sums = combine_stats(counters)
 
+    maxcntlen = maxlen(gstats.values())
     print('== Global statistics')
-    print('others diagree : %s' % (global_stats['others_disagree']))
-    target_disagrees = global_stats['target_disagrees']
-    print('target diagrees:', target_disagrees)
+    print('queries            {:{}}'.format(gstats['queries'], maxcntlen))
+    print('answers            {:{}}    {:6.2f} % of queries'.format(
+        gstats['answers'], maxcntlen, float(100)*gstats['answers']/gstats['queries']))
+
+    others_agree = gstats['answers'] - gstats['others_disagree']
+    print('others agree       {:{}}    {:6.2f} % of answers (ignoring {:.2f} % of answers)'.format(
+        others_agree, maxcntlen,
+        100.0*others_agree/gstats['answers'],
+        100.0*gstats['others_disagree']/gstats['answers']))
+    target_disagrees = gstats['target_disagrees']
+    print('target diagrees    {:{}}    {:6.2f} % of matching answers from others'.format(
+        gstats['target_disagrees'], maxcntlen,
+        100.0*gstats['target_disagrees']/gstats['answers']))
 
     print('')
-    print('== Field statistics: field - count - % of mismatches')
+    # print('== Field statistics: field - count - % of mismatches')
+    maxnamelen = maxlen(field_sums.keys())
+    maxcntlen = maxlen(field_sums.values())
+    print('== {:{}}    {:{}}    {}'.format(
+        'Field', maxnamelen - 3 - (len('count') - maxcntlen),
+        'count', maxcntlen,
+        '% of mismatches'))
+
     for field, n in (field_sums.most_common()):
-        #print('%s\t%i\t%4.01f %%' % (field, n, float(n)/target_disagrees*100))
-        print('%s\t%i' % (field, n))
+        print('{:{}}    {:{}}     {:3.0f} %'.format(
+            field, maxnamelen,
+            n, maxcntlen,
+            100.0*n/target_disagrees))
 
     for field in field_weights:
         if not field in field_mismatch_sums:
             continue
         print('')
         print('== Field "%s" mismatch statistics' % field)
+        maxvallen = max((max(len(str(mismatch2str(mism)[0])), len(str(mismatch2str(mism)[1])))
+                        for mism in field_mismatch_sums[field].keys()))
+        maxcntlen = maxlen(field_mismatch_sums[field].values())
+        print('{:{}}  !=  {:{}}    {:{}}    {}'.format(
+            'Expected', maxvallen,
+            'Got', maxvallen - (len('count') - maxcntlen),
+            'count', maxcntlen,
+            '% of mismatches'
+            ))
         for mismatch, n in (field_mismatch_sums[field].most_common()):
-            print('%s\t%i' % (mismatch, n))
+            mismatch = mismatch2str(mismatch)
+            print('{:{}}  !=  {:{}}    {:{}}    {:3.0f} %'.format(
+                str(mismatch[0]), maxvallen,
+                str(mismatch[1]), maxvallen,
+                n, maxcntlen,
+                100.0*n/target_disagrees))
 
     for field in field_weights:
         if not field in counters:
             continue
         for mismatch, n in (field_mismatch_sums[field].most_common(n)):
             print('')
-            print('== Field "%s" mismatch "%s" query details' % (field, mismatch))
+            print('== Field "%s" mismatch %s query details' % (field, mismatch))
             counter = counters[field][mismatch]
             print_field_queries(field, counter, n)
 
@@ -136,8 +179,11 @@ def read_diffs_lmdb(levn, qdb, ddb):
 def main():
     lenv, qdb, adb, ddb = open_db(sys.argv[1])
     diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
-    field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answer', 'authority']  #, 'additional', 'edns']
+    field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answertypes', 'answer', 'authority']  #, 'additional', 'edns']
     global_stats, field_stats = process_results(field_weights, diff_stream)
+    with lenv.begin() as txn:
+        global_stats['queries'] = txn.stat(qdb)['entries']
+        global_stats['answers'] = txn.stat(adb)['entries']
     #pprint(field_stats)
     print_results(global_stats, field_weights, field_stats)
 
