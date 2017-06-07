@@ -32,17 +32,12 @@ class DataMismatch(Exception):
     def __ne__(self, other):
         return self.__eq__(other)
 
-    def __hash__(self):
-        try:
-            return hash(self.exp_val) + hash(self.got_val)
-        except TypeError:  # FIXME: unhashable types
-            return 0
-
 def compare_val(exp_val, got_val):
     """ Compare values, throw exception if different. """
     if exp_val != got_val:
         raise DataMismatch(exp_val, got_val)
     return True
+
 
 def compare_rrs(expected, got):
     """ Compare lists of RR sets, throw exception if different. """
@@ -58,6 +53,28 @@ def compare_rrs(expected, got):
         #                "(a duplicate RR somewhere?)"
         #                % (len(expected), len(got)))
     return True
+
+
+def compare_rrs_types(exp_val, got_val):
+    """sets of RR types in both sections must match"""
+    def rr_ordering_key(rrset):
+        if rrset.covers:
+            return (rrset.covers, 1)  # RRSIGs go to the end of RRtype list
+        else:
+            return (rrset.rdtype, 0)
+
+    def key_to_text(rrtype, rrsig):
+        if not rrsig:
+            return dns.rdatatype.to_text(rrtype)
+        else:
+            return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
+
+    exp_types = frozenset([rr_ordering_key(rrset) for rrset in exp_val])
+    got_types = frozenset([rr_ordering_key(rrset) for rrset in got_val])
+    if exp_types != got_types:
+        exp_types = tuple(key_to_text(*i) for i in sorted(exp_types))
+        got_types = tuple(key_to_text(*i) for i in sorted(got_types))
+        raise DataMismatch(exp_types, got_types)
 
 def match_part(exp_msg, got_msg, code):
     """ Compare scripted reply to given message using single criteria. """
@@ -86,6 +103,8 @@ def match_part(exp_msg, got_msg, code):
         return compare_rrs(exp_msg.question, got_msg.question)
     elif code == 'answer' or code == 'ttl':
         return compare_rrs(exp_msg.answer, got_msg.answer)
+    elif code == 'answertypes':
+        return compare_rrs_types(exp_msg.answer, got_msg.answer)
     elif code == 'authority':
         return compare_rrs(exp_msg.authority, got_msg.authority)
     elif code == 'additional':
@@ -238,7 +257,7 @@ def compare_lmdb_wrapper(qid):
 
 def main():
     target = 'kresd'
-    ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer']  #'authority', 'additional', 'edns']
+    ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes']  #'authority', 'additional', 'edns']
 #ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer', 'authority', 'additional', 'edns', 'nsid']
 
     config = dbhelper.env_open.copy()
