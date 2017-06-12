@@ -55,7 +55,7 @@ def compare_rrs(expected, got):
     return True
 
 
-def compare_rrs_types(exp_val, got_val):
+def compare_rrs_types(exp_val, got_val, skip_rrsigs):
     """sets of RR types in both sections must match"""
     def rr_ordering_key(rrset):
         if rrset.covers:
@@ -69,8 +69,14 @@ def compare_rrs_types(exp_val, got_val):
         else:
             return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
 
-    exp_types = frozenset([rr_ordering_key(rrset) for rrset in exp_val])
-    got_types = frozenset([rr_ordering_key(rrset) for rrset in got_val])
+    if skip_rrsigs:
+        exp_val = (rrset for rrset in exp_val
+                   if rrset.rdtype != dns.rdatatype.RRSIG)
+        got_val = (rrset for rrset in got_val
+                   if rrset.rdtype != dns.rdatatype.RRSIG)
+
+    exp_types = frozenset(rr_ordering_key(rrset) for rrset in exp_val)
+    got_types = frozenset(rr_ordering_key(rrset) for rrset in got_val)
     if exp_types != got_types:
         exp_types = tuple(key_to_text(*i) for i in sorted(exp_types))
         got_types = tuple(key_to_text(*i) for i in sorted(got_types))
@@ -104,7 +110,9 @@ def match_part(exp_msg, got_msg, code):
     elif code == 'answer' or code == 'ttl':
         return compare_rrs(exp_msg.answer, got_msg.answer)
     elif code == 'answertypes':
-        return compare_rrs_types(exp_msg.answer, got_msg.answer)
+        return compare_rrs_types(exp_msg.answer, got_msg.answer, skip_rrsigs=True)
+    elif code == 'answerrrsigs':
+        return compare_rrs_types(exp_msg.answer, got_msg.answer, skip_rrsigs=False)
     elif code == 'authority':
         return compare_rrs(exp_msg.authority, got_msg.authority)
     elif code == 'additional':
@@ -257,7 +265,7 @@ def compare_lmdb_wrapper(qid):
 
 def main():
     target = 'kresd'
-    ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes']  #'authority', 'additional', 'edns']
+    ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes', 'answerrrsigs']  #'authority', 'additional', 'edns']
 #ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer', 'authority', 'additional', 'edns', 'nsid']
 
     config = dbhelper.env_open.copy()

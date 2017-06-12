@@ -179,7 +179,7 @@ def read_diffs_lmdb(levn, qdb, ddb):
 def main():
     lenv, qdb, adb, ddb = open_db(sys.argv[1])
     diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
-    field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answertypes', 'answer', 'authority']  #, 'additional', 'edns']
+    field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answertypes', 'answerrrsigs', 'answer', 'authority', 'additional', 'edns']
     global_stats, field_stats = process_results(field_weights, diff_stream)
     with lenv.begin() as txn:
         global_stats['queries'] = txn.stat(qdb)['entries']
