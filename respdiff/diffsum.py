@@ -136,7 +136,7 @@ def print_results(gstats, field_weights, counters, n=10):
     for field in field_weights:
         if not field in counters:
             continue
-        for mismatch, n in (field_mismatch_sums[field].most_common(n)):
+        for mismatch, n in (field_mismatch_sums[field].most_common()):
             print('')
             print('== Field "%s" mismatch %s query details' % (field, mismatch))
             counter = counters[field][mismatch]
