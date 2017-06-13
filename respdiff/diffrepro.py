@@ -54,6 +54,8 @@ def main():
     selector, sockets = sendrecv.sock_init(orchestrator.resolvers)
     lenv, qdb, ddb, reprodb = open_db(sys.argv[1])
     diff_stream = diffsum.read_diffs_lmdb(lenv, qdb, ddb)
+    processed = 0
+    verified = 0
     for qid, qwire, orig_others_agree, orig_diffs in diff_stream:
         if not orig_others_agree:
             continue  # others do not agree, nothing to verify
@@ -63,6 +65,7 @@ def main():
         if retries > 0:
             if retries != upstream_stable or upstream_stable != diff_matches:
                 continue  # either unstable upstream or diff is not 100 % reproducible, skip it
+        processed += 1
 
         # it might be reproducible, restart everything
         subprocess.check_call([sys.argv[2]])
@@ -78,6 +81,14 @@ def main():
                 diff_matches += 1
         print(qid, (retries, upstream_stable, diff_matches))
         save_stats(lenv, reprodb, qid, (retries, upstream_stable, diff_matches))
+        if retries == upstream_stable == diff_matches:
+            verified += 1
+
+    print('processed :', processed)
+    print('verified  :', verified)
+    print('falzified : {}    {:6.2f} %'.format(
+        processed-verified,
+        100.0*(processed-verified)/processed))
 
 
 if __name__ == '__main__':
