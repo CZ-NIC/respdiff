@@ -151,23 +151,27 @@ def match(expected, got, match_fields):
             yield (code, ex)
 
 
-def read_answers_lmdb(lenv, db, qid):
+def decode_wire_dict(wire_dict):
+    assert isinstance(wire_dict, dict)
     answers = {}
+    for k, v in wire_dict.items():
+        # decode bytes to dns.message objects
+        #if isinstance(v, bytes):
+        # convert from wire format to DNS message object
+        try:
+            answers[k] = dns.message.from_wire(v)
+        except Exception as ex:
+            #answers[k] = ex  # decoding failed, record it!
+            continue
+    return answers
+
+
+def read_answers_lmdb(lenv, db, qid):
     with lenv.begin(db) as txn:
         blob = txn.get(qid)
-        assert blob
-        blob_dict = pickle.loads(blob)
-        assert isinstance(blob_dict, dict)
-        for k, v in blob_dict.items():
-            # decode bytes to dns.message objects
-            #if isinstance(v, bytes):
-            # convert from wire format to DNS message object
-            try:
-                answers[k] = dns.message.from_wire(v)
-            except Exception as ex:
-                #answers[k] = ex  # decoding failed, record it!
-                continue
-        return answers
+    assert blob
+    wire_dict = pickle.loads(blob)
+    return decode_wire_dict(wire_dict)
 
 
 def diff_pair(answers, criteria, name1, name2):
@@ -189,10 +193,7 @@ def transitive_equality(answers, criteria, resolvers):
         res_others))
 
 
-def compare(target, qid, criteria):
-    global lenv
-    global answers_db
-    answers = read_answers_lmdb(lenv, answers_db, qid)
+def compare(answers, criteria, target):
     others = list(answers.keys())
     try:
         others.remove(target)
@@ -250,7 +251,8 @@ def compare_lmdb_wrapper(qid):
     global i
     #global prof
     #return compare(target, workdir, criteria)
-    others_agree, target_diffs = compare(target, qid, criteria)
+    answers = read_answers_lmdb(lenv, answers_db, qid)
+    others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
         return  # all agreed, nothing to write
     blob = pickle.dumps((others_agree, target_diffs))

@@ -9,7 +9,7 @@ import lmdb
 import dbhelper
 from msgdiff import DataMismatch  # needed for unpickling
 
-def process_diff(field_weights, field_stats, question, diff):
+def process_diff(field_weights, field_stats, qwire, diff):
     found = False
     for field in field_weights:
         if field in diff:
@@ -18,6 +18,9 @@ def process_diff(field_weights, field_stats, question, diff):
     assert significant_field  # field must be in field_weights
     if significant_field == 'answer':
         return
+
+    qmsg = dns.message.from_wire(qwire)
+    question = (qmsg.question[0].name, qmsg.question[0].rdtype)
 
     field_mismatches = field_stats.setdefault(field, {})
     mismatch = diff[significant_field]
@@ -37,7 +40,7 @@ def process_results(field_weights, diff_generator):
     field_stats = {}
 
     #print('diffs = {')
-    for qid, question, others_agree, target_diff in diff_generator:
+    for qid, qwire, others_agree, target_diff in diff_generator:
         #print(qid, others_agree, target_diff)
         if not others_agree:
             global_stats['others_disagree'] += 1
@@ -50,7 +53,7 @@ def process_results(field_weights, diff_generator):
         #print(target_diff, ',')
 
         global_stats['target_disagrees'] += 1
-        process_diff(field_weights, field_stats, question, target_diff)
+        process_diff(field_weights, field_stats, qwire, target_diff)
 
     #print('}')
     return global_stats, field_stats
@@ -168,13 +171,8 @@ def read_diffs_lmdb(levn, qdb, ddb):
         with txn.cursor(ddb) as diffcur:
             for qid, diffblob in diffcur:
                 others_agree, diff = pickle.loads(diffblob)
-                if others_agree:
-                    qwire = txn.get(qid, db=qdb)
-                    qmsg = dns.message.from_wire(qwire)
-                    question = (qmsg.question[0].name, qmsg.question[0].rdtype)
-                else:
-                    question = None
-                yield (qid, question, others_agree, diff)
+                qwire = txn.get(qid, db=qdb)
+                yield (qid, qwire, others_agree, diff)
 
 def main():
     lenv, qdb, adb, ddb = open_db(sys.argv[1])
