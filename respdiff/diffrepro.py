@@ -58,11 +58,14 @@ def main():
         if not orig_others_agree:
             continue  # others do not agree, nothing to verify
 
-        # restart script
-        subprocess.check_call([sys.argv[2]])
-
         # others agree, verify if answers are stable and the diff is reproducible
         retries, upstream_stable, diff_matches = load_stats(lenv, reprodb, qid)
+        if retries > 0:
+            if retries != upstream_stable or upstream_stable != diff_matches:
+                continue  # either unstable upstream or diff is not 100 % reproducible, skip it
+
+        # it might be reproducible, restart everything
+        subprocess.check_call([sys.argv[2]])
 
         wire_blobs = sendrecv.send_recv_parallel(qwire, selector, sockets, orchestrator.timeout)
         answers = msgdiff.decode_wire_dict(wire_blobs)
