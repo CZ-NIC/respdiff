@@ -19,3 +19,8 @@ def key_stream(lenv, db):
             while cont:
                 yield cur.key()
                 cont = cur.next()
+
+
+def qid2key(qid):
+    """Encode query ID to database key"""
+    return str(qid).encode('ascii')

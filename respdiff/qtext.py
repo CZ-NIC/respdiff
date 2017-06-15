@@ -23,15 +23,13 @@ def qfromtext(*args):
     args = qparser.parse_args(arglist)
     return dns.message.make_query(args.qname, args.qtype, args.qclass, want_dnssec=True, payload=4096)
 
-def qsfrompcap(pcapname):
-    pass
-
 
 def is_blacklisted(msg):
     if len(msg.question) >= 1:
         if msg.question[0].rdtype == dns.rdatatype.ANY:
             return True
     return False
+
 
 def main():
     qry = qfromtext(sys.argv[1:])
