@@ -1,5 +1,4 @@
 import multiprocessing.pool as pool
-import os
 import pickle
 import sys
 import threading
@@ -20,6 +19,7 @@ resolvers = [
 
 global worker_state
 worker_state = {}  # shared by all workers
+
 
 def worker_init(envdir, resolvers, init_timeout):
     """
@@ -58,35 +58,31 @@ def worker_query_lmdb_wrapper(args):
     with lenv.begin(adb, write=True) as txn:
         txn.put(qid, blob)
 
-def read_queries_lmdb(lenv, qdb):
-    with lenv.begin(qdb) as txn:
-        cur = txn.cursor(qdb)
-        for qid, qwire in cur:
-            yield (qid, qwire)
 
-#selector.close()  # TODO
-
-# init LMDB
 def reader_init(envdir):
+    """Open LMDB environment and database in read-only mode."""
     config = dbhelper.env_open.copy()
     config.update({
         'path': envdir,
         'readonly': True
         })
     lenv = lmdb.Environment(**config)
-    qdb = lenv.open_db(key=b'queries', **dbhelper.db_open, create=False)
+    qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME,
+                       create=False,
+                       **dbhelper.db_open)
     return (lenv, qdb)
+
 
 def main():
     envdir = sys.argv[1]
     lenv, qdb = reader_init(envdir)
-    qstream = read_queries_lmdb(lenv, qdb)
+    qstream = dbhelper.key_value_stream(lenv, qdb)
 
     with pool.Pool(
             processes=64,
             initializer=worker_init,
             initargs=[envdir, resolvers, timeout]) as p:
-        for i in p.imap_unordered(worker_query_lmdb_wrapper, qstream, chunksize=100):
+        for _ in p.imap_unordered(worker_query_lmdb_wrapper, qstream, chunksize=100):
             pass
 
 if __name__ == "__main__":

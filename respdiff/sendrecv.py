@@ -24,7 +24,7 @@ def sock_init(resolvers):
         sock.setblocking(False)
         sockets.append((name, sock, destination))
         selector.register(sock, selectors.EVENT_READ, name)
-    #print(sockets)
+    # selector.close() ?  # TODO
     return selector, sockets
 
 def send_recv_parallel(what, selector, sockets, timeout):

@@ -15,7 +15,6 @@ import blacklist
 import dbhelper
 
 
-QUERIES_DB_NAME = b'queries'
 REPORT_CHUNKS = 10000
 
 
@@ -112,12 +111,12 @@ def main():
                         help='path where to create LMDB environment')
     args = parser.parse_args()
 
-    if dbhelper.db_exists(args.envpath, QUERIES_DB_NAME):
+    if dbhelper.db_exists(args.envpath, dbhelper.QUERIES_DB_NAME):
         logging.critical(
             'LMDB environment "%s" already contains DB %s! '
             'Overwritting it would invalidate data in the environment, '
             'terminating.',
-            args.envpath, QUERIES_DB_NAME)
+            args.envpath, dbhelper.QUERIES_DB_NAME)
         sys.exit(1)
 
     qstream = read_lines(sys.stdin)

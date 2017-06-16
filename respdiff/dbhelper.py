@@ -1,5 +1,9 @@
 import lmdb
 
+
+QUERIES_DB_NAME = b'queries'
+
+
 env_open = {
     'map_size': 1024**4,
     'max_readers': 64,
@@ -11,6 +15,7 @@ db_open = {
     'reverse_key': True
 }
 
+
 def key_stream(lenv, db):
     """
     yield all keys from given db
@@ -21,6 +26,16 @@ def key_stream(lenv, db):
             while cont:
                 yield cur.key()
                 cont = cur.next()
+
+
+def key_value_stream(lenv, db):
+    """
+    yield all (key, value) pairs from given db
+    """
+    with lenv.begin(db) as txn:
+        cur = txn.cursor(db)
+        for key, blob in cur:
+            yield (key, blob)
 
 
 def qid2key(qid):
