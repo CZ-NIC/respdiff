@@ -3,8 +3,10 @@
 import argparse
 import logging
 import multiprocessing.pool as pool
+import struct
 import sys
 
+import dns.exception
 import dns.message
 import dns.rdatatype
 import lmdb
@@ -14,6 +16,7 @@ import dbhelper
 
 
 QUERIES_DB_NAME = b'queries'
+REPORT_CHUNKS = 10000
 
 
 def read_lines(instream):
@@ -26,6 +29,8 @@ def read_lines(instream):
         if line:
             i += 1
             yield (i, line)
+            if i % REPORT_CHUNKS == 0:
+                logging.info('Read %d queries', i)
 
 
 def int_or_fromtext(value, fromtext):
@@ -85,13 +90,19 @@ def wrk_process_line(args):
     Skips over empty lines, raises for malformed inputs.
     """
     qid, line = args
-    msg = q_fromtext(line)
-    if not blacklist.obj_blacklisted(msg):
-        wrk_lmdb_write(qid, msg.to_wire())
+    try:
+        msg = q_fromtext(line)
+        if not blacklist.obj_blacklisted(msg):
+            wrk_lmdb_write(qid, msg.to_wire())
+        else:
+            logging.debug('Query "%s" blacklisted (skipping query ID %d)', line, qid)
+    except (ValueError, struct.error, dns.exception.DNSException) as ex:
+        logging.error('Invalid query "%s": %s (skipping query ID %d)', line, ex, qid)
+        return
 
 
 def main():
-    logging.basicConfig()
+    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
     parser = argparse.ArgumentParser(
         description='Convert text list of queries from standard input '
                     'and store wire format into LMDB "queries" DB. '
