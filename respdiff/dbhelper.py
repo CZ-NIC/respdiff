@@ -1,3 +1,5 @@
+import lmdb
+
 env_open = {
     'map_size': 1024**4,
     'max_readers': 64,
@@ -24,3 +26,18 @@ def key_stream(lenv, db):
 def qid2key(qid):
     """Encode query ID to database key"""
     return str(qid).encode('ascii')
+
+
+def db_exists(envdir, dbname):
+    """
+    Determine if named DB exists in environment specified by path.
+    """
+    config = env_open.copy()
+    config['path'] = envdir
+    config['readonly'] = True
+    try:
+        with lmdb.Environment(**config) as env:
+            db = env.open_db(key=dbname, **db_open, create=False)
+            return True
+    except (lmdb.NotFoundError, lmdb.Error):
+        return False

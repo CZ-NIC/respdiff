@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
 import multiprocessing.pool as pool
 import sys
 
@@ -7,6 +11,9 @@ import lmdb
 
 import blacklist
 import dbhelper
+
+
+QUERIES_DB_NAME = b'queries'
 
 
 def read_lines(instream):
@@ -84,8 +91,26 @@ def wrk_process_line(args):
 
 
 def main():
+    logging.basicConfig()
+    parser = argparse.ArgumentParser(
+        description='Convert text list of queries from standard input '
+                    'and store wire format into LMDB "queries" DB. '
+                    'Expected query format is: "<qname> <RR type>", '
+                    'one query per line.')
+    parser.add_argument('envpath', type=str,
+                        help='path where to create LMDB environment')
+    args = parser.parse_args()
+
+    if dbhelper.db_exists(args.envpath, QUERIES_DB_NAME):
+        logging.critical(
+            'LMDB environment "%s" already contains DB %s! '
+            'Overwritting it would invalidate data in the environment, '
+            'terminating.',
+            args.envpath, QUERIES_DB_NAME)
+        sys.exit(1)
+
     qstream = read_lines(sys.stdin)
-    with pool.Pool(initializer=wrk_lmdb_init, initargs=(sys.argv[1],)) as workers:
+    with pool.Pool(initializer=wrk_lmdb_init, initargs=(args.envpath,)) as workers:
         for _ in workers.imap_unordered(wrk_process_line, qstream, chunksize=1000):
             pass
 
