@@ -68,7 +68,8 @@ def main():
         processed += 1
 
         # it might be reproducible, restart everything
-        subprocess.check_call([sys.argv[2]])
+        if len(sys.argv) == 3:
+            subprocess.check_call([sys.argv[2]])
 
         wire_blobs = sendrecv.send_recv_parallel(qwire, selector, sockets, orchestrator.timeout)
         answers = msgdiff.decode_wire_dict(wire_blobs)
