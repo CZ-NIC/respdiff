@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+import argparse
 import multiprocessing.pool as pool
 import pickle
 import sys
@@ -5,17 +8,10 @@ import threading
 
 import lmdb
 
+import cfg
 import dbhelper
 import sendrecv
 
-timeout = 5
-resolvers = [
-        ('kresd', '127.0.0.1', 5353),
-        ('unbound', '127.0.0.1', 53535),
-        ('bind', '127.0.0.1', 53533)
-    ]
-
-# find query files
 
 global worker_state
 worker_state = {}  # shared by all workers
@@ -40,7 +36,7 @@ def worker_init(envdir, resolvers, init_timeout):
         'readonly': False
         })
     lenv = lmdb.Environment(**config)
-    adb = lenv.open_db(key=b'answers', create=True, **dbhelper.db_open)
+    adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=True, **dbhelper.db_open)
 
     worker_state[tid] = (lenv, adb, selector, sockets)
 
@@ -74,14 +70,42 @@ def reader_init(envdir):
 
 
 def main():
-    envdir = sys.argv[1]
-    lenv, qdb = reader_init(envdir)
+    parser = argparse.ArgumentParser(
+        description='read queries from LMDB, send them in parallel to servers '
+                    'listed in configuration file, and record answers into LMDB')
+    parser.add_argument('-c', '--config', type=cfg.read_cfg, default='respdiff.cfg', dest='cfg',
+                        help='config file (default: respdiff.cfg)')
+    parser.add_argument('envdir', type=str,
+                        help='LMDB environment to read queries from and to write answers to')
+    args = parser.parse_args()
+
+    resolvers = []
+    for resname in args.cfg['servers']['names']:
+        rescfg = args.cfg[resname]
+        resolvers.append((resname, rescfg['ip'], rescfg['port']))
+
+    if not dbhelper.db_exists(args.envdir, dbhelper.QUERIES_DB_NAME):
+        logging.critical(
+            'LMDB environment "%s does not contain DB %s! '
+            'Use qprep to prepare queries.',
+            args.envpath, dbhelper.ANSWERS_DB_NAME)
+        sys.exit(1)
+
+    if dbhelper.db_exists(args.envdir, dbhelper.ANSWERS_DB_NAME):
+        logging.critical(
+            'LMDB environment "%s" already contains DB %s! '
+            'Overwritting it would invalidate data in the environment, '
+            'terminating.',
+            args.envpath, dbhelper.ANSWERS_DB_NAME)
+        sys.exit(1)
+
+    lenv, qdb = reader_init(args.envdir)
     qstream = dbhelper.key_value_stream(lenv, qdb)
 
     with pool.Pool(
-            processes=64,
+            processes=args.cfg['sendrecv']['jobs'],
             initializer=worker_init,
-            initargs=[envdir, resolvers, timeout]) as p:
+            initargs=[args.envdir, resolvers, args.cfg['sendrecv']['timeout']]) as p:
         for _ in p.imap_unordered(worker_query_lmdb_wrapper, qstream, chunksize=100):
             pass
 

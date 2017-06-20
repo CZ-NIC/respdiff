@@ -1,6 +1,7 @@
 import lmdb
 
 
+ANSWERS_DB_NAME = b'answers'
 QUERIES_DB_NAME = b'queries'
 
 
