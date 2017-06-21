@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
 import itertools
 import multiprocessing
 import multiprocessing.pool as pool
@@ -9,6 +13,7 @@ import dns.message
 import dns.exception
 import lmdb
 
+import cfg
 import dbhelper
 
 
@@ -202,7 +207,8 @@ def compare(answers, criteria, target):
     return (others_agree, target_diffs)
 
 
-def worker_init(criteria_arg, target_arg):
+def worker_init(envdir_arg, criteria_arg, target_arg):
+    global envdir
     global criteria
     global target
 
@@ -211,7 +217,7 @@ def worker_init(criteria_arg, target_arg):
     global diffs_db
     config = dbhelper.env_open.copy()
     config.update({
-        'path': sys.argv[1],
+        'path': envdir_arg,
         'readonly': False,
         'create': False,
         'writemap': True,
@@ -223,6 +229,7 @@ def worker_init(criteria_arg, target_arg):
 
     criteria = criteria_arg
     target = target_arg
+    envdir = envdir_arg
 
 
 def compare_lmdb_wrapper(qid):
@@ -240,19 +247,31 @@ def compare_lmdb_wrapper(qid):
 
 
 def main():
-    target = 'kresd'
-    ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes', 'answerrrsigs']  #'authority', 'additional', 'edns']
-#ccriteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answer', 'authority', 'additional', 'edns', 'nsid']
+    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
+    parser = argparse.ArgumentParser(
+        description='compute diff from answers stored in LMDB and write diffs to LMDB')
+    parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
+                        help='config file (default: respdiff.cfg)')
+    parser.add_argument('envdir', type=str,
+                        help='LMDB environment to read answers from and to write diffs to')
+    args = parser.parse_args()
+    config = cfg.read_cfg(args.cfgpath)
 
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': sys.argv[1],
+    envconfig = dbhelper.env_open.copy()
+    envconfig.update({
+        'path': args.envdir,
         'readonly': False,
         'create': False
         })
-    lenv = lmdb.Environment(**config)
+    lenv = lmdb.Environment(**envconfig)
 
-    db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
+    try:
+        db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
+    except lmdb.NotFoundError:
+        logging.critical('LMDB does not contain DNS answers in DB %s, terminating.',
+                         dbhelper.ANSWERS_DB_NAME)
+        sys.exit(1)
+
     try:  # drop diffs DB if it exists, it can be re-generated at will
         diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
         with lenv.begin(write=True) as txn:
@@ -263,7 +282,7 @@ def main():
     qid_stream = dbhelper.key_stream(lenv, db)
     with pool.Pool(
             initializer=worker_init,
-            initargs=(ccriteria, target)
+            initargs=(args.envdir, config['diff']['criteria'], config['diff']['target'])
         ) as p:
         for i in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
             pass
