@@ -2,6 +2,7 @@ import lmdb
 
 
 ANSWERS_DB_NAME = b'answers'
+DIFFS_DB_NAME = b'diffs'
 QUERIES_DB_NAME = b'queries'
 
 

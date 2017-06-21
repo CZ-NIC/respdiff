@@ -1,7 +1,3 @@
-from IPython.core.debugger import Tracer
-
-import cProfile
-
 import itertools
 import multiprocessing
 import multiprocessing.pool as pool
@@ -49,9 +45,6 @@ def compare_rrs(expected, got):
             raise DataMismatch(expected, got)
     if len(expected) != len(got):
             raise DataMismatch(expected, got)
-        #raise Exception("expected %s records but got %s records "
-        #                "(a duplicate RR somewhere?)"
-        #                % (len(expected), len(got)))
     return True
 
 
@@ -96,11 +89,6 @@ def match_part(exp_msg, got_msg, code):
         return compare_val(exp_msg.question[0].name, got_msg.question[0].name)
     elif code == 'qcase':
         return compare_val(got_msg.question[0].name.labels, exp_msg.question[0].name.labels)
-    #elif code == 'subdomain':
-    #    if len(exp_msg.question) == 0:
-    #        return True
-    #    qname = dns.name.from_text(got_msg.question[0].name.to_text().lower())
-    #    return compare_sub(exp_msg.question[0].name, qname)
     elif code == 'flags':
         return compare_val(dns.flags.to_text(exp_msg.flags), dns.flags.to_text(got_msg.flags))
     elif code == 'rcode':
@@ -180,6 +168,7 @@ def diff_pair(answers, criteria, name1, name2):
     """
     yield from match(answers[name1], answers[name2], criteria)
 
+
 def transitive_equality(answers, criteria, resolvers):
     """
     Compare answers from all resolvers.
@@ -216,8 +205,6 @@ def compare(answers, criteria, target):
 def worker_init(criteria_arg, target_arg):
     global criteria
     global target
-    global prof
-    global i
 
     global lenv
     global answers_db
@@ -231,26 +218,18 @@ def worker_init(criteria_arg, target_arg):
         'sync': False
         })
     lenv = lmdb.Environment(**config)
-    answers_db = lenv.open_db(key=b'answers', create=False, **dbhelper.db_open)
-    diffs_db = lenv.open_db(key=b'diffs', create=True, **dbhelper.db_open)
-
-    i = 0
-    #prof = cProfile.Profile()
-    #prof.enable()
+    answers_db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
+    diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=True, **dbhelper.db_open)
 
     criteria = criteria_arg
     target = target_arg
-    #print('criteria: %s target: %s' % (criteria, target))
+
 
 def compare_lmdb_wrapper(qid):
     global lenv
     global diffs_db
     global criteria
     global target
-    #global result
-    global i
-    #global prof
-    #return compare(target, workdir, criteria)
     answers = read_answers_lmdb(lenv, answers_db, qid)
     others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
@@ -258,11 +237,6 @@ def compare_lmdb_wrapper(qid):
     blob = pickle.dumps((others_agree, target_diffs))
     with lenv.begin(diffs_db, write=True) as txn:
         txn.put(qid, blob)
-    #i += 1
-    #if i == 10000:
-    #    prof.disable()
-    #    prof.dump_stats('prof%s.prof' % multiprocessing.current_process().name)
-    #prof.runctx('global result; result = compare(target, workdir, criteria)', globals(), locals(), 'prof%s.prof' % multiprocessing.current_process().name)
 
 
 def main():
@@ -277,31 +251,22 @@ def main():
         'create': False
         })
     lenv = lmdb.Environment(**config)
-    db = lenv.open_db(key=b'answers', create=False, **dbhelper.db_open)
-    try:  # FIXME: drop database for now, debug only
-        diffs_db = lenv.open_db(key=b'diffs', create=False, **dbhelper.db_open)
+
+    db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
+    try:  # drop diffs DB if it exists, it can be re-generated at will
+        diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
         with lenv.begin(write=True) as txn:
             txn.drop(diffs_db)
     except lmdb.NotFoundError:
         pass
 
     qid_stream = dbhelper.key_stream(lenv, db)
-    #qid_stream = itertools.islice(find_answer_qids(lenv, db), 10000)
-
-    serial = False
-    if serial:
-        worker_init(ccriteria, target)
-        for i in map(compare_lmdb_wrapper, qid_stream):
+    with pool.Pool(
+            initializer=worker_init,
+            initargs=(ccriteria, target)
+        ) as p:
+        for i in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
             pass
-    else:
-
-        with pool.Pool(
-                #processes=10,
-                initializer=worker_init,
-                initargs=(ccriteria, target)
-            ) as p:
-            for i in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
-                pass
 
 if __name__ == '__main__':
     main()
