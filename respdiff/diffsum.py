@@ -1,11 +1,15 @@
+#!/usr/bin/env python3
+
+import argparse
 import collections
+import logging
 import pickle
-from pprint import pprint
 import sys
 
 import dns.rdatatype
 import lmdb
 
+import cfg
 import dbhelper
 from msgdiff import DataMismatch  # needed for unpickling
 
@@ -29,6 +33,7 @@ def process_diff(field_weights, field_stats, qwire, diff):
     mismatch_counter[question] += 1
 
 
+# FIXME: this code is ugly, refactor it
 def process_results(field_weights, diff_generator):
     """
     field_stats { field: value_stats { (exp, got): Counter(queries) } }
@@ -161,9 +166,13 @@ def open_db(envdir):
         'create': False
         })
     lenv = lmdb.Environment(**config)
-    qdb = lenv.open_db(key=b'queries', create=False, **dbhelper.db_open)
-    adb = lenv.open_db(key=b'answers', create=False, **dbhelper.db_open)
-    ddb = lenv.open_db(key=b'diffs', create=False, **dbhelper.db_open)
+    try:
+        qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME, create=False, **dbhelper.db_open)
+        adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
+        ddb = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
+    except lmdb.NotFoundError:
+        logging.critical('Unable to generate statistics. LMDB does not contain queries, answers, or diffs!')
+        raise
     return lenv, qdb, adb, ddb
 
 def read_diffs_lmdb(levn, qdb, ddb):
@@ -175,14 +184,24 @@ def read_diffs_lmdb(levn, qdb, ddb):
                 yield (qid, qwire, others_agree, diff)
 
 def main():
-    lenv, qdb, adb, ddb = open_db(sys.argv[1])
+    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
+    parser = argparse.ArgumentParser(
+        description='read queries from LMDB, send them in parallel to servers '
+                    'listed in configuration file, and record answers into LMDB')
+    parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
+                        help='config file (default: respdiff.cfg)')
+    parser.add_argument('envdir', type=str,
+                        help='LMDB environment to read queries and answers from')
+    args = parser.parse_args()
+    config = cfg.read_cfg(args.cfgpath)
+    field_weights = config['report']['field_weights']
+
+    lenv, qdb, adb, ddb = open_db(args.envdir)
     diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
-    field_weights = ['opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answertypes', 'answerrrsigs', 'answer', 'authority', 'additional', 'edns']
     global_stats, field_stats = process_results(field_weights, diff_stream)
     with lenv.begin() as txn:
         global_stats['queries'] = txn.stat(qdb)['entries']
         global_stats['answers'] = txn.stat(adb)['entries']
-    #pprint(field_stats)
     print_results(global_stats, field_weights, field_stats)
 
 if __name__ == '__main__':

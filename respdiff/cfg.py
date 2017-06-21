@@ -17,11 +17,13 @@ def ipaddr_check(addr):
     dns.inet.af_for_address(addr)  # raises ValueError if the address is bogus
     return addr
 
+
 def comma_list(lstr):
     """
     Split string 'a, b' into list [a, b]
     """
     return [name.strip() for name in lstr.split(',')]
+
 
 # declarative config format description for always-present sections
 # dict structure: dict[section name][key name] = type
@@ -36,7 +38,10 @@ _CFGFMT = {
     'diff': {
         'target': str,
         'criteria': comma_list,
-    }
+    },
+    'report': {
+        'field_weights': comma_list,
+    },
 }
 
 # declarative config format description for per-server section
