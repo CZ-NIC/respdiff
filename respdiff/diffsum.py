@@ -104,6 +104,8 @@ def print_results(gstats, field_weights, counters, n=10):
         gstats['target_disagrees'], maxcntlen,
         100.0*gstats['target_disagrees']/gstats['answers']))
 
+    if not field_sums.keys():
+        return
     print('')
     # print('== Field statistics: field - count - % of mismatches')
     maxnamelen = maxlen(field_sums.keys())
