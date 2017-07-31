@@ -18,10 +18,13 @@ This split allows us to repeat steps using the same data as necessary,
 e.g. run analysis with different parameters without re-querying the
 resolvers.
 
+All tools take a folder with LMDB environment as an argument.
+Also optional argument is a configuration file (example: see ``respdiff.cfg``).
+
 
 Qprep
 -----
-Tool ``qprep.py`` reads list of queries in text format ``<name> <RR type>``
+Tool ``qprep.py`` reads list of queries in text format ``<name> <RR type>`` from standard input
 and generates wire format for the queries. The wire format is stored in LMDB.
 
 Right now it hardcodes EDNS buffer size 4096 B and DO flag set.
