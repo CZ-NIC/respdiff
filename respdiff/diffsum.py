@@ -131,7 +131,7 @@ def print_results(gstats, field_weights, counters, n=10):
         maxcntlen = maxlen(field_mismatch_sums[field].values())
         print('{:{}}  !=  {:{}}    {:{}}    {}'.format(
             'Expected', maxvallen,
-            'Got', maxvallen - (len('count') - maxcntlen),
+            'Got', (maxvallen - (len('count') - maxcntlen)) if maxvallen - (len('count') - maxcntlen) > 1 else 1,
             'count', maxcntlen,
             '% of mismatches'
             ))
