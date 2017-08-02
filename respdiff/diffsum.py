@@ -111,14 +111,14 @@ def print_results(gstats, field_weights, counters, n=10):
     maxnamelen = maxlen(field_sums.keys())
     maxcntlen = maxlen(field_sums.values())
     print('== {:{}}    {:{}}    {}'.format(
-        'Field', maxnamelen - 3 - (len('count') - maxcntlen),
+        'Field', maxnamelen - (len('count') - maxcntlen),
         'count', maxcntlen,
         '% of mismatches'))
 
     for field, n in (field_sums.most_common()):
         print('{:{}}    {:{}}     {:3.0f} %'.format(
-            field, maxnamelen,
-            n, maxcntlen,
+            field, maxnamelen + 3,
+            n, maxcntlen + 3,
             100.0*n/target_disagrees))
 
     for field in field_weights:
