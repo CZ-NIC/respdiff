@@ -5,6 +5,7 @@ import multiprocessing.pool as pool
 import pickle
 import sys
 import threading
+import logging
 
 import lmdb
 
@@ -88,7 +89,7 @@ def main():
         logging.critical(
             'LMDB environment "%s does not contain DB %s! '
             'Use qprep to prepare queries.',
-            args.envpath, dbhelper.ANSWERS_DB_NAME)
+            args.envdir, dbhelper.ANSWERS_DB_NAME)
         sys.exit(1)
 
     if dbhelper.db_exists(args.envdir, dbhelper.ANSWERS_DB_NAME):
@@ -96,7 +97,7 @@ def main():
             'LMDB environment "%s" already contains DB %s! '
             'Overwritting it would invalidate data in the environment, '
             'terminating.',
-            args.envpath, dbhelper.ANSWERS_DB_NAME)
+            args.envdir, dbhelper.ANSWERS_DB_NAME)
         sys.exit(1)
 
     lenv, qdb = reader_init(args.envdir)
