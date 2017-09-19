@@ -193,16 +193,17 @@ def compare(answers, criteria, target):
         others.remove(target)
     except ValueError:
         return (False, None)  # HACK, target did not reply
-    if len(others) <= 1:
+    if len(others) == 0:
         return (False, None)  # HACK, not enough targets to compare
     random_other = others[0]
 
-    assert len(others) >= 2
-    # do others agree on the answer?
-    others_agree = transitive_equality(answers, criteria, others)
-    if not others_agree:
-        return (False, None)
-
+    if len(others) >= 2:
+        # do others agree on the answer?
+        others_agree = transitive_equality(answers, criteria, others)
+        if not others_agree:
+            return (False, None)
+    else:
+        others_agree = True
     target_diffs = dict(diff_pair(answers, criteria, random_other, target))
     return (others_agree, target_diffs)
 
