@@ -31,7 +31,7 @@ class DataMismatch(Exception):
                 and self.got_val == other.got_val)
 
     def __ne__(self, other):
-        return self.__eq__(other)
+        return not self.__eq__(other)
 
 def compare_val(exp_val, got_val):
     """ Compare values, throw exception if different. """
