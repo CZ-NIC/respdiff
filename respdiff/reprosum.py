@@ -19,7 +19,7 @@ def open_db(envdir):
         'path': envdir,
         'readonly': False,
         'create': False
-        })
+    })
     lenv = lmdb.Environment(**config)
     qdb = lenv.open_db(key=b'queries', create=False, **dbhelper.db_open)
     ddb = lenv.open_db(key=b'diffs', create=False, **dbhelper.db_open)
@@ -50,7 +50,6 @@ def read_repro_lmdb(levn, qdb, reprodb):
                 yield (qid, qwire, (count, others_agreed, diff_matched))
 
 
-
 def main():
     lenv, qdb, ddb, reprodb = open_db(sys.argv[1])
     repro_stream = read_repro_lmdb(lenv, qdb, reprodb)
@@ -62,6 +61,7 @@ def main():
         except:
             continue
         print(qmsg.question[0])
+
 
 if __name__ == '__main__':
     main()

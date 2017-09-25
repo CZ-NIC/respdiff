@@ -65,7 +65,7 @@ def wrk_lmdb_init(envdir):
         'path': envdir,
         'sync': False,    # unsafe but fast
         'writemap': True  # we do not care, this is a new database
-        })
+    })
     env = lmdb.Environment(**config)
     db = env.open_db(key=b'queries', **dbhelper.db_open)
 
@@ -123,6 +123,7 @@ def main():
     with pool.Pool(initializer=wrk_lmdb_init, initargs=(args.envpath,)) as workers:
         for _ in workers.imap_unordered(wrk_process_line, qstream, chunksize=1000):
             pass
+
 
 if __name__ == '__main__':
     main()

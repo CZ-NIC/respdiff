@@ -28,7 +28,7 @@ config = dbhelper.env_open.copy()
 config.update({
     'path': sys.argv[1],
     'readonly': True
-    })
+})
 lenv = lmdb.Environment(**config)
 db = lenv.open_db(key=b'answers', **dbhelper.db_open, create=False)
 

@@ -1,5 +1,6 @@
 import dns.rdatatype
 
+
 def obj_blacklisted(msg):
     """
     Detect blacklisted DNS message objects.
