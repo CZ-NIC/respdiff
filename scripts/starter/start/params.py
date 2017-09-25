@@ -4,8 +4,6 @@ Created on May 25, 2017
 @author: Jan Holusa
 '''
 
-from ConfigParser import NoOptionError
-import ConfigParser
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 import logging

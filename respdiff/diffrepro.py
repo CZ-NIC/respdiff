@@ -53,7 +53,7 @@ def main():
     criteria = [
         'opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes', 'answerrrsigs'
     ]  # FIXME
-    selector, sockets = sendrecv.sock_init(orchestrator.resolvers)
+    selector, sockets = sendrecv.sock_init(getattr(orchestrator, 'resolvers'))
     lenv, qdb, ddb, reprodb = open_db(sys.argv[1])
     diff_stream = diffsum.read_diffs_lmdb(lenv, qdb, ddb)
     processed = 0
