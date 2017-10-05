@@ -1,4 +1,4 @@
 configparser
 dnspython
-
+dpkt
 lmdb

@@ -7,7 +7,7 @@ do
   cd "${WORKING_DIR}"
   cd "`dirname "${FILE}"`"
   echo "${FILE}"
-  python3 -m pylint -E "`basename \"${FILE}\"`" 2>/dev/null || RET_CODE=1
+  python3 -m pylint -E "`basename \"${FILE}\"`" || RET_CODE=1
 done
 cd "${WORKING_DIR}"
 exit $RET_CODE
