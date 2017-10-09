@@ -18,7 +18,7 @@ def open_db(envdir):
         'path': envdir,
         'readonly': False,
         'create': False
-        })
+    })
     lenv = lmdb.Environment(**config)
     qdb = lenv.open_db(key=b'queries', create=False, **dbhelper.db_open)
     ddb = lenv.open_db(key=b'diffs', create=False, **dbhelper.db_open)
@@ -50,8 +50,10 @@ def save_stats(lenv, reprodb, qid, stats):
 
 
 def main():
-    criteria = ['opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes', 'answerrrsigs']  # FIXME
-    selector, sockets = sendrecv.sock_init(orchestrator.resolvers)
+    criteria = [
+        'opcode', 'rcode', 'flags', 'question', 'qname', 'qtype', 'answertypes', 'answerrrsigs'
+    ]  # FIXME
+    selector, sockets = sendrecv.sock_init(getattr(orchestrator, 'resolvers'))
     lenv, qdb, ddb, reprodb = open_db(sys.argv[1])
     diff_stream = diffsum.read_diffs_lmdb(lenv, qdb, ddb)
     processed = 0
@@ -88,8 +90,7 @@ def main():
     print('processed :', processed)
     print('verified  :', verified)
     print('falzified : {}    {:6.2f} %'.format(
-        processed-verified,
-        100.0*(processed-verified)/processed))
+        processed - verified, 100.0 * (processed - verified) / processed))
 
 
 if __name__ == '__main__':

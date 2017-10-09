@@ -5,6 +5,7 @@ import socket
 import dns.inet
 import dns.message
 
+
 def sock_init(resolvers):
     """
     resolvers: [(name, ipaddr, port)]
@@ -27,6 +28,7 @@ def sock_init(resolvers):
     # selector.close() ?  # TODO
     return selector, sockets
 
+
 def send_recv_parallel(what, selector, sockets, timeout):
     replies = {}
     for _, sock, destination in sockets:
@@ -39,7 +41,7 @@ def send_recv_parallel(what, selector, sockets, timeout):
             name = key.data
             sock = key.fileobj
             (wire, from_address) = sock.recvfrom(65535)
-            #assert len(wire) > 14
+            # assert len(wire) > 14
             if what[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
             replies[name] = wire

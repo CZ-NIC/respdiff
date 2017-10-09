@@ -33,6 +33,7 @@ class DataMismatch(Exception):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+
 def compare_val(exp_val, got_val):
     """ Compare values, throw exception if different. """
     if exp_val != got_val:
@@ -49,7 +50,7 @@ def compare_rrs(expected, got):
         if rr not in expected:
             raise DataMismatch(expected, got)
     if len(expected) != len(got):
-            raise DataMismatch(expected, got)
+        raise DataMismatch(expected, got)
     return True
 
 
@@ -79,6 +80,7 @@ def compare_rrs_types(exp_val, got_val, skip_rrsigs):
         exp_types = tuple(key_to_text(*i) for i in sorted(exp_types))
         got_types = tuple(key_to_text(*i) for i in sorted(got_types))
         raise DataMismatch(exp_types, got_types)
+
 
 def match_part(exp_msg, got_msg, code):
     """ Compare scripted reply to given message using single criteria. """
@@ -135,6 +137,7 @@ def match_part(exp_msg, got_msg, code):
     else:
         raise NotImplementedError('unknown match request "%s"' % code)
 
+
 def match(expected, got, match_fields):
     """ Compare scripted reply to given message based on match criteria. """
     for code in match_fields:
@@ -149,12 +152,12 @@ def decode_wire_dict(wire_dict):
     answers = {}
     for k, v in wire_dict.items():
         # decode bytes to dns.message objects
-        #if isinstance(v, bytes):
+        # if isinstance(v, bytes):
         # convert from wire format to DNS message object
         try:
             answers[k] = dns.message.from_wire(v)
         except Exception as ex:
-            #answers[k] = ex  # decoding failed, record it!
+            # answers[k] = ex  # decoding failed, record it!
             continue
     return answers
 
@@ -223,7 +226,7 @@ def worker_init(envdir_arg, criteria_arg, target_arg):
         'create': False,
         'writemap': True,
         'sync': False
-        })
+    })
     lenv = lmdb.Environment(**config)
     answers_db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
     diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=True, **dbhelper.db_open)
@@ -263,7 +266,7 @@ def main():
         'path': args.envdir,
         'readonly': False,
         'create': False
-        })
+    })
     lenv = lmdb.Environment(**envconfig)
 
     try:
@@ -282,11 +285,12 @@ def main():
 
     qid_stream = dbhelper.key_stream(lenv, db)
     with pool.Pool(
-            initializer=worker_init,
-            initargs=(args.envdir, config['diff']['criteria'], config['diff']['target'])
-        ) as p:
+        initializer=worker_init,
+        initargs=(args.envdir, config['diff']['criteria'], config['diff']['target'])
+    ) as p:
         for i in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
             pass
+
 
 if __name__ == '__main__':
     main()

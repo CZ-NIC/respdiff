@@ -7,7 +7,7 @@ Created on May 25, 2017
 import sys
 import handler
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
     my_handler = handler.Handler()
     my_handler.start()
-    sys.exit(0) 
+    sys.exit(0)

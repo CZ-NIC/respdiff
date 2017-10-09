@@ -9,7 +9,7 @@ for i in range(0, 256):
         trans[i] = bytes(chr(i), encoding='ascii')
     else:
         trans[i] = ('\%03i' % i).encode('ascii')
-#pprint(trans)
+# pprint(trans)
 
 while True:
     line = sys.stdin.buffer.readline()
@@ -26,7 +26,7 @@ while True:
 
     # normalize name
     normalized = b''
-    for nb in line[:typestart-1]:
+    for nb in line[:typestart - 1]:
         normalized += trans[nb]
     sys.stdout.buffer.write(normalized)
     sys.stdout.buffer.write(b' ')

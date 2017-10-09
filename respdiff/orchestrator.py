@@ -35,7 +35,7 @@ def worker_init(envdir, resolvers, init_timeout):
         'sync': False,
         'map_async': True,
         'readonly': False
-        })
+    })
     lenv = lmdb.Environment(**config)
     adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=True, **dbhelper.db_open)
 
@@ -62,7 +62,7 @@ def reader_init(envdir):
     config.update({
         'path': envdir,
         'readonly': True
-        })
+    })
     lenv = lmdb.Environment(**config)
     qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME,
                        create=False,
@@ -109,6 +109,7 @@ def main():
             initargs=[args.envdir, resolvers, args.cfg['sendrecv']['timeout']]) as p:
         for _ in p.imap_unordered(worker_query_lmdb_wrapper, qstream, chunksize=100):
             pass
+
 
 if __name__ == "__main__":
     main()
