@@ -1,17 +1,15 @@
-image: cznic/ubuntu:16.04
+image: cznic/ci-debian-kresd
 
 variables:
   LC_ALL: C.UTF-8
 
 stages:
+  - build
   - test
 
 test:pep8:
   stage: test
   script:
-    - apt-get update -qq
-    - apt-get install python3 python3-dev python3-pip python3-pep8 -y -qq
-    - pip3 install -r requirements.txt -q
     - python3 -m pep8 --ignore=W503 --show-source --max-line-length=100 . && echo "OK, no PEP8 errors detected"
   tags:
     - docker
@@ -21,10 +19,7 @@ test:pep8:
 test:pylint:
   stage: test
   script:
-    - apt-get update -qq
-    - apt-get install python3 python3-dev python3-pip -y -qq
-    - pip3 install pylint -q
-    - pip3 install -r requirements.txt -q
+    - pip3 install -r requirements.txt
     - ./ci/pylint-run.sh
   tags:
     - docker
