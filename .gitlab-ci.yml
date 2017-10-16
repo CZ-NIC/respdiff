@@ -4,11 +4,9 @@ variables:
   LC_ALL: C.UTF-8
 
 stages:
-  - build
   - test
 
 test:pep8:
-  stage: test
   script:
     - python3 -m pep8 --ignore=W503 --show-source --max-line-length=100 . && echo "OK, no PEP8 errors detected"
   tags:
@@ -21,6 +19,17 @@ test:pylint:
   script:
     - pip3 install -r requirements.txt
     - ./ci/pylint-run.sh
+  tags:
+    - docker
+    - linux
+    - amd64
+
+test:respdiff:
+  stage: test
+  script:
+    - ./ci/install_kresd.sh
+    - pip3 install -r requirements.txt
+    - ./ci/respdiff/respdiff.sh
   tags:
     - docker
     - linux
