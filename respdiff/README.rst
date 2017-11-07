@@ -24,11 +24,19 @@ Also optional argument is a configuration file (example: see ``respdiff.cfg``).
 
 Qprep
 -----
-Tool ``qprep.py`` reads list of queries in text format ``<name> <RR type>`` from standard input
-and generates wire format for the queries. The wire format is stored in LMDB.
+Tool ``qprep.py`` reads list of queries and stores wire format in a new LMDB
+environment specified on command line.
+Two input formats are accepted: text and PCAP.
 
-Right now it hardcodes EDNS buffer size 4096 B and DO flag set.
-Future versions might allow some query customization.
+Text format is list of queries in form ``<name> <RR type>`` and is read
+from standard input, one query on one input line.
+When generating wire format from text, the tool hardcodes EDNS buffer size
+4096 B and DO flag set. Future versions might allow some query customization.
+
+Second accepted format is PCAP file. The tool copies wire format from Ethernet
+frames containing IP v4/v6 packets with UDP/TCP transport layer on port 53
+if QR bit in DNS header is not set. Packets on port 53 which cannot be parsed
+as DNS packets are copied verbatim into the database.
 
 
 Orchestrator
