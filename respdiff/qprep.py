@@ -143,7 +143,7 @@ def main():
                     'wire format into LMDB "queries" DB.')
 
     parser.add_argument('envpath', type=str, help='path where to create LMDB environment')
-    parser.add_argument('-f', '--informat', type=str, choices=['text', 'pcap'], default='text',
+    parser.add_argument('-f', '--in-format', type=str, choices=['text', 'pcap'], default='text',
                         help='define format for input data, default value is text\n'
                              'Expected input for "text" is: "<qname> <RR type>", '
                              'one query per line.\n'
