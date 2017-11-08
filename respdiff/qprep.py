@@ -151,10 +151,10 @@ def main():
     parser.add_argument('--pcap-file', type=argparse.FileType('rb'))
     args = parser.parse_args()
 
-    if args.informat == 'text' and args.pcap_file:
+    if args.in_format == 'text' and args.pcap_file:
         logging.critical("Argument --pcap-file can be use only in combination with -f pcap")
         sys.exit(1)
-    if args.informat == 'pcap' and not args.pcap_file:
+    if args.in_format == 'pcap' and not args.pcap_file:
         logging.critical("Missing path to pcap file, use argument --pcap-file")
         sys.exit(1)
     if dbhelper.db_exists(args.envpath, dbhelper.QUERIES_DB_NAME):
@@ -165,14 +165,14 @@ def main():
             args.envpath, dbhelper.QUERIES_DB_NAME)
         sys.exit(1)
     with pool.Pool(initializer=wrk_lmdb_init, initargs=(args.envpath,)) as workers:
-        if args.informat == 'text':
+        if args.in_format == 'text':
             data_stream = read_lines(sys.stdin)
             method = wrk_process_line
-        elif args.informat == 'pcap':
+        elif args.in_format == 'pcap':
             data_stream = parse_pcap(args.pcap_file)
             method = wrk_process_packet
         else:
-            logging.error('unknown informat, use "text" or "pcap"')
+            logging.error('unknown in-format, use "text" or "pcap"')
             sys.exit(1)
         for _ in workers.imap_unordered(method, data_stream, chunksize=1000):
             pass
