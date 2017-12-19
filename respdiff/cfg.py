@@ -25,6 +25,12 @@ def comma_list(lstr):
     return [name.strip() for name in lstr.split(',')]
 
 
+def transport_opt(ostr):
+    if ostr not in {'udp', 'tcp', 'tls'}:
+        raise ValueError('unsupported transport')
+    return ostr
+
+
 # declarative config format description for always-present sections
 # dict structure: dict[section name][key name] = type
 _CFGFMT = {
@@ -48,7 +54,8 @@ _CFGFMT = {
 # dict structure: dict[key name] = type
 _CFGFMT_SERVER = {
     'ip': ipaddr_check,
-    'port': int
+    'port': int,
+    'transport': transport_opt
 }
 
 

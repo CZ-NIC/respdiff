@@ -18,28 +18,45 @@ global worker_state
 worker_state = {}  # shared by all workers
 
 
-def worker_init(envdir, resolvers, init_timeout):
+def worker_init(init_resolvers, init_timeout):
     """
     make sure it works with distincts processes and threads as well
     """
     global worker_state  # initialized to empty dict
+    global resolvers
     global timeout
+    resolvers = init_resolvers
     timeout = init_timeout
+
     tid = threading.current_thread().ident
     selector, sockets = sendrecv.sock_init(resolvers)
     worker_state[tid] = (selector, sockets)
+
+
+def worker_deinit(selector, sockets):
+    """
+    Close all sockets and selector.
+    """
+    selector.close()
+    for _, sck, _ in sockets:
+        sck.close()
 
 
 def worker_query_lmdb_wrapper(args):
     global worker_state  # initialized in worker_init
     global timeout
     qid, qwire = args
+
     tid = threading.current_thread().ident
     selector, sockets = worker_state[tid]
 
-    replies = sendrecv.send_recv_parallel(qwire, selector, sockets, timeout)
-    blob = pickle.dumps(replies)
+    replies, reinit = sendrecv.send_recv_parallel(qwire, selector, sockets, timeout)
+    if reinit:  # a connection is broken or something
+        # TODO: log this?
+        worker_deinit(selector, sockets)
+        worker_init(resolvers, timeout)
 
+    blob = pickle.dumps(replies)
     return (qid, blob)
 
 
@@ -74,7 +91,7 @@ def main():
     resolvers = []
     for resname in args.cfg['servers']['names']:
         rescfg = args.cfg[resname]
-        resolvers.append((resname, rescfg['ip'], rescfg['port']))
+        resolvers.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
 
     if not dbhelper.db_exists(args.envdir, dbhelper.QUERIES_DB_NAME):
         logging.critical(
@@ -98,7 +115,7 @@ def main():
         with pool.Pool(
                 processes=args.cfg['sendrecv']['jobs'],
                 initializer=worker_init,
-                initargs=[args.envdir, resolvers, args.cfg['sendrecv']['timeout']]) as p:
+                initargs=[resolvers, args.cfg['sendrecv']['timeout']]) as p:
             for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream, chunksize=100):
                 txn.put(qid, blob)
 

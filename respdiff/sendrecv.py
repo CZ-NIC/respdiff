@@ -1,6 +1,8 @@
 import os
 import selectors
 import socket
+import ssl
+import struct
 
 import dns.inet
 import dns.message
@@ -8,12 +10,12 @@ import dns.message
 
 def sock_init(resolvers):
     """
-    resolvers: [(name, ipaddr, port)]
-    returns (selector, [(name, socket, sendtoarg)])
+    resolvers: [(name, ipaddr, transport, port)]
+    returns (selector, [(name, socket, isstream)])
     """
     sockets = []
     selector = selectors.DefaultSelector()
-    for name, ipaddr, port in resolvers:
+    for name, ipaddr, transport, port in resolvers:
         af = dns.inet.af_for_address(ipaddr)
         if af == dns.inet.AF_INET:
             destination = (ipaddr, port)
@@ -21,31 +23,76 @@ def sock_init(resolvers):
             destination = (ipaddr, port, 0, 0)
         else:
             raise NotImplementedError('AF')
-        sock = socket.socket(af, socket.SOCK_DGRAM, 0)
+
+        if transport in {'tcp', 'tls'}:
+            socktype = socket.SOCK_STREAM
+            isstream = True
+        elif transport == 'udp':
+            socktype = socket.SOCK_DGRAM
+            isstream = False
+        else:
+            raise NotImplementedError('socktype: {}'.format(socktype))
+        sock = socket.socket(af, socktype, 0)
+        if transport == 'tls':
+            sock = ssl.wrap_socket(sock)
+        sock.connect(destination)
         sock.setblocking(False)
-        sockets.append((name, sock, destination))
-        selector.register(sock, selectors.EVENT_READ, name)
+
+        sockets.append((name, sock, isstream))
+        selector.register(sock, selectors.EVENT_READ, (name, isstream))
     # selector.close() ?  # TODO
     return selector, sockets
 
 
-def send_recv_parallel(what, selector, sockets, timeout):
+def _recv_msg(sock, isstream):
+    """
+    receive DNS message from socket
+    issteam: Is message preceeded by RFC 1034 section 4.2.2 length?
+    returns: wire format without preambule or ConnectionError
+    """
+    if isstream:  # parse preambule
+        blength = sock.recv(2)  # TODO: does not work with TLS: , socket.MSG_WAITALL)
+        if len(blength) == 0:  # stream closed
+            raise ConnectionError('TCP recv length == 0')
+        (length, ) = struct.unpack('!H', blength)
+    else:
+        length = 65535  # max. UDP message size, no IPv6 jumbograms
+    return sock.recv(length)
+
+
+def send_recv_parallel(dgram, selector, sockets, timeout):
+    """
+    dgram: DNS message in binary format suitable for UDP transport
+    """
     replies = {}
-    for _, sock, destination in sockets:
-        sock.sendto(what, destination)
+    streammsg = None
+    for _, sock, isstream in sockets:
+        if isstream:  # prepend length, RFC 1034 section 4.2.2
+            if not streammsg:
+                length = len(dgram)
+                streammsg = struct.pack('!H', length) + dgram
+            sock.sendall(streammsg)
+        else:
+            sock.sendall(dgram)
 
     # receive replies
+    reinit = False
     while len(replies) != len(sockets):
         events = selector.select(timeout=timeout)  # BLEH! timeout shortening
         for key, _ in events:
-            name = key.data
+            name, isstream = key.data
             sock = key.fileobj
-            (wire, from_address) = sock.recvfrom(65535)
+            try:
+                wire = _recv_msg(sock, isstream)
+            except ConnectionError:
+                reinit = True
+                selector.unregister(sock)
+                continue  # receive answers from other parties
             # assert len(wire) > 14
-            if what[0:2] != wire[0:2]:
+            if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
             replies[name] = wire
         if not events:
             break  # TIMEOUT
 
-    return replies
+    return replies, reinit
