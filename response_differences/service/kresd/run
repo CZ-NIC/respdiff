@@ -1,3 +1,0 @@
-#!/bin/bash
-exec 2>&1
-exec /builds/knot/resolver/.local/sbin/kresd -k /usr/share/dns/root.key -f 1 -v --config kresd.conf .
