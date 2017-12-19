@@ -27,9 +27,8 @@ test:pylint:
 test:respdiff:
   stage: test
   script:
-    - ./ci/install_kresd.sh
     - pip3 install -r requirements.txt
-    - ./ci/respdiff/respdiff.sh
+    - ./ci/respdiff-run.sh
   tags:
     - docker
     - linux
