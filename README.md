@@ -1,18 +1,6 @@
 # Overview
-This set of benchmarks is used for measuring 
-[knot-resolver](https://www.knot-resolver.cz/). Informations about different benchmarks
-can be found in particular folders.
+This set of benchmarks for DNS resolvers. We develop them for [Knot Resolver](https://www.knot-resolver.cz/) but they will work with any DNS server.
 
 ## Benchmarks
-* [Cache usage benchmark](https://gitlab.labs.nic.cz/knot/resolver-benchmarking/tree/master/cache_usage_benchmark) - Comparison of resolving speed depending on the cache usage.
-* [Response differences](https://gitlab.labs.nic.cz/knot/resolver-benchmarking/tree/master/response_differences) - Comparison of different responses between Knot-resolver, Bind
-
-## Other
-* [Scripts](https://gitlab.labs.nic.cz/knot/resolver-benchmarking/tree/master/scripts) - Folder with some other usefull scripts. More information in the folder.
-and Unbound.
-
-# Results
-Results will be available at Knot-resolver [web](https://www.knot-resolver.cz).
-
-# HowTos
-Examples how to run benchmarks are available at Knot-resolver [wiki](https://gitlab.labs.nic.cz/knot/resolver/wikis/home).
+* [Response differences](https://gitlab.labs.nic.cz/knot/resolver-benchmarking/tree/master/response_differences/respdiff) aka "respdiff" - Tool to compare answers from different resolvers.
+* [Cache usage benchmark](https://gitlab.labs.nic.cz/knot/resolver-benchmarking/tree/master/cache_usage_benchmark) - Benchmark to quantify resolution speed depending on the cache usage. Please note that cache usage benchmark is unmaintained at the moment!

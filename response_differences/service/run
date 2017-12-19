@@ -1,4 +1,0 @@
-#!/bin/sh
-nohup runsvdir "${1}" "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" &
-sleep "${2}"
-exit 0

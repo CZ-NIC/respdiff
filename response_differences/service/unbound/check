@@ -1,3 +1,0 @@
-#!/bin/sh
-exec 2>&1
-exec dig +retry=0 +time=5 IN DNSKEY . -p 50001 @127.0.0.1
