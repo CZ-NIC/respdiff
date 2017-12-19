@@ -26,7 +26,7 @@ def comma_list(lstr):
 
 
 def transport_opt(ostr):
-    if ostr not in {'udp', 'tcp'}:
+    if ostr not in {'udp', 'tcp', 'tls'}:
         raise ValueError('unsupported transport')
     return ostr
 

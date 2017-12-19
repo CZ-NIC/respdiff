@@ -1,6 +1,7 @@
 import os
 import selectors
 import socket
+import ssl
 import struct
 
 import dns.inet
@@ -23,7 +24,7 @@ def sock_init(resolvers):
         else:
             raise NotImplementedError('AF')
 
-        if transport == 'tcp':
+        if transport in {'tcp', 'tls'}:
             socktype = socket.SOCK_STREAM
             isstream = True
         elif transport == 'udp':
@@ -32,6 +33,8 @@ def sock_init(resolvers):
         else:
             raise NotImplementedError('socktype: {}'.format(socktype))
         sock = socket.socket(af, socktype, 0)
+        if transport == 'tls':
+            sock = ssl.wrap_socket(sock)
         sock.connect(destination)
         sock.setblocking(False)
 
@@ -48,7 +51,7 @@ def _recv_msg(sock, isstream):
     returns: wire format without preambule or ConnectionError
     """
     if isstream:  # parse preambule
-        blength = sock.recv(2, socket.MSG_WAITALL)
+        blength = sock.recv(2)  # TODO: does not work with TLS: , socket.MSG_WAITALL)
         if len(blength) == 0:  # stream closed
             raise ConnectionError('TCP recv length == 0')
         (length, ) = struct.unpack('!H', blength)
