@@ -5,6 +5,7 @@ Respdiff second generation
 Respdiff is an abbreviation from "response differences" used as name for set of tools
 allowing to gather answers to DNS queries from DNS servers and compare them based on specified criteria.
 
+
 Overview
 --------
 Respdiff v2 is conceptually chain of independent tools:
@@ -81,13 +82,27 @@ Usage
 -----
 Please note that this is very basic use-case where nothing is prepared beforehand.
 
-::
+First, run ``qprep.py`` to prepare the queries.
 
-  $ ./qprep.py "${DIR}" < list_of_queries_in_text_format
-  $ ./orchestrator.py "${DIR}"  # send queries and gather answers
-  $ ./msgdiff.py "${DIR}"       # compute diffs
-  $ ./diffsum.py "${DIR}" > "${DIR}"/"${DIR}".txt  # generate text report
+.. code-block:: console
 
-It is possible to re-use results of ``qprep``,
-just copy the directory somewhere and run ``orchestrator`` again.
-Also, you can re-run ``msgdiff`` and ``diffsum`` using different configuration.
+   $ ./qprep.py "${DIR}" < list_of_queries_in_text_format
+
+These results can be re-used by copying the directory somewhere and executing
+``orchestrator.py`` again.
+
+Next, configure ``servers`` in ``respdiff.cfg`` and run ``orchestrator.py`` to
+send and gather queries.
+
+.. code-block:: console
+
+  $ ./orchestrator.py "${DIR}"
+
+Compute differences in responses and generate a text report from them.
+
+.. code-block:: console
+
+  $ ./msgdiff.py "${DIR}"
+  $ ./diffsum.py "${DIR}" > "${DIR}"/"${DIR}".txt
+
+You can also re-run ``msgdiff.py`` and ``diffsum.py`` using different configuration.
