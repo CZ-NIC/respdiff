@@ -1,12 +1,13 @@
 from typing import Dict, Any, Tuple, Generator  # NOQA: needed for type hint in comment
 import os
+import struct
 
 import lmdb
 
 
 def qid2key(qid):
     """Encode query ID to database key"""
-    return str(qid).encode('ascii')
+    return struct.pack('@I', qid)  # native integer
 
 
 class LMDB:
@@ -24,7 +25,10 @@ class LMDB:
     }  # type: Dict[str, Any]
 
     DB_OPEN_DEFAULTS = {
-        'reverse_key': True
+        'integerkey': False,
+        # surprisingly, optimal configuration seems to be
+        # native integer as database key *without*
+        # integerkey support in LMDB
     }  # type: Dict[str, Any]
 
     def __init__(self, path: str, create: bool = False,
