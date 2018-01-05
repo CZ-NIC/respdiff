@@ -101,7 +101,7 @@ def wire_from_text(text):
     Raises: ValueError or dns.exception.Exception on invalid input
     """
     qname, qtype = text.rsplit(None, 1)
-    qname = dns.name.from_text(qname)
+    qname = dns.name.from_text(qname.encode('ascii'))
     qtype = int_or_fromtext(qtype, dns.rdatatype.from_text)
     msg = dns.message.make_query(qname, qtype, dns.rdataclass.IN,
                                  want_dnssec=True, payload=4096)
