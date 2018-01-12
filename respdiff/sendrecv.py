@@ -31,7 +31,7 @@ def sock_init(resolvers):
             socktype = socket.SOCK_DGRAM
             isstream = False
         else:
-            raise NotImplementedError('socktype: {}'.format(socktype))
+            raise NotImplementedError('transport: {}'.format(transport))
         sock = socket.socket(af, socktype, 0)
         if transport == 'tls':
             sock = ssl.wrap_socket(sock)
@@ -47,7 +47,7 @@ def sock_init(resolvers):
 def _recv_msg(sock, isstream):
     """
     receive DNS message from socket
-    issteam: Is message preceeded by RFC 1034 section 4.2.2 length?
+    issteam: Is message preceeded by RFC 1035 section 4.2.2 length?
     returns: wire format without preambule or ConnectionError
     """
     if isstream:  # parse preambule
@@ -67,7 +67,7 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
     replies = {}
     streammsg = None
     for _, sock, isstream in sockets:
-        if isstream:  # prepend length, RFC 1034 section 4.2.2
+        if isstream:  # prepend length, RFC 1035 section 4.2.2
             if not streammsg:
                 length = len(dgram)
                 streammsg = struct.pack('!H', length) + dgram
