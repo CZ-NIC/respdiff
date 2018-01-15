@@ -2,3 +2,5 @@ configparser
 dnspython
 dpkt
 lmdb
+matplotlib
+numpy
