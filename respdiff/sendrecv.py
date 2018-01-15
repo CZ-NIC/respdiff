@@ -7,6 +7,8 @@ import struct
 import dns.inet
 import dns.message
 
+import dataformat
+
 
 def sock_init(resolvers):
     """
@@ -91,7 +93,7 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
             # assert len(wire) > 14
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
-            replies[name] = wire
+            replies[name] = dataformat.Reply(wire, None)
         if not events:
             break  # TIMEOUT
 

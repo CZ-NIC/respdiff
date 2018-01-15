@@ -6,6 +6,7 @@ import lmdb
 ANSWERS_DB_NAME = b'answers'
 DIFFS_DB_NAME = b'diffs'
 QUERIES_DB_NAME = b'queries'
+STATS_DB_NAME = b'stats'
 
 
 env_open = {
