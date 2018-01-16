@@ -4,18 +4,16 @@ import argparse
 import collections
 import logging
 import pickle
-import sys
 
 import dns.rdatatype
 import lmdb
 
 import cfg
 import dbhelper
-from msgdiff import DataMismatch  # needed for unpickling
+from msgdiff import DataMismatch  # NOQA: needed for unpickling
 
 
 def process_diff(field_weights, field_stats, qwire, diff):
-    found = False
     for field in field_weights:
         if field in diff:
             significant_field = field

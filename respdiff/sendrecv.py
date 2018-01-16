@@ -1,4 +1,3 @@
-import os
 import selectors
 import socket
 import ssl

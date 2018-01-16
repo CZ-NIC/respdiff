@@ -2,10 +2,7 @@
 
 import argparse
 import logging
-import itertools
-import multiprocessing
 import multiprocessing.pool as pool
-import os
 import pickle
 import sys
 
@@ -143,7 +140,7 @@ def match(expected, got, match_fields):
     """ Compare scripted reply to given message based on match criteria. """
     for code in match_fields:
         try:
-            res = match_part(expected, got, code)
+            match_part(expected, got, code)
         except DataMismatch as ex:
             yield (code, ex)
 
