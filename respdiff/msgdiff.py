@@ -5,6 +5,7 @@ import logging
 import multiprocessing.pool as pool
 import pickle
 import sys
+from typing import Dict
 
 import dns.message
 import dns.exception
@@ -145,12 +146,11 @@ def match(expected, got, match_fields):
             yield (code, ex)
 
 
-def decode_wire_dict(wire_dict):
-    assert isinstance(wire_dict, dict)
+def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
+        -> Dict[str, dns.message.Message]:
     answers = {}
     for k, v in wire_dict.items():
         # decode bytes to dns.message objects
-        # if isinstance(v.wire, bytes):
         # convert from wire format to DNS message object
         try:
             answers[k] = dns.message.from_wire(v.wire)
