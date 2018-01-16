@@ -3,11 +3,16 @@ import selectors
 import socket
 import ssl
 import struct
+import time
+from typing import Dict
 
 import dns.inet
 import dns.message
 
 import dataformat
+
+
+TIMEOUT_REPLIES = {}  # type: Dict[int, dataformat.Reply]
 
 
 def sock_init(resolvers):
@@ -68,6 +73,9 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
     """
     replies = {}
     streammsg = None
+    # optimization: create only one timeout_reply object per timeout value
+    timeout_reply = TIMEOUT_REPLIES.setdefault(timeout, dataformat.Reply(None, timeout))
+    start_time = time.perf_counter()
     for _, sock, isstream in sockets:
         if isstream:  # prepend length, RFC 1035 section 4.2.2
             if not streammsg:
@@ -93,8 +101,13 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
             # assert len(wire) > 14
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
-            replies[name] = dataformat.Reply(wire, None)
+            replies[name] = dataformat.Reply(wire, time.perf_counter() - start_time)
         if not events:
             break  # TIMEOUT
+
+    # set missing replies as timeout
+    for resolver, *_ in sockets:
+        if resolver not in replies:
+            replies[resolver] = timeout_reply
 
     return replies, reinit

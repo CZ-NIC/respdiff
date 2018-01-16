@@ -153,10 +153,10 @@ def decode_wire_dict(wire_dict):
     answers = {}
     for k, v in wire_dict.items():
         # decode bytes to dns.message objects
-        # if isinstance(v, bytes):
+        # if isinstance(v.wire, bytes):
         # convert from wire format to DNS message object
         try:
-            answers[k] = dns.message.from_wire(v)
+            answers[k] = dns.message.from_wire(v.wire)
         except Exception as ex:
             # answers[k] = ex  # decoding failed, record it!
             continue
