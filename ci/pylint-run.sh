@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-WORKING_DIR="$(pwd)"
-RET_CODE=0
-IFS=$'\n'
-for FILE in $(find . -name '*.py' | sort | grep -v '\./cache_usage_benchmark')
-do
-  cd "${WORKING_DIR}"
-  cd "`dirname "${FILE}"`"
-  echo "${FILE}"
-  python3 -m pylint -E "`basename \"${FILE}\"`" || RET_CODE=1
-done
-cd "${WORKING_DIR}"
-exit $RET_CODE
+set -e
+
+# Find Python modules and standalone Python scripts, skip directory
+# cache_usage_benchmark
+FILES=$(find . \
+	-type d -exec test -e '{}/__init__.py' \; -print -prune -o \
+	-path './cache_usage_benchmark' -prune -o \
+	-name '*.py' -print)
+
+python3 -m pylint --rcfile pylintrc ${FILES}
