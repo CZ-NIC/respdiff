@@ -5,6 +5,7 @@ import logging
 import multiprocessing.pool as pool
 import struct
 import sys
+from typing import Tuple
 
 import dpkt
 
@@ -44,7 +45,7 @@ def parse_pcap(pcap_file):
         yield (i, wire, '')
 
 
-def wrk_process_line(args: (int, str, str)):
+def wrk_process_line(args: Tuple[int, str, str]) -> Tuple[bytes, bytes]:
     """
     Worker: parse input line, creates a packet in binary format
 
@@ -60,7 +61,7 @@ def wrk_process_line(args: (int, str, str)):
     wrk_process_wire_packet(qid, wire, line)
 
 
-def wrk_process_packet(args: (int, bytes, str)):
+def wrk_process_packet(args: Tuple[int, bytes, str]):
     """
     Worker: convert packet from pcap to binary data
     """
