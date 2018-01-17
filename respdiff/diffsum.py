@@ -4,18 +4,16 @@ import argparse
 import collections
 import logging
 import pickle
-import sys
 
 import dns.rdatatype
 import lmdb
 
 import cfg
 import dbhelper
-from msgdiff import DataMismatch  # needed for unpickling
+from msgdiff import DataMismatch  # NOQA: needed for unpickling
 
 
 def process_diff(field_weights, field_stats, qwire, diff):
-    found = False
     for field in field_weights:
         if field in diff:
             significant_field = field
@@ -95,6 +93,7 @@ def print_results(gstats, field_weights, counters, n=10):
 
     maxcntlen = maxlen(gstats.values())
     print('== Global statistics')
+    print('duration           {:{}} s'.format(gstats['duration'], maxcntlen))
     print('queries            {:{}}'.format(gstats['queries'], maxcntlen))
     print('answers            {:{}}    {:6.2f} % of queries'.format(
         gstats['answers'], maxcntlen, float(100) * gstats['answers'] / gstats['queries']))
@@ -179,11 +178,12 @@ def open_db(envdir):
         qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME, create=False, **dbhelper.db_open)
         adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
         ddb = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
+        sdb = lenv.open_db(key=dbhelper.STATS_DB_NAME, create=False, **dbhelper.db_open)
     except lmdb.NotFoundError:
         logging.critical(
             'Unable to generate statistics. LMDB does not contain queries, answers, or diffs!')
         raise
-    return lenv, qdb, adb, ddb
+    return lenv, qdb, adb, ddb, sdb
 
 
 def read_diffs_lmdb(levn, qdb, ddb):
@@ -208,12 +208,15 @@ def main():
     config = cfg.read_cfg(args.cfgpath)
     field_weights = config['report']['field_weights']
 
-    lenv, qdb, adb, ddb = open_db(args.envdir)
+    lenv, qdb, adb, ddb, sdb = open_db(args.envdir)
     diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
     global_stats, field_stats = process_results(field_weights, diff_stream)
     with lenv.begin() as txn:
         global_stats['queries'] = txn.stat(qdb)['entries']
         global_stats['answers'] = txn.stat(adb)['entries']
+    with lenv.begin(sdb) as txn:
+        stats = pickle.loads(txn.get(b'global_stats'))
+    global_stats['duration'] = round(stats['end_time'] - stats['start_time'])
     print_results(global_stats, field_weights, field_stats)
 
 

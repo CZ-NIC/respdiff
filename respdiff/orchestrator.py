@@ -5,6 +5,7 @@ import multiprocessing.pool as pool
 import pickle
 import sys
 import threading
+import time
 import logging
 
 import lmdb
@@ -75,7 +76,8 @@ def lmdb_init(envdir):
                        create=False,
                        **dbhelper.db_open)
     adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=True, **dbhelper.db_open)
-    return (lenv, qdb, adb)
+    sdb = lenv.open_db(key=dbhelper.STATS_DB_NAME, create=True, **dbhelper.db_open)
+    return (lenv, qdb, adb, sdb)
 
 
 def main():
@@ -108,8 +110,12 @@ def main():
             args.envdir, dbhelper.ANSWERS_DB_NAME)
         sys.exit(1)
 
-    lenv, qdb, adb = lmdb_init(args.envdir)
+    lenv, qdb, adb, sdb = lmdb_init(args.envdir)
     qstream = dbhelper.key_value_stream(lenv, qdb)
+    stats = {
+        'start_time': time.time(),
+        'end_time': None,
+    }
 
     with lenv.begin(adb, write=True) as txn:
         with pool.Pool(
@@ -118,6 +124,10 @@ def main():
                 initargs=[resolvers, args.cfg['sendrecv']['timeout']]) as p:
             for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream, chunksize=100):
                 txn.put(qid, blob)
+
+    stats['end_time'] = time.time()
+    with lenv.begin(sdb, write=True) as txn:
+        txn.put(b'global_stats', pickle.dumps(stats))
 
 
 if __name__ == "__main__":

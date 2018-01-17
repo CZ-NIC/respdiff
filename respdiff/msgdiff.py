@@ -2,18 +2,17 @@
 
 import argparse
 import logging
-import itertools
-import multiprocessing
 import multiprocessing.pool as pool
-import os
 import pickle
 import sys
+from typing import Dict
 
 import dns.message
 import dns.exception
 import lmdb
 
 import cfg
+import dataformat
 import dbhelper
 
 
@@ -142,20 +141,19 @@ def match(expected, got, match_fields):
     """ Compare scripted reply to given message based on match criteria. """
     for code in match_fields:
         try:
-            res = match_part(expected, got, code)
+            match_part(expected, got, code)
         except DataMismatch as ex:
             yield (code, ex)
 
 
-def decode_wire_dict(wire_dict):
-    assert isinstance(wire_dict, dict)
+def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
+        -> Dict[str, dns.message.Message]:
     answers = {}
     for k, v in wire_dict.items():
         # decode bytes to dns.message objects
-        # if isinstance(v, bytes):
         # convert from wire format to DNS message object
         try:
-            answers[k] = dns.message.from_wire(v)
+            answers[k] = dns.message.from_wire(v.wire)
         except Exception as ex:
             # answers[k] = ex  # decoding failed, record it!
             continue
