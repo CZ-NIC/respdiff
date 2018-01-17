@@ -6,6 +6,14 @@ variables:
 stages:
   - test
 
+test:mypy:
+  script:
+    - ./ci/mypy-run.sh
+  tags:
+    - docker
+    - linux
+    - amd64
+
 test:pep8:
   script:
     - python3 -m pep8 --ignore=W503 --show-source --max-line-length=100 . && echo "OK, no PEP8 errors detected"
