@@ -1,3 +1,5 @@
+from typing import Dict, Any  # NOQA: needed for type hint in comment
+
 import lmdb
 
 
@@ -11,7 +13,7 @@ env_open = {
     'max_readers': 64,
     'max_dbs': 5,
     'max_spare_txns': 64,
-}
+}  # type: Dict[str, Any]
 
 db_open = {
     'reverse_key': True
@@ -54,7 +56,7 @@ def db_exists(envdir, dbname):
     config['readonly'] = True
     try:
         with lmdb.Environment(**config) as env:
-            db = env.open_db(key=dbname, **db_open, create=False)
+            env.open_db(key=dbname, **db_open, create=False)
             return True
     except (lmdb.NotFoundError, lmdb.Error):
         return False
