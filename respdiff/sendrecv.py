@@ -3,7 +3,7 @@ import socket
 import ssl
 import struct
 import time
-from typing import Dict
+from typing import Dict  # noqa: used in comment type hint
 
 import dns.inet
 import dns.message

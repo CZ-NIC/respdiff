@@ -5,6 +5,7 @@ Read-only.
 """
 
 import configparser
+import os
 
 import dns.inet
 
@@ -114,8 +115,8 @@ def read_cfg(filename):
     Read config file, convert values, validate data and return dict[section][key] = value.
     """
     # verify the file exists (ConfigParser does not do it)
-    with open(filename, 'r') as cfile:
-        pass
+    if not os.path.isfile(filename):
+        raise RuntimeError("Config file {} doesn't exist".format(filename))
 
     parser = configparser.ConfigParser(
         delimiters='=',

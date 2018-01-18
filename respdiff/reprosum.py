@@ -1,16 +1,11 @@
 import pickle
-import subprocess
 import sys
 
 import dns.message
 import lmdb
 
 import dbhelper
-import diffsum
-from msgdiff import DataMismatch  # needed for unpickling
-import msgdiff
-import orchestrator
-import sendrecv
+from msgdiff import DataMismatch  # noqa: needed for unpickling
 
 
 def open_db(envdir):
@@ -58,7 +53,7 @@ def main():
             continue
         try:
             qmsg = dns.message.from_wire(qwire)
-        except:
+        except Exception:
             continue
         print(qmsg.question[0])
 
