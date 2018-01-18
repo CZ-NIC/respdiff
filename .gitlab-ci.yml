@@ -14,9 +14,9 @@ test:mypy:
     - linux
     - amd64
 
-test:pep8:
+test:flake8:
   script:
-    - python3 -m pep8 --ignore=W503 --show-source --max-line-length=100 . && echo "OK, no PEP8 errors detected"
+    - python3 -m flake8 --max-line-length=100 . && echo "OK, no flake8 errors detected"
   tags:
     - docker
     - linux
