@@ -75,6 +75,7 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
     # optimization: create only one timeout_reply object per timeout value
     timeout_reply = TIMEOUT_REPLIES.setdefault(timeout, dataformat.Reply(None, timeout))
     start_time = time.perf_counter()
+    end_time = start_time + timeout
     for _, sock, isstream in sockets:
         if isstream:  # prepend length, RFC 1035 section 4.2.2
             if not streammsg:
@@ -87,7 +88,10 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
     # receive replies
     reinit = False
     while len(replies) != len(sockets):
-        events = selector.select(timeout=timeout)  # BLEH! timeout shortening
+        remaining_time = end_time - time.perf_counter()
+        if remaining_time <= 0:
+            break  # timeout
+        events = selector.select(timeout=remaining_time)
         for key, _ in events:
             name, isstream = key.data
             sock = key.fileobj
@@ -101,8 +105,6 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
             replies[name] = dataformat.Reply(wire, time.perf_counter() - start_time)
-        if not events:
-            break  # TIMEOUT
 
     # set missing replies as timeout
     for resolver, *_ in sockets:
