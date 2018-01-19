@@ -22,15 +22,20 @@ def write_blobs(blob_dict, workdir):
             outfile.write(v)
 
 
-config = dbhelper.env_open.copy()
-config.update({
-    'path': sys.argv[1],
-    'readonly': True
-})
-lenv = lmdb.Environment(**config)
-db = lenv.open_db(key=b'answers', **dbhelper.db_open, create=False)
+def main():
+    config = dbhelper.env_open.copy()
+    config.update({
+        'path': sys.argv[1],
+        'readonly': True
+    })
+    lenv = lmdb.Environment(**config)
+    db = lenv.open_db(key=b'answers', **dbhelper.db_open, create=False)
 
-qid = str(int(sys.argv[2])).encode('ascii')
-blobs = read_blobs_lmdb(lenv, db, qid)
-write_blobs(blobs, sys.argv[3])
-lenv.close()
+    qid = str(int(sys.argv[2])).encode('ascii')
+    blobs = read_blobs_lmdb(lenv, db, qid)
+    write_blobs(blobs, sys.argv[3])
+    lenv.close()
+
+
+if __name__ == '__main__':
+    main()

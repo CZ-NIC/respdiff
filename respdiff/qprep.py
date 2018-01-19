@@ -40,7 +40,7 @@ def parse_pcap(pcap_file):
     """
     i = 0
     pcap_file = dpkt.pcap.Reader(pcap_file)
-    for ts, wire in pcap_file:
+    for _, wire in pcap_file:
         i += 1
         yield (i, wire, '')
 
@@ -51,7 +51,7 @@ def wrk_process_line(args: Tuple[int, str, str]) -> Tuple[bytes, bytes]:
 
     Skips over empty lines, raises for malformed inputs.
     """
-    qid, line, log_repr = args
+    qid, line, _ = args
 
     try:
         wire = wire_from_text(line)
@@ -80,11 +80,11 @@ def wrk_process_wire_packet(qid: int, wire_packet: bytes, log_repr: str) -> Tupl
     if not blacklist.is_blacklisted(wire_packet):
         key = dbhelper.qid2key(qid)
         return key, wire_packet
-    else:
-        logging.debug('Query "%s" blacklisted (skipping query ID %d)',
-                      log_repr if log_repr else repr(blacklist.extract_packet(wire_packet)),
-                      qid)
-        return None, None
+
+    logging.debug('Query "%s" blacklisted (skipping query ID %d)',
+                  log_repr if log_repr else repr(blacklist.extract_packet(wire_packet)),
+                  qid)
+    return None, None
 
 
 def int_or_fromtext(value, fromtext):

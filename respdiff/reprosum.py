@@ -46,9 +46,9 @@ def read_repro_lmdb(levn, qdb, reprodb):
 
 
 def main():
-    lenv, qdb, ddb, reprodb = open_db(sys.argv[1])
+    lenv, qdb, _, reprodb = open_db(sys.argv[1])
     repro_stream = read_repro_lmdb(lenv, qdb, reprodb)
-    for qid, qwire, (count, others_agreed, diff_matched) in repro_stream:
+    for _, qwire, (count, others_agreed, diff_matched) in repro_stream:
         if not count == others_agreed == diff_matched:
             continue
         try:

@@ -58,7 +58,7 @@ def _recv_msg(sock, isstream):
     """
     if isstream:  # parse preambule
         blength = sock.recv(2)  # TODO: does not work with TLS: , socket.MSG_WAITALL)
-        if len(blength) == 0:  # stream closed
+        if not blength:  # stream closed
             raise ConnectionError('TCP recv length == 0')
         (length, ) = struct.unpack('!H', blength)
     else:

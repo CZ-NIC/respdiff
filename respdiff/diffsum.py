@@ -25,7 +25,7 @@ def process_diff(field_weights, field_stats, qwire, diff):
     qmsg = dns.message.from_wire(qwire)
     question = (qmsg.question[0].name, qmsg.question[0].rdtype)
 
-    field_mismatches = field_stats.setdefault(field, {})
+    field_mismatches = field_stats.setdefault(field, {})  # pylint: disable=undefined-loop-variable
     mismatch = diff[significant_field]
     mismatch_key = (mismatch.exp_val, mismatch.got_val)
     mismatch_counter = field_mismatches.setdefault(mismatch_key, collections.Counter())
@@ -43,9 +43,7 @@ def process_results(field_weights, diff_generator):
     }
     field_stats = {}
 
-    # print('diffs = {')
-    for qid, qwire, others_agree, target_diff in diff_generator:
-        # print(qid, others_agree, target_diff)
+    for _, qwire, others_agree, target_diff in diff_generator:
         if not others_agree:
             global_stats['others_disagree'] += 1
             continue
@@ -53,13 +51,9 @@ def process_results(field_weights, diff_generator):
         if not target_diff:  # everybody agreed, nothing to count
             continue
 
-        # print('(%s, %s): ' % (qid, question))
-        # print(target_diff, ',')
-
         global_stats['target_disagrees'] += 1
         process_diff(field_weights, field_stats, qwire, target_diff)
 
-    # print('}')
     return global_stats, field_stats
 
 
@@ -79,8 +73,7 @@ def combine_stats(counters):
 def mismatch2str(mismatch):
     if not isinstance(mismatch[0], str):
         return (' '.join(mismatch[0]), ' '.join(mismatch[1]))
-    else:
-        return mismatch
+    return mismatch
 
 
 def maxlen(iterable):
@@ -119,10 +112,10 @@ def print_results(gstats, field_weights, counters, n=10):
         'count', maxcntlen,
         '% of mismatches'))
 
-    for field, n in (field_sums.most_common()):
+    for field, count in field_sums.most_common():
         print('{:{}}    {:{}}     {:3.0f} %'.format(
             field, maxnamelen + 3,
-            n, maxcntlen + 3, 100.0 * n / target_disagrees))
+            count, maxcntlen + 3, 100.0 * n / target_disagrees))
 
     for field in field_weights:
         if field not in field_mismatch_sums:
@@ -140,26 +133,25 @@ def print_results(gstats, field_weights, counters, n=10):
             'count', maxcntlen,
             '% of mismatches'
         ))
-        for mismatch, n in (field_mismatch_sums[field].most_common()):
+        for mismatch, count in field_mismatch_sums[field].most_common():
             mismatch = mismatch2str(mismatch)
             print('{:{}}  !=  {:{}}    {:{}}    {:3.0f} %'.format(
                 str(mismatch[0]), maxvallen,
                 str(mismatch[1]), maxvallen,
                 n, maxcntlen,
-                100.0 * n / target_disagrees))
+                100.0 * count / target_disagrees))
 
     for field in field_weights:
         if field not in counters:
             continue
-        for mismatch, n in (field_mismatch_sums[field].most_common()):
+        for mismatch, count in field_mismatch_sums[field].most_common():
             print('')
             print('== Field "%s" mismatch %s query details' % (field, mismatch))
             counter = counters[field][mismatch]
-            print_field_queries(field, counter, n)
+            print_field_queries(counter, count)
 
 
-def print_field_queries(field, counter, n):
-    # print('queries leading to mismatch in field "%s":' % field)
+def print_field_queries(counter, n):
     for query, count in counter.most_common(n):
         qname, qtype = query
         qtype = dns.rdatatype.to_text(qtype)

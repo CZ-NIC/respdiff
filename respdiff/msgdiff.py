@@ -18,6 +18,7 @@ import dbhelper
 
 class DataMismatch(Exception):
     def __init__(self, exp_val, got_val):
+        super(DataMismatch, self).__init__(exp_val, got_val)
         self.exp_val = exp_val
         self.got_val = got_val
 
@@ -58,14 +59,12 @@ def compare_rrs_types(exp_val, got_val, skip_rrsigs):
     def rr_ordering_key(rrset):
         if rrset.covers:
             return (rrset.covers, 1)  # RRSIGs go to the end of RRtype list
-        else:
-            return (rrset.rdtype, 0)
+        return (rrset.rdtype, 0)
 
     def key_to_text(rrtype, rrsig):
         if not rrsig:
             return dns.rdatatype.to_text(rrtype)
-        else:
-            return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
+        return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
 
     if skip_rrsigs:
         exp_val = (rrset for rrset in exp_val
@@ -81,16 +80,16 @@ def compare_rrs_types(exp_val, got_val, skip_rrsigs):
         raise DataMismatch(exp_types, got_types)
 
 
-def match_part(exp_msg, got_msg, code):
+def match_part(exp_msg, got_msg, code):  # pylint: disable=inconsistent-return-statements
     """ Compare scripted reply to given message using single criteria. """
     if code == 'opcode':
         return compare_val(exp_msg.opcode(), got_msg.opcode())
     elif code == 'qtype':
-        if len(exp_msg.question) == 0:
+        if not exp_msg.question:
             return True
         return compare_val(exp_msg.question[0].rdtype, got_msg.question[0].rdtype)
     elif code == 'qname':
-        if len(exp_msg.question) == 0:
+        if not exp_msg.question:
             return True
         return compare_val(exp_msg.question[0].name, got_msg.question[0].name)
     elif code == 'qcase':
@@ -154,7 +153,7 @@ def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
         # convert from wire format to DNS message object
         try:
             answers[k] = dns.message.from_wire(v.wire)
-        except Exception as ex:
+        except Exception:
             # answers[k] = ex  # decoding failed, record it!
             continue
     return answers
@@ -194,7 +193,7 @@ def compare(answers, criteria, target):
         others.remove(target)
     except ValueError:
         return (False, None)  # HACK, target did not reply
-    if len(others) == 0:
+    if not others:
         return (False, None)  # HACK, not enough targets to compare
     random_other = others[0]
 
@@ -286,7 +285,7 @@ def main():
         initializer=worker_init,
         initargs=(args.envdir, config['diff']['criteria'], config['diff']['target'])
     ) as p:
-        for i in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
+        for _ in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
             pass
 
 
