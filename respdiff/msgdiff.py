@@ -5,21 +5,17 @@ from functools import partial
 import logging
 import multiprocessing.pool as pool
 import pickle
-import sys
 from typing import Dict
 
 import dns.message
 import dns.exception
-import lmdb
 
 import cfg
 import dataformat
-import dbhelper
+from dbhelper import LMDB
 
 
-lenv = None
-answers_db = None
-diffs_db = None
+lmdb = None
 
 
 class DataMismatch(Exception):
@@ -165,8 +161,9 @@ def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
     return answers
 
 
-def read_answers_lmdb(lenv, db, qid):  # pylint: disable=redefined-outer-name
-    with lenv.begin(db) as txn:
+def read_answers_lmdb(qid):
+    adb = lmdb.get_db(LMDB.ANSWERS)
+    with lmdb.env.begin(adb) as txn:
         blob = txn.get(qid)
     assert blob
     wire_dict = pickle.loads(blob)
@@ -214,35 +211,20 @@ def compare(answers, criteria, target):
     return (others_agree, target_diffs)
 
 
-def lmdb_init(envdir):
-    global lenv
-    global answers_db
-    global diffs_db
-
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': envdir,
-        'readonly': False,
-        'create': False,
-        'writemap': True,
-        'sync': False
-    })
-    lenv = lmdb.Environment(**config)
-    answers_db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
-    diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=True, **dbhelper.db_open)
-
-
 def compare_lmdb_wrapper(criteria, target, qid):
-    answers = read_answers_lmdb(lenv, answers_db, qid)
+    answers = read_answers_lmdb(qid)
     others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
         return  # all agreed, nothing to write
     blob = pickle.dumps((others_agree, target_diffs))
-    with lenv.begin(diffs_db, write=True) as txn:
+    ddb = lmdb.get_db(LMDB.DIFFS)
+    with lmdb.env.begin(ddb, write=True) as txn:
         txn.put(qid, blob)
 
 
 def main():
+    global lmdb
+
     logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
     parser = argparse.ArgumentParser(
         description='compute diff from answers stored in LMDB and write diffs to LMDB')
@@ -253,37 +235,18 @@ def main():
     args = parser.parse_args()
     config = cfg.read_cfg(args.cfgpath)
 
-    envconfig = dbhelper.env_open.copy()
-    envconfig.update({
-        'path': args.envdir,
-        'readonly': False,
-        'create': False
-    })
-    lenv_tmp = lmdb.Environment(**envconfig)
-
-    try:
-        lenv_tmp.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
-    except lmdb.NotFoundError:
-        logging.critical('LMDB does not contain DNS answers in DB %s, terminating.',
-                         dbhelper.ANSWERS_DB_NAME)
-        sys.exit(1)
-
-    try:  # drop diffs DB if it exists, it can be re-generated at will
-        ddb = lenv_tmp.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
-        with lenv_tmp.begin(write=True) as txn:
-            txn.drop(ddb)
-    except lmdb.NotFoundError:
-        pass
-
-    lmdb_init(args.envdir)
     criteria = config['diff']['criteria']
     target = config['diff']['target']
 
-    qid_stream = dbhelper.key_stream(lenv, answers_db)
-    func = partial(compare_lmdb_wrapper, criteria, target)
-    with pool.Pool() as p:
-        for _ in p.imap_unordered(func, qid_stream, chunksize=10):
-            pass
+    with LMDB(args.envdir, fast=True) as lmdb_:
+        lmdb = lmdb_
+        lmdb.open_db(LMDB.ANSWERS, check_exists=True)
+        lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
+        qid_stream = lmdb.key_stream(LMDB.ANSWERS)
+        func = partial(compare_lmdb_wrapper, criteria, target)
+        with pool.Pool() as p:
+            for _ in p.imap_unordered(func, qid_stream, chunksize=10):
+                pass
 
 
 if __name__ == '__main__':

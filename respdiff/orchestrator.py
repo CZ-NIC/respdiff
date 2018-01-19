@@ -3,20 +3,17 @@
 import argparse
 import multiprocessing.pool as pool
 import pickle
-import sys
 import threading
 import time
-import logging
-
-import lmdb
+from typing import List, Tuple  # noqa: type hints
 
 import cfg
-import dbhelper
+from dbhelper import LMDB
 import sendrecv
 
 
 worker_state = {}  # shared by all workers
-resolvers = []
+resolvers = []  # type: List[Tuple[str, str, str, int]]
 timeout = None
 
 
@@ -54,25 +51,6 @@ def worker_query_lmdb_wrapper(args):
     return (qid, blob)
 
 
-def lmdb_init(envdir):
-    """Open LMDB environment and database for writting."""
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': envdir,
-        'writemap': True,
-        'sync': False,
-        'map_async': True,
-        'readonly': False
-    })
-    lenv = lmdb.Environment(**config)
-    qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME,
-                       create=False,
-                       **dbhelper.db_open)
-    adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=True, **dbhelper.db_open)
-    sdb = lenv.open_db(key=dbhelper.STATS_DB_NAME, create=True, **dbhelper.db_open)
-    return (lenv, qdb, adb, sdb)
-
-
 def main():
     global timeout
 
@@ -90,39 +68,27 @@ def main():
         resolvers.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
 
     timeout = args.cfg['sendrecv']['timeout']
-
-    if not dbhelper.db_exists(args.envdir, dbhelper.QUERIES_DB_NAME):
-        logging.critical(
-            'LMDB environment "%s does not contain DB %s! '
-            'Use qprep to prepare queries.',
-            args.envdir, dbhelper.ANSWERS_DB_NAME)
-        sys.exit(1)
-
-    if dbhelper.db_exists(args.envdir, dbhelper.ANSWERS_DB_NAME):
-        logging.critical(
-            'LMDB environment "%s" already contains DB %s! '
-            'Overwritting it would invalidate data in the environment, '
-            'terminating.',
-            args.envdir, dbhelper.ANSWERS_DB_NAME)
-        sys.exit(1)
-
-    lenv, qdb, adb, sdb = lmdb_init(args.envdir)
-    qstream = dbhelper.key_value_stream(lenv, qdb)
     stats = {
         'start_time': time.time(),
         'end_time': None,
     }
 
-    with lenv.begin(adb, write=True) as txn:
-        with pool.Pool(
-                processes=args.cfg['sendrecv']['jobs'],
-                initializer=worker_init) as p:
-            for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream, chunksize=100):
-                txn.put(qid, blob)
+    with LMDB(args.envdir, fast=True) as lmdb:
+        lmdb.open_db(LMDB.QUERIES, check_exists=True)
+        adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
+        sdb = lmdb.open_db(LMDB.STATS, create=True)
 
-    stats['end_time'] = time.time()
-    with lenv.begin(sdb, write=True) as txn:
-        txn.put(b'global_stats', pickle.dumps(stats))
+        qstream = lmdb.key_value_stream(LMDB.QUERIES)
+        with lmdb.env.begin(adb, write=True) as txn:
+            with pool.Pool(
+                    processes=args.cfg['sendrecv']['jobs'],
+                    initializer=worker_init) as p:
+                for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream, chunksize=100):
+                    txn.put(qid, blob)
+
+        stats['end_time'] = time.time()
+        with lmdb.env.begin(sdb, write=True) as txn:
+            txn.put(b'global_stats', pickle.dumps(stats))
 
 
 if __name__ == "__main__":

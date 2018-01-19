@@ -2,13 +2,11 @@ import pickle
 import os
 import sys
 
-import lmdb
-
-import dbhelper
+from dbhelper import LMDB
 
 
-def read_blobs_lmdb(lenv, db, qid):
-    with lenv.begin(db) as txn:
+def read_blobs_lmdb(lmdb, db, qid):
+    with lmdb.env.begin(db) as txn:
         blob = txn.get(qid)
         assert blob
         answers = pickle.loads(blob)
@@ -23,18 +21,11 @@ def write_blobs(blob_dict, workdir):
 
 
 def main():
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': sys.argv[1],
-        'readonly': True
-    })
-    lenv = lmdb.Environment(**config)
-    db = lenv.open_db(key=b'answers', **dbhelper.db_open, create=False)
-
-    qid = str(int(sys.argv[2])).encode('ascii')
-    blobs = read_blobs_lmdb(lenv, db, qid)
-    write_blobs(blobs, sys.argv[3])
-    lenv.close()
+    with LMDB(sys.argv[1], readonly=True) as lmdb:
+        db = lmdb.open_db(LMDB.ANSWERS)
+        qid = str(int(sys.argv[2])).encode('ascii')
+        blobs = read_blobs_lmdb(lmdb, db, qid)
+        write_blobs(blobs, sys.argv[3])
 
 
 if __name__ == '__main__':

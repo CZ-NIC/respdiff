@@ -6,10 +6,9 @@ import logging
 import pickle
 
 import dns.rdatatype
-import lmdb
 
 import cfg
-import dbhelper
+from dbhelper import LMDB
 from msgdiff import DataMismatch  # NOQA: needed for unpickling
 
 
@@ -158,33 +157,15 @@ def print_field_queries(counter, n):
         print("%s %s\t\t%s mismatches" % (qname, qtype, count))
 
 
-def open_db(envdir):
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': envdir,
-        'readonly': False,
-        'create': False
-    })
-    lenv = lmdb.Environment(**config)
-    try:
-        qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME, create=False, **dbhelper.db_open)
-        adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
-        ddb = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
-        sdb = lenv.open_db(key=dbhelper.STATS_DB_NAME, create=False, **dbhelper.db_open)
-    except lmdb.NotFoundError:
-        logging.critical(
-            'Unable to generate statistics. LMDB does not contain queries, answers, or diffs!')
-        raise
-    return lenv, qdb, adb, ddb, sdb
-
-
-def read_diffs_lmdb(levn, qdb, ddb):
-    with levn.begin() as txn:
+def read_diffs_lmdb(lmdb):
+    qdb = lmdb.get_db(LMDB.QUERIES)
+    ddb = lmdb.get_db(LMDB.DIFFS)
+    with lmdb.env.begin() as txn:
         with txn.cursor(ddb) as diffcur:
             for qid, diffblob in diffcur:
                 others_agree, diff = pickle.loads(diffblob)
                 qwire = txn.get(qid, db=qdb)
-                yield (qid, qwire, others_agree, diff)
+                yield qid, qwire, others_agree, diff
 
 
 def main():
@@ -200,14 +181,18 @@ def main():
     config = cfg.read_cfg(args.cfgpath)
     field_weights = config['report']['field_weights']
 
-    lenv, qdb, adb, ddb, sdb = open_db(args.envdir)
-    diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
-    global_stats, field_stats = process_results(field_weights, diff_stream)
-    with lenv.begin() as txn:
-        global_stats['queries'] = txn.stat(qdb)['entries']
-        global_stats['answers'] = txn.stat(adb)['entries']
-    with lenv.begin(sdb) as txn:
-        stats = pickle.loads(txn.get(b'global_stats'))
+    with LMDB(args.envdir, readonly=True) as lmdb:
+        qdb = lmdb.open_db(LMDB.QUERIES)
+        adb = lmdb.open_db(LMDB.ANSWERS)
+        lmdb.open_db(LMDB.DIFFS)
+        sdb = lmdb.open_db(LMDB.STATS)
+        diff_stream = read_diffs_lmdb(lmdb)
+        global_stats, field_stats = process_results(field_weights, diff_stream)
+        with lmdb.env.begin() as txn:
+            global_stats['queries'] = txn.stat(qdb)['entries']
+            global_stats['answers'] = txn.stat(adb)['entries']
+        with lmdb.env.begin(sdb) as txn:
+            stats = pickle.loads(txn.get(b'global_stats'))
     global_stats['duration'] = round(stats['end_time'] - stats['start_time'])
     print_results(global_stats, field_weights, field_stats)
 
