@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from functools import partial
 import logging
 import multiprocessing.pool as pool
 import pickle
@@ -14,6 +15,11 @@ import lmdb
 import cfg
 import dataformat
 import dbhelper
+
+
+lenv = None
+answers_db = None
+diffs_db = None
 
 
 class DataMismatch(Exception):
@@ -159,7 +165,7 @@ def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
     return answers
 
 
-def read_answers_lmdb(lenv, db, qid):
+def read_answers_lmdb(lenv, db, qid):  # pylint: disable=redefined-outer-name
     with lenv.begin(db) as txn:
         blob = txn.get(qid)
     assert blob
@@ -208,17 +214,14 @@ def compare(answers, criteria, target):
     return (others_agree, target_diffs)
 
 
-def worker_init(envdir_arg, criteria_arg, target_arg):
-    global envdir
-    global criteria
-    global target
-
+def lmdb_init(envdir):
     global lenv
     global answers_db
     global diffs_db
+
     config = dbhelper.env_open.copy()
     config.update({
-        'path': envdir_arg,
+        'path': envdir,
         'readonly': False,
         'create': False,
         'writemap': True,
@@ -228,16 +231,8 @@ def worker_init(envdir_arg, criteria_arg, target_arg):
     answers_db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
     diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=True, **dbhelper.db_open)
 
-    criteria = criteria_arg
-    target = target_arg
-    envdir = envdir_arg
 
-
-def compare_lmdb_wrapper(qid):
-    global lenv
-    global diffs_db
-    global criteria
-    global target
+def compare_lmdb_wrapper(criteria, target, qid):
     answers = read_answers_lmdb(lenv, answers_db, qid)
     others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
@@ -264,28 +259,30 @@ def main():
         'readonly': False,
         'create': False
     })
-    lenv = lmdb.Environment(**envconfig)
+    lenv_tmp = lmdb.Environment(**envconfig)
 
     try:
-        db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
+        lenv_tmp.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
     except lmdb.NotFoundError:
         logging.critical('LMDB does not contain DNS answers in DB %s, terminating.',
                          dbhelper.ANSWERS_DB_NAME)
         sys.exit(1)
 
     try:  # drop diffs DB if it exists, it can be re-generated at will
-        diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
-        with lenv.begin(write=True) as txn:
-            txn.drop(diffs_db)
+        ddb = lenv_tmp.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
+        with lenv_tmp.begin(write=True) as txn:
+            txn.drop(ddb)
     except lmdb.NotFoundError:
         pass
 
-    qid_stream = dbhelper.key_stream(lenv, db)
-    with pool.Pool(
-        initializer=worker_init,
-        initargs=(args.envdir, config['diff']['criteria'], config['diff']['target'])
-    ) as p:
-        for _ in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
+    lmdb_init(args.envdir)
+    criteria = config['diff']['criteria']
+    target = config['diff']['target']
+
+    qid_stream = dbhelper.key_stream(lenv, answers_db)
+    func = partial(compare_lmdb_wrapper, criteria, target)
+    with pool.Pool() as p:
+        for _ in p.imap_unordered(func, qid_stream, chunksize=10):
             pass
 
 
