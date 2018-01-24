@@ -1,12 +1,10 @@
 import pickle
-from pprint import pprint
 import os
 import sys
 
 import lmdb
 
 import dbhelper
-import msgdiff
 
 
 def read_blobs_lmdb(lenv, db, qid):

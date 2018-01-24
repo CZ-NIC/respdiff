@@ -6,7 +6,7 @@ import lmdb
 
 import dbhelper
 import diffsum
-from msgdiff import DataMismatch  # needed for unpickling
+from msgdiff import DataMismatch  # noqa: needed for unpickling
 import msgdiff
 import orchestrator
 import sendrecv
