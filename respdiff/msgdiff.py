@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
 
 import argparse
+from functools import partial
 import logging
 import multiprocessing.pool as pool
 import pickle
-import sys
 from typing import Dict
 
 import dns.message
 import dns.exception
-import lmdb
 
 import cfg
 import dataformat
-import dbhelper
+from dbhelper import LMDB
+
+
+lmdb = None
 
 
 class DataMismatch(Exception):
     def __init__(self, exp_val, got_val):
+        super(DataMismatch, self).__init__(exp_val, got_val)
         self.exp_val = exp_val
         self.got_val = got_val
 
@@ -58,14 +61,12 @@ def compare_rrs_types(exp_val, got_val, skip_rrsigs):
     def rr_ordering_key(rrset):
         if rrset.covers:
             return (rrset.covers, 1)  # RRSIGs go to the end of RRtype list
-        else:
-            return (rrset.rdtype, 0)
+        return (rrset.rdtype, 0)
 
     def key_to_text(rrtype, rrsig):
         if not rrsig:
             return dns.rdatatype.to_text(rrtype)
-        else:
-            return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
+        return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
 
     if skip_rrsigs:
         exp_val = (rrset for rrset in exp_val
@@ -81,16 +82,16 @@ def compare_rrs_types(exp_val, got_val, skip_rrsigs):
         raise DataMismatch(exp_types, got_types)
 
 
-def match_part(exp_msg, got_msg, code):
+def match_part(exp_msg, got_msg, code):  # pylint: disable=inconsistent-return-statements
     """ Compare scripted reply to given message using single criteria. """
     if code == 'opcode':
         return compare_val(exp_msg.opcode(), got_msg.opcode())
     elif code == 'qtype':
-        if len(exp_msg.question) == 0:
+        if not exp_msg.question:
             return True
         return compare_val(exp_msg.question[0].rdtype, got_msg.question[0].rdtype)
     elif code == 'qname':
-        if len(exp_msg.question) == 0:
+        if not exp_msg.question:
             return True
         return compare_val(exp_msg.question[0].name, got_msg.question[0].name)
     elif code == 'qcase':
@@ -154,14 +155,15 @@ def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
         # convert from wire format to DNS message object
         try:
             answers[k] = dns.message.from_wire(v.wire)
-        except Exception as ex:
+        except Exception:
             # answers[k] = ex  # decoding failed, record it!
             continue
     return answers
 
 
-def read_answers_lmdb(lenv, db, qid):
-    with lenv.begin(db) as txn:
+def read_answers_lmdb(qid):
+    adb = lmdb.get_db(LMDB.ANSWERS)
+    with lmdb.env.begin(adb) as txn:
         blob = txn.get(qid)
     assert blob
     wire_dict = pickle.loads(blob)
@@ -194,7 +196,7 @@ def compare(answers, criteria, target):
         others.remove(target)
     except ValueError:
         return (False, None)  # HACK, target did not reply
-    if len(others) == 0:
+    if not others:
         return (False, None)  # HACK, not enough targets to compare
     random_other = others[0]
 
@@ -209,46 +211,20 @@ def compare(answers, criteria, target):
     return (others_agree, target_diffs)
 
 
-def worker_init(envdir_arg, criteria_arg, target_arg):
-    global envdir
-    global criteria
-    global target
-
-    global lenv
-    global answers_db
-    global diffs_db
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': envdir_arg,
-        'readonly': False,
-        'create': False,
-        'writemap': True,
-        'sync': False
-    })
-    lenv = lmdb.Environment(**config)
-    answers_db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
-    diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=True, **dbhelper.db_open)
-
-    criteria = criteria_arg
-    target = target_arg
-    envdir = envdir_arg
-
-
-def compare_lmdb_wrapper(qid):
-    global lenv
-    global diffs_db
-    global criteria
-    global target
-    answers = read_answers_lmdb(lenv, answers_db, qid)
+def compare_lmdb_wrapper(criteria, target, qid):
+    answers = read_answers_lmdb(qid)
     others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
         return  # all agreed, nothing to write
     blob = pickle.dumps((others_agree, target_diffs))
-    with lenv.begin(diffs_db, write=True) as txn:
+    ddb = lmdb.get_db(LMDB.DIFFS)
+    with lmdb.env.begin(ddb, write=True) as txn:
         txn.put(qid, blob)
 
 
 def main():
+    global lmdb
+
     logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
     parser = argparse.ArgumentParser(
         description='compute diff from answers stored in LMDB and write diffs to LMDB')
@@ -259,35 +235,18 @@ def main():
     args = parser.parse_args()
     config = cfg.read_cfg(args.cfgpath)
 
-    envconfig = dbhelper.env_open.copy()
-    envconfig.update({
-        'path': args.envdir,
-        'readonly': False,
-        'create': False
-    })
-    lenv = lmdb.Environment(**envconfig)
+    criteria = config['diff']['criteria']
+    target = config['diff']['target']
 
-    try:
-        db = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
-    except lmdb.NotFoundError:
-        logging.critical('LMDB does not contain DNS answers in DB %s, terminating.',
-                         dbhelper.ANSWERS_DB_NAME)
-        sys.exit(1)
-
-    try:  # drop diffs DB if it exists, it can be re-generated at will
-        diffs_db = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
-        with lenv.begin(write=True) as txn:
-            txn.drop(diffs_db)
-    except lmdb.NotFoundError:
-        pass
-
-    qid_stream = dbhelper.key_stream(lenv, db)
-    with pool.Pool(
-        initializer=worker_init,
-        initargs=(args.envdir, config['diff']['criteria'], config['diff']['target'])
-    ) as p:
-        for i in p.imap_unordered(compare_lmdb_wrapper, qid_stream, chunksize=10):
-            pass
+    with LMDB(args.envdir, fast=True) as lmdb_:
+        lmdb = lmdb_
+        lmdb.open_db(LMDB.ANSWERS, check_exists=True)
+        lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
+        qid_stream = lmdb.key_stream(LMDB.ANSWERS)
+        func = partial(compare_lmdb_wrapper, criteria, target)
+        with pool.Pool() as p:
+            for _ in p.imap_unordered(func, qid_stream, chunksize=10):
+                pass
 
 
 if __name__ == '__main__':

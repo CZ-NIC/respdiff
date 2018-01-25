@@ -7,7 +7,7 @@ for i in range(0, 256):
     if i in allowed_bytes:
         trans[i] = bytes(chr(i), encoding='ascii')
     else:
-        trans[i] = ('\%03i' % i).encode('ascii')
+        trans[i] = (r'\%03i' % i).encode('ascii')
 # pprint(trans)
 
 while True:

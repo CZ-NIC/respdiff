@@ -6,10 +6,9 @@ import logging
 import pickle
 
 import dns.rdatatype
-import lmdb
 
 import cfg
-import dbhelper
+from dbhelper import LMDB
 from msgdiff import DataMismatch  # NOQA: needed for unpickling
 
 
@@ -25,7 +24,7 @@ def process_diff(field_weights, field_stats, qwire, diff):
     qmsg = dns.message.from_wire(qwire)
     question = (qmsg.question[0].name, qmsg.question[0].rdtype)
 
-    field_mismatches = field_stats.setdefault(field, {})
+    field_mismatches = field_stats.setdefault(field, {})  # pylint: disable=undefined-loop-variable
     mismatch = diff[significant_field]
     mismatch_key = (mismatch.exp_val, mismatch.got_val)
     mismatch_counter = field_mismatches.setdefault(mismatch_key, collections.Counter())
@@ -43,9 +42,7 @@ def process_results(field_weights, diff_generator):
     }
     field_stats = {}
 
-    # print('diffs = {')
-    for qid, qwire, others_agree, target_diff in diff_generator:
-        # print(qid, others_agree, target_diff)
+    for _, qwire, others_agree, target_diff in diff_generator:
         if not others_agree:
             global_stats['others_disagree'] += 1
             continue
@@ -53,13 +50,9 @@ def process_results(field_weights, diff_generator):
         if not target_diff:  # everybody agreed, nothing to count
             continue
 
-        # print('(%s, %s): ' % (qid, question))
-        # print(target_diff, ',')
-
         global_stats['target_disagrees'] += 1
         process_diff(field_weights, field_stats, qwire, target_diff)
 
-    # print('}')
     return global_stats, field_stats
 
 
@@ -79,8 +72,7 @@ def combine_stats(counters):
 def mismatch2str(mismatch):
     if not isinstance(mismatch[0], str):
         return (' '.join(mismatch[0]), ' '.join(mismatch[1]))
-    else:
-        return mismatch
+    return mismatch
 
 
 def maxlen(iterable):
@@ -119,10 +111,10 @@ def print_results(gstats, field_weights, counters, n=10):
         'count', maxcntlen,
         '% of mismatches'))
 
-    for field, n in (field_sums.most_common()):
+    for field, count in field_sums.most_common():
         print('{:{}}    {:{}}     {:3.0f} %'.format(
             field, maxnamelen + 3,
-            n, maxcntlen + 3, 100.0 * n / target_disagrees))
+            count, maxcntlen + 3, 100.0 * n / target_disagrees))
 
     for field in field_weights:
         if field not in field_mismatch_sums:
@@ -140,59 +132,40 @@ def print_results(gstats, field_weights, counters, n=10):
             'count', maxcntlen,
             '% of mismatches'
         ))
-        for mismatch, n in (field_mismatch_sums[field].most_common()):
+        for mismatch, count in field_mismatch_sums[field].most_common():
             mismatch = mismatch2str(mismatch)
             print('{:{}}  !=  {:{}}    {:{}}    {:3.0f} %'.format(
                 str(mismatch[0]), maxvallen,
                 str(mismatch[1]), maxvallen,
                 n, maxcntlen,
-                100.0 * n / target_disagrees))
+                100.0 * count / target_disagrees))
 
     for field in field_weights:
         if field not in counters:
             continue
-        for mismatch, n in (field_mismatch_sums[field].most_common()):
+        for mismatch, count in field_mismatch_sums[field].most_common():
             print('')
             print('== Field "%s" mismatch %s query details' % (field, mismatch))
             counter = counters[field][mismatch]
-            print_field_queries(field, counter, n)
+            print_field_queries(counter, count)
 
 
-def print_field_queries(field, counter, n):
-    # print('queries leading to mismatch in field "%s":' % field)
+def print_field_queries(counter, n):
     for query, count in counter.most_common(n):
         qname, qtype = query
         qtype = dns.rdatatype.to_text(qtype)
         print("%s %s\t\t%s mismatches" % (qname, qtype, count))
 
 
-def open_db(envdir):
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': envdir,
-        'readonly': False,
-        'create': False
-    })
-    lenv = lmdb.Environment(**config)
-    try:
-        qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME, create=False, **dbhelper.db_open)
-        adb = lenv.open_db(key=dbhelper.ANSWERS_DB_NAME, create=False, **dbhelper.db_open)
-        ddb = lenv.open_db(key=dbhelper.DIFFS_DB_NAME, create=False, **dbhelper.db_open)
-        sdb = lenv.open_db(key=dbhelper.STATS_DB_NAME, create=False, **dbhelper.db_open)
-    except lmdb.NotFoundError:
-        logging.critical(
-            'Unable to generate statistics. LMDB does not contain queries, answers, or diffs!')
-        raise
-    return lenv, qdb, adb, ddb, sdb
-
-
-def read_diffs_lmdb(levn, qdb, ddb):
-    with levn.begin() as txn:
+def read_diffs_lmdb(lmdb):
+    qdb = lmdb.get_db(LMDB.QUERIES)
+    ddb = lmdb.get_db(LMDB.DIFFS)
+    with lmdb.env.begin() as txn:
         with txn.cursor(ddb) as diffcur:
             for qid, diffblob in diffcur:
                 others_agree, diff = pickle.loads(diffblob)
                 qwire = txn.get(qid, db=qdb)
-                yield (qid, qwire, others_agree, diff)
+                yield qid, qwire, others_agree, diff
 
 
 def main():
@@ -208,14 +181,18 @@ def main():
     config = cfg.read_cfg(args.cfgpath)
     field_weights = config['report']['field_weights']
 
-    lenv, qdb, adb, ddb, sdb = open_db(args.envdir)
-    diff_stream = read_diffs_lmdb(lenv, qdb, ddb)
-    global_stats, field_stats = process_results(field_weights, diff_stream)
-    with lenv.begin() as txn:
-        global_stats['queries'] = txn.stat(qdb)['entries']
-        global_stats['answers'] = txn.stat(adb)['entries']
-    with lenv.begin(sdb) as txn:
-        stats = pickle.loads(txn.get(b'global_stats'))
+    with LMDB(args.envdir, readonly=True) as lmdb:
+        qdb = lmdb.open_db(LMDB.QUERIES)
+        adb = lmdb.open_db(LMDB.ANSWERS)
+        lmdb.open_db(LMDB.DIFFS)
+        sdb = lmdb.open_db(LMDB.STATS)
+        diff_stream = read_diffs_lmdb(lmdb)
+        global_stats, field_stats = process_results(field_weights, diff_stream)
+        with lmdb.env.begin() as txn:
+            global_stats['queries'] = txn.stat(qdb)['entries']
+            global_stats['answers'] = txn.stat(adb)['entries']
+        with lmdb.env.begin(sdb) as txn:
+            stats = pickle.loads(txn.get(b'global_stats'))
     global_stats['duration'] = round(stats['end_time'] - stats['start_time'])
     print_results(global_stats, field_weights, field_stats)
 

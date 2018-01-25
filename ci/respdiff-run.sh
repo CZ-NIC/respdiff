@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -o errexit -o nounset -o xtrace
-mkdir /tmp/respdiff.db
 time wget https://gitlab.labs.nic.cz/knot/knot-resolver/snippets/69/raw?inline=false -O - | head -n 100 > /tmp/queries.txt
 CONFIG="response_differences/respdiff/respdiff.cfg"
 

@@ -8,13 +8,12 @@ import sys
 from typing import Tuple
 
 import dpkt
-
-import blacklist
-import dbhelper
 import dns.exception
 import dns.message
 import dns.rdatatype
-import lmdb
+
+import blacklist
+from dbhelper import LMDB, qid2key
 
 REPORT_CHUNKS = 10000
 
@@ -40,7 +39,7 @@ def parse_pcap(pcap_file):
     """
     i = 0
     pcap_file = dpkt.pcap.Reader(pcap_file)
-    for ts, wire in pcap_file:
+    for _, wire in pcap_file:
         i += 1
         yield (i, wire, '')
 
@@ -51,7 +50,7 @@ def wrk_process_line(args: Tuple[int, str, str]) -> Tuple[bytes, bytes]:
 
     Skips over empty lines, raises for malformed inputs.
     """
-    qid, line, log_repr = args
+    qid, line, _ = args
 
     try:
         wire = wire_from_text(line)
@@ -78,13 +77,13 @@ def wrk_process_wire_packet(qid: int, wire_packet: bytes, log_repr: str) -> Tupl
     :arg log_repr representation of packet for logs
     """
     if not blacklist.is_blacklisted(wire_packet):
-        key = dbhelper.qid2key(qid)
+        key = qid2key(qid)
         return key, wire_packet
-    else:
-        logging.debug('Query "%s" blacklisted (skipping query ID %d)',
-                      log_repr if log_repr else repr(blacklist.extract_packet(wire_packet)),
-                      qid)
-        return None, None
+
+    logging.debug('Query "%s" blacklisted (skipping query ID %d)',
+                  log_repr if log_repr else repr(blacklist.extract_packet(wire_packet)),
+                  qid)
+    return None, None
 
 
 def int_or_fromtext(value, fromtext):
@@ -109,19 +108,6 @@ def wire_from_text(text):
     return msg.to_wire()
 
 
-def lmdb_init(envdir):
-    """Open LMDB environment and database"""
-    config = dbhelper.env_open.copy()
-    config.update({
-        'path': envdir,
-        'sync': False,  # unsafe but fast
-        'writemap': True  # we do not care, this is a new database
-    })
-    lenv = lmdb.Environment(**config)
-    qdb = lenv.open_db(key=dbhelper.QUERIES_DB_NAME, **dbhelper.db_open)
-    return (lenv, qdb)
-
-
 def main():
     logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
     parser = argparse.ArgumentParser(
@@ -129,7 +115,7 @@ def main():
         description='Convert queries data from standard input and store '
                     'wire format into LMDB "queries" DB.')
 
-    parser.add_argument('envpath', type=str, help='path where to create LMDB environment')
+    parser.add_argument('envdir', type=str, help='path where to create LMDB environment')
     parser.add_argument('-f', '--in-format', type=str, choices=['text', 'pcap'], default='text',
                         help='define format for input data, default value is text\n'
                              'Expected input for "text" is: "<qname> <RR type>", '
@@ -144,30 +130,23 @@ def main():
     if args.in_format == 'pcap' and not args.pcap_file:
         logging.critical("Missing path to pcap file, use argument --pcap-file")
         sys.exit(1)
-    if dbhelper.db_exists(args.envpath, dbhelper.QUERIES_DB_NAME):
-        logging.critical(
-            'LMDB environment "%s" already contains DB %s! '
-            'Overwritting it would invalidate data in the environment, '
-            'terminating.',
-            args.envpath, dbhelper.QUERIES_DB_NAME)
-        sys.exit(1)
 
-    lenv, qdb = lmdb_init(args.envpath)
-
-    with lenv.begin(qdb, write=True) as txn:
-        with pool.Pool() as workers:
-            if args.in_format == 'text':
-                data_stream = read_lines(sys.stdin)
-                method = wrk_process_line
-            elif args.in_format == 'pcap':
-                data_stream = parse_pcap(args.pcap_file)
-                method = wrk_process_packet
-            else:
-                logging.error('unknown in-format, use "text" or "pcap"')
-                sys.exit(1)
-            for key, wire in workers.imap(method, data_stream, chunksize=1000):
-                if key is not None:
-                    txn.put(key, wire)
+    with LMDB(args.envdir, fast=True) as lmdb:
+        qdb = lmdb.open_db(LMDB.QUERIES, create=True, check_notexists=True)
+        with lmdb.env.begin(qdb, write=True) as txn:
+            with pool.Pool() as workers:
+                if args.in_format == 'text':
+                    data_stream = read_lines(sys.stdin)
+                    method = wrk_process_line
+                elif args.in_format == 'pcap':
+                    data_stream = parse_pcap(args.pcap_file)
+                    method = wrk_process_packet
+                else:
+                    logging.error('unknown in-format, use "text" or "pcap"')
+                    sys.exit(1)
+                for key, wire in workers.imap(method, data_stream, chunksize=1000):
+                    if key is not None:
+                        txn.put(key, wire)
 
 
 if __name__ == '__main__':
