@@ -96,9 +96,9 @@ def print_results(gstats, field_weights, counters, n=10):
         100.0 * others_agree / gstats['answers'],
         100.0 * gstats['others_disagree'] / gstats['answers']))
     target_disagrees = gstats['target_disagrees']
-    print('target diagrees    {:{}}    {:6.2f} % of matching answers from others'.format(
+    print('target disagrees   {:{}}    {:6.2f} % of matching answers from others'.format(
         gstats['target_disagrees'], maxcntlen,
-        100.0 * gstats['target_disagrees'] / gstats['answers']))
+        100.0 * gstats['target_disagrees'] / others_agree))
 
     if not field_sums.keys():
         return
