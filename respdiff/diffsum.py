@@ -84,21 +84,31 @@ def print_results(gstats, field_weights, counters, n=10):
     field_sums, field_mismatch_sums = combine_stats(counters)
 
     maxcntlen = maxlen(gstats.values())
-    print('== Global statistics')
-    print('duration           {:{}} s'.format(gstats['duration'], maxcntlen))
-    print('queries            {:{}}'.format(gstats['queries'], maxcntlen))
-    print('answers            {:{}}    {:6.2f} % of queries'.format(
-        gstats['answers'], maxcntlen, float(100) * gstats['answers'] / gstats['queries']))
-
     others_agree = gstats['answers'] - gstats['others_disagree']
-    print('others agree       {:{}}    {:6.2f} % of answers (ignoring {:.2f} % of answers)'.format(
-        others_agree, maxcntlen,
-        100.0 * others_agree / gstats['answers'],
-        100.0 * gstats['others_disagree'] / gstats['answers']))
     target_disagrees = gstats['target_disagrees']
-    print('target disagrees   {:{}}    {:6.2f} % of matching answers from others'.format(
-        gstats['target_disagrees'], maxcntlen,
-        100.0 * gstats['target_disagrees'] / others_agree))
+
+    global_report = '\n'.join([
+        '== Global statistics',
+        'duration           {duration:{ml}} s',
+        'queries            {queries:{ml}}',
+        'answers            {answers:{ml}}    {answers_pct:6.2f} % of queries',
+        ('others agree       {oth_agr:{ml}}    {oth_agr_pct:6.2f} % of answers'
+         '(ignoring {oth_agr_ignore_pct:.2f} % of answers)'),
+        ('target disagrees   {tgt_disagr:{ml}}    {tgt_disagr_pct:6.2f} % of '
+         'matching answers from others')
+    ])
+
+    print(global_report.format(
+        ml=maxcntlen,
+        duration=gstats['duration'],
+        queries=gstats['queries'],
+        answers=gstats['answers'],
+        answers_pct=100.0 * gstats['answers'] / gstats['queries'],
+        oth_agr=others_agree,
+        oth_agr_pct=100.0 * others_agree / gstats['answers'],
+        oth_agr_ignore_pct=100.0 * gstats['others_disagree'] / gstats['answers'],
+        tgt_disagr=gstats['target_disagrees'],
+        tgt_disagr_pct=100.0 * gstats['target_disagrees'] / others_agree))
 
     if not field_sums.keys():
         return
