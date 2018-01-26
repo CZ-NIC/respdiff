@@ -140,6 +140,12 @@ def match_part(exp_msg, got_msg, code):  # pylint: disable=inconsistent-return-s
 
 def match(expected, got, match_fields):
     """ Compare scripted reply to given message based on match criteria. """
+    if expected is None or got is None:
+        if expected is not None:
+            yield 'timeout', DataMismatch('answer', 'timeout')
+        if got is not None:
+            yield 'timeout', DataMismatch('timeout', 'answer')
+        return  # don't attempt to match any other fields if one answer is timeout
     for code in match_fields:
         try:
             match_part(expected, got, code)
@@ -149,10 +155,13 @@ def match(expected, got, match_fields):
 
 def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
         -> Dict[str, dns.message.Message]:
-    answers = {}
+    answers = {}  # type: Dict[str, dns.message.Message]
     for k, v in wire_dict.items():
         # decode bytes to dns.message objects
         # convert from wire format to DNS message object
+        if v.wire is None:  # query timed out
+            answers[k] = None
+            continue
         try:
             answers[k] = dns.message.from_wire(v.wire)
         except Exception:
