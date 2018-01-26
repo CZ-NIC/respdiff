@@ -124,7 +124,7 @@ def print_results(gstats, field_weights, counters, n=10):
     for field, count in field_sums.most_common():
         print('{:{}}    {:{}}     {:3.0f} %'.format(
             field, maxnamelen + 3,
-            count, maxcntlen + 3, 100.0 * n / target_disagrees))
+            count, maxcntlen + 3, 100.0 * count / target_disagrees))
 
     for field in field_weights:
         if field not in field_mismatch_sums:
@@ -147,7 +147,7 @@ def print_results(gstats, field_weights, counters, n=10):
             print('{:{}}  !=  {:{}}    {:{}}    {:3.0f} %'.format(
                 str(mismatch[0]), maxvallen,
                 str(mismatch[1]), maxvallen,
-                n, maxcntlen,
+                count, maxcntlen,
                 100.0 * count / target_disagrees))
 
     for field in field_weights:
@@ -157,7 +157,7 @@ def print_results(gstats, field_weights, counters, n=10):
             print('')
             print('== Field "%s" mismatch %s query details' % (field, mismatch))
             counter = counters[field][mismatch]
-            print_field_queries(counter, count)
+            print_field_queries(counter, n)
 
 
 def print_field_queries(counter, n):
