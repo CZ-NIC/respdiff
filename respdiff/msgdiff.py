@@ -240,7 +240,7 @@ def main():
 
     with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
-        lmdb.open_db(LMDB.ANSWERS, check_exists=True)
+        lmdb.open_db(LMDB.ANSWERS)
         lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
         qid_stream = lmdb.key_stream(LMDB.ANSWERS)
         func = partial(compare_lmdb_wrapper, criteria, target)
