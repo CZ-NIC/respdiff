@@ -54,10 +54,10 @@ class LMDB:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.env.close()
 
-    def open_db(self, dbname: bytes, create: bool = False, check_exists: bool = False,
+    def open_db(self, dbname: bytes, create: bool = False,
                 check_notexists: bool = False, drop: bool = False):
         assert self.env is not None, "LMDB wasn't initialized!"
-        if check_exists and not self.exists_db(dbname):
+        if not create and not self.exists_db(dbname):
             msg = 'LMDB environment "{}" does not contain DB {}! '.format(
                 self.path, dbname.decode('utf-8'))
             raise RuntimeError(msg)
