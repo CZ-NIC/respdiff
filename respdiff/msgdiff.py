@@ -247,7 +247,7 @@ def main():
     criteria = config['diff']['criteria']
     target = config['diff']['target']
 
-    with LMDB(args.envdir) as lmdb_:
+    with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
         lmdb.open_db(LMDB.ANSWERS)
         lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
