@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import multiprocessing.pool as pool
 import pickle
 import threading
@@ -54,6 +55,8 @@ def worker_query_lmdb_wrapper(args):
 def main():
     global timeout
 
+    logging.basicConfig(level=logging.INFO)
+
     parser = argparse.ArgumentParser(
         description='read queries from LMDB, send them in parallel to servers '
                     'listed in configuration file, and record answers into LMDB')
@@ -83,7 +86,11 @@ def main():
             with pool.Pool(
                     processes=args.cfg['sendrecv']['jobs'],
                     initializer=worker_init) as p:
+                i = 0
                 for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream, chunksize=100):
+                    i += 1
+                    if i % 10000 == 0:
+                        logging.info('Received {:d} answers'.format(i))
                     txn.put(qid, blob)
 
         stats['end_time'] = time.time()
