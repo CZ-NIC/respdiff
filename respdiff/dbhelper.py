@@ -1,12 +1,13 @@
 from typing import Dict, Any, Tuple, Generator  # NOQA: needed for type hint in comment
 import os
+import struct
 
 import lmdb
 
 
 def qid2key(qid):
     """Encode query ID to database key"""
-    return str(qid).encode('ascii')
+    return struct.pack('@I', qid)  # native integer
 
 
 class LMDB:
@@ -17,18 +18,20 @@ class LMDB:
     STATS = b'stats'
 
     ENV_DEFAULTS = {
-        'map_size': 1024**4,
-        'max_readers': 64,
+        'map_size': 10 * 1024**3,  # 10 G
+        'max_readers': 128,
         'max_dbs': 5,
         'max_spare_txns': 64,
     }  # type: Dict[str, Any]
 
     DB_OPEN_DEFAULTS = {
-        'reverse_key': True
+        'integerkey': False,
+        # surprisingly, optimal configuration seems to be
+        # native integer as database key *without*
+        # integerkey support in LMDB
     }  # type: Dict[str, Any]
 
-    def __init__(self, path: str, create: bool = False,
-                 readonly: bool = False, fast: bool = False) -> None:
+    def __init__(self, path: str, create: bool = False, readonly: bool = False) -> None:
         self.path = path
         self.dbs = {}  # type: Dict[bytes, Any]
         self.config = LMDB.ENV_DEFAULTS.copy()
@@ -37,12 +40,6 @@ class LMDB:
             'create': create,
             'readonly': readonly
         })
-        if fast:  # unsafe on crashes, but faster
-            self.config.update({
-                'writemap': True,
-                'sync': False,
-                'map_async': True,
-            })
 
         if not os.path.exists(self.path):
             os.makedirs(self.path)

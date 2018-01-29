@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import multiprocessing.pool as pool
 import pickle
 import threading
@@ -54,6 +55,8 @@ def worker_query_lmdb_wrapper(args):
 def main():
     global timeout
 
+    logging.basicConfig(level=logging.INFO)
+
     parser = argparse.ArgumentParser(
         description='read queries from LMDB, send them in parallel to servers '
                     'listed in configuration file, and record answers into LMDB')
@@ -73,22 +76,31 @@ def main():
         'end_time': None,
     }
 
-    with LMDB(args.envdir, fast=True) as lmdb:
+    with LMDB(args.envdir) as lmdb:
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
         sdb = lmdb.open_db(LMDB.STATS, create=True)
 
         qstream = lmdb.key_value_stream(LMDB.QUERIES)
-        with lmdb.env.begin(adb, write=True) as txn:
+        txn = lmdb.env.begin(adb, write=True)
+        try:
             with pool.Pool(
                     processes=args.cfg['sendrecv']['jobs'],
                     initializer=worker_init) as p:
-                for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream, chunksize=100):
+                i = 0
+                for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream,
+                                        chunksize=100):
+                    i += 1
+                    if i % 10000 == 0:
+                        logging.info('Received {:d} answers'.format(i))
                     txn.put(qid, blob)
+        finally:
+            # attempt to preserve data if something went wrong (or not)
+            txn.commit()
 
-        stats['end_time'] = time.time()
-        with lmdb.env.begin(sdb, write=True) as txn:
-            txn.put(b'global_stats', pickle.dumps(stats))
+            stats['end_time'] = time.time()
+            with lmdb.env.begin(sdb, write=True) as txn:
+                txn.put(b'global_stats', pickle.dumps(stats))
 
 
 if __name__ == "__main__":
