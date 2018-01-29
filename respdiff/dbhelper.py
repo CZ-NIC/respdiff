@@ -31,8 +31,7 @@ class LMDB:
         # integerkey support in LMDB
     }  # type: Dict[str, Any]
 
-    def __init__(self, path: str, create: bool = False,
-                 readonly: bool = False, fast: bool = False) -> None:
+    def __init__(self, path: str, create: bool = False, readonly: bool = False) -> None:
         self.path = path
         self.dbs = {}  # type: Dict[bytes, Any]
         self.config = LMDB.ENV_DEFAULTS.copy()
@@ -41,12 +40,6 @@ class LMDB:
             'create': create,
             'readonly': readonly
         })
-        if fast:  # unsafe on crashes, but faster
-            self.config.update({
-                'writemap': True,
-                'sync': False,
-                'map_async': True,
-            })
 
         if not os.path.exists(self.path):
             os.makedirs(self.path)

@@ -131,7 +131,7 @@ def main():
         logging.critical("Missing path to pcap file, use argument --pcap-file")
         sys.exit(1)
 
-    with LMDB(args.envdir, fast=True) as lmdb:
+    with LMDB(args.envdir) as lmdb:
         qdb = lmdb.open_db(LMDB.QUERIES, create=True, check_notexists=True)
         with lmdb.env.begin(qdb, write=True) as txn:
             with pool.Pool() as workers:

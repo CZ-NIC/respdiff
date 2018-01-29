@@ -76,7 +76,7 @@ def main():
         'end_time': None,
     }
 
-    with LMDB(args.envdir, fast=True) as lmdb:
+    with LMDB(args.envdir) as lmdb:
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
         sdb = lmdb.open_db(LMDB.STATS, create=True)
