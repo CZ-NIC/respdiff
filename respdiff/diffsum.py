@@ -4,6 +4,7 @@ import argparse
 import collections
 import logging
 import pickle
+import sys
 
 import dns.rdatatype
 
@@ -208,6 +209,9 @@ def main():
         with lmdb.env.begin() as txn:
             global_stats['queries'] = txn.stat(qdb)['entries']
             global_stats['answers'] = txn.stat(adb)['entries']
+        if global_stats['answers'] == 0:
+            logging.error('No answers in DB!')
+            sys.exit(1)
         with lmdb.env.begin(sdb) as txn:
             stats = pickle.loads(txn.get(b'global_stats'))
     global_stats['duration'] = round(stats['end_time'] - stats['start_time'])
