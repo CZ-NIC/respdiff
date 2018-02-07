@@ -4,6 +4,7 @@ import argparse
 import collections
 import logging
 import pickle
+import sys
 
 import dns.rdatatype
 
@@ -154,10 +155,14 @@ def print_results(gstats, field_weights, counters, n=10):
         if field not in counters:
             continue
         for mismatch, count in field_mismatch_sums[field].most_common():
+            display_limit = count if n == 0 else n
+            limit_msg = ''
+            if display_limit < count:
+                limit_msg = ' (displaying {} out of {} results)'.format(display_limit, count)
             print('')
-            print('== Field "%s" mismatch %s query details' % (field, mismatch))
+            print('== Field "%s" mismatch %s query details%s' % (field, mismatch, limit_msg))
             counter = counters[field][mismatch]
-            print_field_queries(counter, n)
+            print_field_queries(counter, display_limit)
 
 
 def print_field_queries(counter, n):
@@ -185,6 +190,9 @@ def main():
                     'listed in configuration file, and record answers into LMDB')
     parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
                         help='config file (default: respdiff.cfg)')
+    parser.add_argument('-l', '--limit', type=int, default=10,
+                        help='number of displayed mismatches in fields (default: 10; '
+                             'use 0 to display all)')
     parser.add_argument('envdir', type=str,
                         help='LMDB environment to read queries and answers from')
     args = parser.parse_args()
@@ -201,10 +209,13 @@ def main():
         with lmdb.env.begin() as txn:
             global_stats['queries'] = txn.stat(qdb)['entries']
             global_stats['answers'] = txn.stat(adb)['entries']
+        if global_stats['answers'] == 0:
+            logging.error('No answers in DB!')
+            sys.exit(1)
         with lmdb.env.begin(sdb) as txn:
             stats = pickle.loads(txn.get(b'global_stats'))
     global_stats['duration'] = round(stats['end_time'] - stats['start_time'])
-    print_results(global_stats, field_weights, field_stats)
+    print_results(global_stats, field_weights, field_stats, n=args.limit)
 
 
 if __name__ == '__main__':
