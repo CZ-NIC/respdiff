@@ -38,6 +38,8 @@ _CFGFMT = {
     'sendrecv': {
         'timeout': float,
         'jobs': int,
+        'time_delay_min': float,
+        'time_delay_max': float,
     },
     'servers': {
         'names': comma_list

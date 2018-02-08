@@ -4,6 +4,7 @@ import argparse
 import logging
 import multiprocessing.pool as pool
 import pickle
+import random
 import threading
 import time
 from typing import List, Tuple  # noqa: type hints
@@ -16,6 +17,8 @@ import sendrecv
 worker_state = {}  # shared by all workers
 resolvers = []  # type: List[Tuple[str, str, str, int]]
 timeout = None
+time_delay_min = 0
+time_delay_max = 0
 
 
 def worker_init():
@@ -42,6 +45,10 @@ def worker_query_lmdb_wrapper(args):
     tid = threading.current_thread().ident
     selector, sockets = worker_state[tid]
 
+    # optional artificial delay for testing
+    if time_delay_max > 0:
+        time.sleep(random.uniform(time_delay_min, time_delay_max))
+
     replies, reinit = sendrecv.send_recv_parallel(qwire, selector, sockets, timeout)
     if reinit:  # a connection is broken or something
         # TODO: log this?
@@ -54,6 +61,8 @@ def worker_query_lmdb_wrapper(args):
 
 def main():
     global timeout
+    global time_delay_min
+    global time_delay_max
 
     logging.basicConfig(level=logging.INFO)
 
@@ -71,6 +80,8 @@ def main():
         resolvers.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
 
     timeout = args.cfg['sendrecv']['timeout']
+    time_delay_min = args.cfg['sendrecv']['time_delay_min']
+    time_delay_max = args.cfg['sendrecv']['time_delay_max']
     stats = {
         'start_time': time.time(),
         'end_time': None,
