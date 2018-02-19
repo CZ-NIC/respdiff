@@ -8,10 +8,15 @@ from typing import Dict, List
 
 import lmdb
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
 
 from dbhelper import LMDB
+
+# Force matplotlib to use a different backend to handle machines without a display
+# pylint: disable=wrong-import-order,wrong-import-position
+import matplotlib
+import matplotlib.ticker as mtick
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt  # noqa
 
 
 def load_data(txn: lmdb.Transaction) -> Dict[str, List[float]]:
