@@ -9,6 +9,7 @@ from typing import Dict, List
 import lmdb
 import numpy as np
 
+import cfg
 from dbhelper import LMDB
 
 # Force matplotlib to use a different backend to handle machines without a display
@@ -29,7 +30,7 @@ def load_data(txn: lmdb.Transaction) -> Dict[str, List[float]]:
     return data
 
 
-def plot_log_percentile_histogram(data: Dict[str, List[float]]):
+def plot_log_percentile_histogram(data: Dict[str, List[float]], config=None):
     """
     For graph explanation, see
     https://blog.powerdns.com/2017/11/02/dns-performance-metrics-the-logarithmic-percentile-histogram/
@@ -52,12 +53,17 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]]):
     ax.set_title('Resolver Response Time')
 
     # plot data
-    for server in data:
+    for server in sorted(data):
+        try:
+            color = config[server]['graph_color']
+        except KeyError:
+            color = None
+
         # convert to ms and sort
         values = sorted([1000 * x for x in data[server]], reverse=True)
         ax.plot(percentiles,
                 [values[math.ceil(pctl * len(values) / 100) - 1] for pctl in percentiles],
-                lw=2, label=server)
+                lw=2, label=server, color=color)
 
     plt.legend()
 
@@ -71,15 +77,18 @@ def main():
     parser.add_argument('-o', '--output', type=str,
                         default='histogram.svg',
                         help='output image file (default: histogram.svg)')
+    parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
+                        help='config file (default: respdiff.cfg)')
     parser.add_argument('envdir', type=str,
                         help='LMDB environment to read answers from')
     args = parser.parse_args()
+    config = cfg.read_cfg(args.cfgpath)
 
     with LMDB(args.envdir, readonly=True) as lmdb_:
         adb = lmdb_.open_db(LMDB.ANSWERS)
         with lmdb_.env.begin(adb) as txn:
             data = load_data(txn)
-    plot_log_percentile_histogram(data)
+    plot_log_percentile_histogram(data, config)
 
     # save to file
     plt.savefig(args.output, dpi=300)

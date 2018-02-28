@@ -59,6 +59,7 @@ _CFGFMT_SERVER = {
     'ip': (ipaddr_check, True),
     'port': (int, True),
     'transport': (transport_opt, True),
+    'graph_color': (str, False),
 }
 
 
