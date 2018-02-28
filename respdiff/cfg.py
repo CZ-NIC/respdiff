@@ -33,32 +33,32 @@ def transport_opt(ostr):
 
 
 # declarative config format description for always-present sections
-# dict structure: dict[section name][key name] = type
+# dict structure: dict[section name][key name] = (type, required)
 _CFGFMT = {
     'sendrecv': {
-        'timeout': float,
-        'jobs': int,
-        'time_delay_min': float,
-        'time_delay_max': float,
+        'timeout': (float, True),
+        'jobs': (int, True),
+        'time_delay_min': (float, True),
+        'time_delay_max': (float, True),
     },
     'servers': {
-        'names': comma_list
+        'names': (comma_list, True),
     },
     'diff': {
-        'target': str,
-        'criteria': comma_list,
+        'target': (str, True),
+        'criteria': (comma_list, True),
     },
     'report': {
-        'field_weights': comma_list,
+        'field_weights': (comma_list, True),
     },
 }
 
 # declarative config format description for per-server section
 # dict structure: dict[key name] = type
 _CFGFMT_SERVER = {
-    'ip': ipaddr_check,
-    'port': int,
-    'transport': transport_opt
+    'ip': (ipaddr_check, True),
+    'port': (int, True),
+    'transport': (transport_opt, True),
 }
 
 
@@ -72,7 +72,7 @@ def cfg2dict_convert(fmt, cparser):
     cdict = {}
     for sectname, sectfmt in fmt.items():
         sectdict = cdict.setdefault(sectname, {})
-        for valname, valfmt in sectfmt.items():
+        for valname, (valfmt, valreq) in sectfmt.items():
             try:
                 if not cparser[sectname][valname].strip():
                     raise ValueError('empty values are not allowed')
@@ -82,8 +82,9 @@ def cfg2dict_convert(fmt, cparser):
                                  '{}; expected format: {}'.format(
                                      sectname, valname, ex, valfmt))
             except KeyError:
-                raise KeyError('config section [{}] key "{}" not found'.format(
-                    sectname, valname))
+                if valreq:
+                    raise KeyError('config section [{}] key "{}" not found'.format(
+                        sectname, valname))
         unsupported_keys = set(cparser[sectname].keys()) - set(sectfmt.keys())
         if unsupported_keys:
             raise ValueError('unexpected keys {} in section [{}]'.format(
