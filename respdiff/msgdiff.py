@@ -59,12 +59,10 @@ def compare_rrs(expected, got):
 def compare_rrs_types(exp_val, got_val, compare_rrsigs):
     """sets of RR types in both sections must match"""
     def rr_ordering_key(rrset):
-        if rrset.covers:
-            return (rrset.covers, 1)  # RRSIGs go to the end of RRtype list
-        return (rrset.rdtype, 0)
+        return rrset.covers if compare_rrsigs else rrset.rdtype
 
-    def key_to_text(rrtype, rrsig):
-        if not rrsig:
+    def key_to_text(rrtype):
+        if not compare_rrsigs:
             return dns.rdatatype.to_text(rrtype)
         return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
 
@@ -79,8 +77,8 @@ def compare_rrs_types(exp_val, got_val, compare_rrsigs):
     got_types = frozenset(rr_ordering_key(rrset)
                           for rrset in filter_by_rrsig(got_val, compare_rrsigs))
     if exp_types != got_types:
-        exp_types = tuple(key_to_text(*i) for i in sorted(exp_types))
-        got_types = tuple(key_to_text(*i) for i in sorted(got_types))
+        exp_types = tuple(key_to_text(i) for i in sorted(exp_types))
+        got_types = tuple(key_to_text(i) for i in sorted(got_types))
         raise DataMismatch(exp_types, got_types)
 
 
