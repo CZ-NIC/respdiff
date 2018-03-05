@@ -40,6 +40,7 @@ _CFGFMT = {
         'jobs': (int, True),
         'time_delay_min': (float, True),
         'time_delay_max': (float, True),
+        'max_timeouts': (int, False),
     },
     'servers': {
         'names': (comma_list, True),
