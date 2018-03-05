@@ -56,29 +56,29 @@ def compare_rrs(expected, got):
     return True
 
 
-def compare_rrs_types(exp_val, got_val, skip_rrsigs):
+def compare_rrs_types(exp_val, got_val, compare_rrsigs):
     """sets of RR types in both sections must match"""
     def rr_ordering_key(rrset):
-        if rrset.covers:
-            return (rrset.covers, 1)  # RRSIGs go to the end of RRtype list
-        return (rrset.rdtype, 0)
+        return rrset.covers if compare_rrsigs else rrset.rdtype
 
-    def key_to_text(rrtype, rrsig):
-        if not rrsig:
+    def key_to_text(rrtype):
+        if not compare_rrsigs:
             return dns.rdatatype.to_text(rrtype)
         return 'RRSIG(%s)' % dns.rdatatype.to_text(rrtype)
 
-    if skip_rrsigs:
-        exp_val = (rrset for rrset in exp_val
-                   if rrset.rdtype != dns.rdatatype.RRSIG)
-        got_val = (rrset for rrset in got_val
-                   if rrset.rdtype != dns.rdatatype.RRSIG)
+    def filter_by_rrsig(seq, rrsig):
+        for el in seq:
+            el_rrsig = el.rdtype == dns.rdatatype.RRSIG
+            if el_rrsig == rrsig:
+                yield el
 
-    exp_types = frozenset(rr_ordering_key(rrset) for rrset in exp_val)
-    got_types = frozenset(rr_ordering_key(rrset) for rrset in got_val)
+    exp_types = frozenset(rr_ordering_key(rrset)
+                          for rrset in filter_by_rrsig(exp_val, compare_rrsigs))
+    got_types = frozenset(rr_ordering_key(rrset)
+                          for rrset in filter_by_rrsig(got_val, compare_rrsigs))
     if exp_types != got_types:
-        exp_types = tuple(key_to_text(*i) for i in sorted(exp_types))
-        got_types = tuple(key_to_text(*i) for i in sorted(got_types))
+        exp_types = tuple(key_to_text(i) for i in sorted(exp_types))
+        got_types = tuple(key_to_text(i) for i in sorted(got_types))
         raise DataMismatch(exp_types, got_types)
 
 
@@ -105,9 +105,9 @@ def match_part(exp_msg, got_msg, code):  # pylint: disable=inconsistent-return-s
     elif code == 'answer' or code == 'ttl':
         return compare_rrs(exp_msg.answer, got_msg.answer)
     elif code == 'answertypes':
-        return compare_rrs_types(exp_msg.answer, got_msg.answer, skip_rrsigs=True)
+        return compare_rrs_types(exp_msg.answer, got_msg.answer, compare_rrsigs=False)
     elif code == 'answerrrsigs':
-        return compare_rrs_types(exp_msg.answer, got_msg.answer, skip_rrsigs=False)
+        return compare_rrs_types(exp_msg.answer, got_msg.answer, compare_rrsigs=True)
     elif code == 'authority':
         return compare_rrs(exp_msg.authority, got_msg.authority)
     elif code == 'additional':
