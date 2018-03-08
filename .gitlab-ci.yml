@@ -1,43 +1,40 @@
-image: $CI_REGISTRY/knot/knot-resolver/ci:debian-stable
-
 variables:
   LC_ALL: C.UTF-8
 
 stages:
   - test
 
+.debian_stable: &debian_stable
+  image: $CI_REGISTRY/knot/knot-resolver/ci:debian-stable
+  tags:
+    - docker
+    - linux
+    - amd64
+
 test:mypy:
+  <<: *debian_stable
   script:
     - ./ci/mypy-run.sh
-  tags:
-    - docker
-    - linux
-    - amd64
 
 test:flake8:
+  <<: *debian_stable
   script:
     - python3 -m flake8 --max-line-length=100 . && echo "OK, no flake8 errors detected"
-  tags:
-    - docker
-    - linux
-    - amd64
 
 test:pylint:
-  stage: test
+  <<: *debian_stable
   script:
     - pip3 install -r requirements.txt
     - ./ci/pylint-run.sh
-  tags:
-    - docker
-    - linux
-    - amd64
+
+test:pytest:
+  <<: *debian_stable
+  script:
+    - export PYTHONPATH="response_differences/:$PYTHONPATH"
+    - python3 -m pytest response_differences
 
 test:respdiff:
-  stage: test
+  <<: *debian_stable
   script:
     - pip3 install -r requirements.txt
     - ./ci/respdiff-run.sh
-  tags:
-    - docker
-    - linux
-    - amd64
