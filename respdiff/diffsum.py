@@ -214,7 +214,7 @@ def main():
             sys.exit(1)
         with lmdb.env.begin(sdb) as txn:
             stats = pickle.loads(txn.get(b'global_stats'))
-    global_stats['duration'] = round(stats['end_time'] - stats['start_time'])
+    global_stats['duration'] = stats['end_time'] - stats['start_time']
     print_results(global_stats, field_weights, field_stats, n=args.limit)
 
 

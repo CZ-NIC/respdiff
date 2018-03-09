@@ -118,7 +118,7 @@ def main():
     except KeyError:
         pass
     stats = {
-        'start_time': time.time(),
+        'start_time': int(time.time()),
         'end_time': None,
     }
 
@@ -148,7 +148,7 @@ def main():
             # attempt to preserve data if something went wrong (or not)
             txn.commit()
 
-            stats['end_time'] = time.time()
+            stats['end_time'] = int(time.time())
             with lmdb.env.begin(sdb, write=True) as txn:
                 txn.put(b'global_stats', pickle.dumps(stats))
 
