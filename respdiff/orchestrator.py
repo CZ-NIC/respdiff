@@ -3,6 +3,7 @@
 import argparse
 import logging
 import multiprocessing.pool as pool
+import os
 import pickle
 import random
 import threading
@@ -11,6 +12,7 @@ from typing import List, Tuple, Dict, Any  # noqa: type hints
 import sys
 
 import cfg
+from dataformat import DiffReport
 from dbhelper import LMDB
 import sendrecv
 
@@ -85,6 +87,28 @@ def check_timeout(replies):
                         resolver, max_timeouts))
 
 
+def export_statistics(lmdb, datafile, start_time):
+    qdb = lmdb.get_db(LMDB.QUERIES)
+    adb = lmdb.get_db(LMDB.ANSWERS)
+    with lmdb.env.begin() as txn:
+        total_queries = txn.stat(qdb)['entries']
+        total_answers = txn.stat(adb)['entries']
+    report = DiffReport(
+        start_time,
+        int(time.time()),
+        total_queries,
+        total_answers)
+
+    # it doesn't make sense to use existing report.json in orchestrator
+    if os.path.exists(datafile):
+        backup_filename = datafile + '.bak'
+        os.rename(datafile, backup_filename)
+        logging.warning(
+            'JSON report already exists, overwriting file. Original '
+            'file backed up as %s', backup_filename)
+    report.export_json(datafile)
+
+
 def main():
     global ignore_timeout
     global max_timeouts
@@ -101,6 +125,8 @@ def main():
                         help='config file (default: respdiff.cfg)')
     parser.add_argument('--ignore-timeout', action="store_true",
                         help='continue despite consecutive timeouts from resolvers')
+    parser.add_argument('-d', '--datafile', type=str, default='report.json',
+                        help='JSON report file (default: report.json)')
     parser.add_argument('envdir', type=str,
                         help='LMDB environment to read queries from and to write answers to')
     args = parser.parse_args()
@@ -117,15 +143,11 @@ def main():
         max_timeouts = args.cfg['sendrecv']['max_timeouts']
     except KeyError:
         pass
-    stats = {
-        'start_time': int(time.time()),
-        'end_time': None,
-    }
+    start_time = int(time.time())
 
     with LMDB(args.envdir) as lmdb:
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
-        sdb = lmdb.open_db(LMDB.STATS, create=True)
 
         qstream = lmdb.key_value_stream(LMDB.QUERIES)
         txn = lmdb.env.begin(adb, write=True)
@@ -148,9 +170,8 @@ def main():
             # attempt to preserve data if something went wrong (or not)
             txn.commit()
 
-            stats['end_time'] = int(time.time())
-            with lmdb.env.begin(sdb, write=True) as txn:
-                txn.put(b'global_stats', pickle.dumps(stats))
+            # get query/answer statistics
+            export_statistics(lmdb, args.datafile, start_time)
 
 
 if __name__ == "__main__":
