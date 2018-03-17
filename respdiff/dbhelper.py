@@ -10,6 +10,10 @@ def qid2key(qid):
     return struct.pack('@I', qid)  # native integer
 
 
+def key2qid(key):
+    return struct.unpack('@I', key)[0]
+
+
 class LMDB:
     ANSWERS = b'answers'
     DIFFS = b'diffs'

@@ -62,14 +62,6 @@ class DataMismatch(Exception):
         return hash(self.key)
 
 
-def to_json(python_object):
-    if isinstance(python_object, DataMismatch):
-        return {
-            'exp_val': python_object.exp_val,
-            'got_val': python_object.got_val,
-        }
-
-
 def read_json(filename):
     with open(filename, 'r') as f:
         return json.load(f)

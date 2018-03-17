@@ -4,36 +4,20 @@ import argparse
 from functools import partial
 import logging
 import multiprocessing.pool as pool
+import os
 import pickle
+import sys
 from typing import Dict
 
 import dns.message
 import dns.exception
 
 import cfg
-import dataformat
-from dbhelper import LMDB
+from dataformat import Reply, DataMismatch, DiffReport, Disagreements, DisagreementsCounter
+from dbhelper import LMDB, key2qid
 
 
 lmdb = None
-
-
-class DataMismatch(Exception):
-    def __init__(self, exp_val, got_val):
-        super(DataMismatch, self).__init__(exp_val, got_val)
-        self.exp_val = exp_val
-        self.got_val = got_val
-
-    def __str__(self):
-        return 'expected "{0.exp_val}" got "{0.got_val}"'.format(self)
-
-    def __eq__(self, other):
-        return (isinstance(other, DataMismatch)
-                and self.exp_val == other.exp_val
-                and self.got_val == other.got_val)
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
 
 
 def compare_val(exp_val, got_val):
@@ -153,7 +137,7 @@ def match(expected, got, match_fields):
             yield (code, ex)
 
 
-def decode_wire_dict(wire_dict: Dict[str, dataformat.Reply]) \
+def decode_wire_dict(wire_dict: Dict[str, Reply]) \
         -> Dict[str, dns.message.Message]:
     answers = {}  # type: Dict[str, dns.message.Message]
     for k, v in wire_dict.items():
@@ -231,12 +215,35 @@ def compare_lmdb_wrapper(criteria, target, qid):
         txn.put(qid, blob)
 
 
+def export_json(filename):
+    report = DiffReport.from_json(filename)
+    report.other_disagreements = DisagreementsCounter()
+    report.target_disagreements = Disagreements()
+
+    # get diff data
+    ddb = lmdb.get_db(LMDB.DIFFS)
+    with lmdb.env.begin(ddb) as txn:
+        with txn.cursor() as diffcur:
+            for key, diffblob in diffcur:
+                qid = key2qid(key)
+                others_agree, diff = pickle.loads(diffblob)
+                if not others_agree:
+                    report.other_disagreements.count += 1
+                else:
+                    for field, mismatch in diff.items():
+                        report.target_disagreements.add_mismatch(field, mismatch, qid)
+
+    report.export_json(filename)
+
+
 def main():
     global lmdb
 
     logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
     parser = argparse.ArgumentParser(
         description='compute diff from answers stored in LMDB and write diffs to LMDB')
+    parser.add_argument('-d', '--datafile', type=str, default='report.json',
+                        help='JSON report file (default: report.json)')
     parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
                         help='config file (default: respdiff.cfg)')
     parser.add_argument('envdir', type=str,
@@ -247,6 +254,11 @@ def main():
     criteria = config['diff']['criteria']
     target = config['diff']['target']
 
+    # JSON report has to be created by orchestrator
+    if not os.path.exists(args.datafile):
+        logging.error("JSON report (%s) doesn't exist!", args.datafile)
+        sys.exit(1)
+
     with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
         lmdb.open_db(LMDB.ANSWERS)
@@ -256,6 +268,7 @@ def main():
         with pool.Pool() as p:
             for _ in p.imap_unordered(func, qid_stream, chunksize=10):
                 pass
+        export_json(args.datafile)
 
 
 if __name__ == '__main__':
