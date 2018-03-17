@@ -9,6 +9,7 @@ from typing import (  # noqa
 
 
 MismatchValue = Union[str, Sequence[str]]
+ResolverID = str
 QID = int
 WireFormat = bytes
 FieldLabel = str
@@ -122,7 +123,7 @@ class Diff(collections.abc.Mapping):
     __setitem__ = None
     __delitem__ = None
 
-    def __init__(self, qid: QID, mismatches: Dict[FieldLabel, DataMismatch]) -> None:
+    def __init__(self, qid: QID, mismatches: Mapping[FieldLabel, DataMismatch]) -> None:
         super(Diff, self).__init__()
         self.qid = qid
         self._mismatches = mismatches
