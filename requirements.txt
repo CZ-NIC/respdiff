@@ -4,3 +4,4 @@ dpkt
 lmdb
 matplotlib
 numpy
+tabulate

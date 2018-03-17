@@ -3,184 +3,135 @@
 import argparse
 import collections
 import logging
-import pickle
 import sys
+from typing import Any, Callable, Iterator, ItemsView, List, Set, Tuple, Union  # noqa
 
+import dns.message
 import dns.rdatatype
+from tabulate import tabulate
 
 import cfg
-from dbhelper import LMDB
-from msgdiff import DataMismatch  # NOQA: needed for unpickling
+from dbhelper import LMDB, qid2key
+from dataformat import (
+    DataMismatch, DiffReport, FieldLabel, Summary,
+    QID, WireFormat)
 
 
-def process_diff(field_weights, field_stats, qwire, diff):
-    for field in field_weights:
-        if field in diff:
-            significant_field = field
-            break
-    assert significant_field  # field must be in field_weights
-    if significant_field == 'answer':
-        return
-
-    qmsg = dns.message.from_wire(qwire)
-    question = (qmsg.question[0].name, qmsg.question[0].rdtype)
-
-    field_mismatches = field_stats.setdefault(field, {})  # pylint: disable=undefined-loop-variable
-    mismatch = diff[significant_field]
-    mismatch_key = (mismatch.exp_val, mismatch.got_val)
-    mismatch_counter = field_mismatches.setdefault(mismatch_key, collections.Counter())
-    mismatch_counter[question] += 1
+DEFAULT_LIMIT = 10
+GLOBAL_STATS_FORMAT = '{:21s}   {:>8}'
+GLOBAL_STATS_PCT_FORMAT = '{:21s}   {:8d}   {:5.2f} % {:s}'
 
 
-# FIXME: this code is ugly, refactor it
-def process_results(field_weights, diff_generator):
-    """
-    field_stats { field: value_stats { (exp, got): Counter(queries) } }
-    """
-    global_stats = {
-        'others_disagree': 0,
-        'target_disagrees': 0,
-    }
-    field_stats = {}
-
-    for _, qwire, others_agree, target_diff in diff_generator:
-        if not others_agree:
-            global_stats['others_disagree'] += 1
-            continue
-
-        if not target_diff:  # everybody agreed, nothing to count
-            continue
-
-        global_stats['target_disagrees'] += 1
-        process_diff(field_weights, field_stats, qwire, target_diff)
-
-    return global_stats, field_stats
-
-
-def combine_stats(counters):
-    field_mismatch_sums = {}
-    for field in counters:
-        field_mismatch_sums[field] = collections.Counter(
-            {mismatch: sum(counter.values())
-             for mismatch, counter in counters[field].items()})
-
-    field_sums = collections.Counter(
-        {field: sum(counter.values())
-         for field, counter in field_mismatch_sums.items()})
-    return field_sums, field_mismatch_sums
-
-
-def mismatch2str(mismatch):
-    if not isinstance(mismatch[0], str):
-        return (' '.join(mismatch[0]), ' '.join(mismatch[1]))
-    return mismatch
-
-
-def maxlen(iterable):
-    return max(len(str(it)) for it in iterable)
-
-
-def print_results(gstats, field_weights, counters, n=10):
-    # global stats
-    field_sums, field_mismatch_sums = combine_stats(counters)
-
-    maxcntlen = maxlen(gstats.values())
-    others_agree = gstats['answers'] - gstats['others_disagree']
-    target_disagrees = gstats['target_disagrees']
-
-    global_report = '\n'.join([
-        '== Global statistics',
-        'duration           {duration:{ml}} s',
-        'queries            {queries:{ml}}',
-        'answers            {answers:{ml}}    {answers_pct:6.2f} % of queries',
-        ('others agree       {oth_agr:{ml}}    {oth_agr_pct:6.2f} % of answers'
-         '(ignoring {oth_agr_ignore_pct:.2f} % of answers)'),
-        ('target disagrees   {tgt_disagr:{ml}}    {tgt_disagr_pct:6.2f} % of '
-         'matching answers from others')
-    ])
-
-    print(global_report.format(
-        ml=maxcntlen,
-        duration=gstats['duration'],
-        queries=gstats['queries'],
-        answers=gstats['answers'],
-        answers_pct=100.0 * gstats['answers'] / gstats['queries'],
-        oth_agr=others_agree,
-        oth_agr_pct=100.0 * others_agree / gstats['answers'],
-        oth_agr_ignore_pct=100.0 * gstats['others_disagree'] / gstats['answers'],
-        tgt_disagr=gstats['target_disagrees'],
-        tgt_disagr_pct=100.0 * gstats['target_disagrees'] / others_agree))
-
-    if not field_sums.keys():
-        return
+def print_global_stats(report: DiffReport) -> None:
+    print('== Global statistics')
+    print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
+    print(GLOBAL_STATS_FORMAT.format('queries', report.total_queries))
+    print(GLOBAL_STATS_PCT_FORMAT.format(
+        'answers', report.total_answers,
+        report.total_answers * 100.0 / report.total_queries, 'of queries'))
     print('')
-    # print('== Field statistics: field - count - % of mismatches')
-    maxnamelen = maxlen(field_sums.keys())
-    maxcntlen = maxlen(field_sums.values())
-    print('== {:{}}    {:{}}    {}'.format(
-        'Field', maxnamelen - (len('count') - maxcntlen),
-        'count', maxcntlen,
-        '% of mismatches'))
-
-    for field, count in field_sums.most_common():
-        print('{:{}}    {:{}}     {:3.0f} %'.format(
-            field, maxnamelen + 3,
-            count, maxcntlen + 3, 100.0 * count / target_disagrees))
-
-    for field in field_weights:
-        if field not in field_mismatch_sums:
-            continue
-        print('')
-        print('== Field "%s" mismatch statistics' % field)
-        maxvallen = max((max(len(str(mismatch2str(mism)[0])), len(str(mismatch2str(mism)[1])))
-                         for mism in field_mismatch_sums[field].keys()))
-        maxcntlen = maxlen(field_mismatch_sums[field].values())
-        print('{:{}}  !=  {:{}}    {:{}}    {}'.format(
-            'Expected', maxvallen,
-            'Got',
-            (maxvallen - (len('count') - maxcntlen)) if maxvallen - (len('count') - maxcntlen) > 1
-            else 1,
-            'count', maxcntlen,
-            '% of mismatches'
-        ))
-        for mismatch, count in field_mismatch_sums[field].most_common():
-            mismatch = mismatch2str(mismatch)
-            print('{:{}}  !=  {:{}}    {:{}}    {:3.0f} %'.format(
-                str(mismatch[0]), maxvallen,
-                str(mismatch[1]), maxvallen,
-                count, maxcntlen,
-                100.0 * count / target_disagrees))
-
-    for field in field_weights:
-        if field not in counters:
-            continue
-        for mismatch, count in field_mismatch_sums[field].most_common():
-            display_limit = count if n == 0 else n
-            limit_msg = ''
-            if display_limit < count:
-                limit_msg = ' (displaying {} out of {} results)'.format(display_limit, count)
-            print('')
-            print('== Field "%s" mismatch %s query details%s' % (field, mismatch, limit_msg))
-            counter = counters[field][mismatch]
-            print_field_queries(counter, display_limit)
 
 
-def print_field_queries(counter, n):
-    for query, count in counter.most_common(n):
-        qname, qtype = query
-        qtype = dns.rdatatype.to_text(qtype)
-        print("%s %s\t\t%s mismatches" % (qname, qtype, count))
+def print_differences_stats(summary: Summary, total_answers: int) -> None:
+    print('== Differences statistics')
+    print(GLOBAL_STATS_PCT_FORMAT.format(
+        'upstream unstable', summary.upstream_unstable,
+        summary.upstream_unstable * 100.0 / total_answers, 'of answers (ignoring)'))
+    if summary.not_reproducible:
+        print(GLOBAL_STATS_PCT_FORMAT.format(
+            'not 100% reproducible', summary.not_reproducible,
+            summary.not_reproducible * 100.0 / total_answers, 'of answers (ignoring)'))
+    print(GLOBAL_STATS_PCT_FORMAT.format(
+        'target disagrees', len(summary),
+        len(summary) * 100. / summary.usable_answers,
+        'of not ignored answers'))
+    print('')
 
 
-def read_diffs_lmdb(lmdb):
+def print_fields_overview(summary: Summary) -> None:
+    fields = []
+    for field in summary.field_labels:
+        mismatch_count = 0
+        for _, qids in summary.get_field_mismatches(field):
+            mismatch_count += len(qids)
+        fields.append([field, mismatch_count, mismatch_count * 100.0 / len(summary)])
+    fields.sort(key=lambda data: data[1], reverse=True)
+
+    print('== Target Disagreements')
+    print(tabulate(
+        fields,
+        ['Field', 'Count', '% of mismatches'],
+        tablefmt='psql',
+        floatfmt='.2f'))
+    print('')
+
+
+def print_field_mismatch_stats(
+            field: FieldLabel,
+            mismatches: ItemsView[DataMismatch, Set[QID]],
+            total_mismatches: int
+        ) -> None:
+    fields = []
+    for mismatch, qids in mismatches:
+        fields.append([
+            mismatch.format_value(mismatch.exp_val),
+            mismatch.format_value(mismatch.got_val),
+            len(qids),
+            len(qids) * 100. / total_mismatches])
+    fields.sort(key=lambda data: data[2], reverse=True)
+
+    print('== Field "{}" mismatch statistics'.format(field))
+    print(tabulate(
+        fields,
+        ['Expected', 'Got', 'Count', '% of mismatches'],
+        tablefmt='psql',
+        floatfmt='.2f'))
+    print('')
+
+
+def qwire_to_qname_qtype(qwire: WireFormat) -> str:
+    """Get text representation of DNS wire format query"""
+    qmsg = dns.message.from_wire(qwire)
+    return '{} {}'.format(
+        qmsg.question[0].name,
+        dns.rdatatype.to_text(qmsg.question[0].rdtype))
+
+
+def print_mismatch_queries(
+            field: FieldLabel,
+            mismatch: DataMismatch,
+            queries: Iterator[Tuple[QID, WireFormat]],
+            limit: int = DEFAULT_LIMIT,
+            qwire_to_text_func: Callable[[WireFormat], str] = qwire_to_qname_qtype
+        ) -> None:
+    occurences = collections.Counter()  # type: collections.Counter
+    for _, qwire in queries:
+        text = qwire_to_text_func(qwire)
+        occurences[text] += 1
+    if limit == 0:
+        limit = None
+    to_print = [(count, text) for text, count in occurences.most_common(limit)]
+
+    print('== Field "{}", mismatch "{}" query details'.format(field, mismatch))
+    print(tabulate(
+        to_print,
+        ['Count', 'Query'],
+        tablefmt='plain'))
+    if limit is not None and limit < len(occurences):
+        print('    ...  omitting {} queries'.format(len(occurences) - limit))
+    print('')
+
+
+def get_query_iterator(
+            lmdb,
+            qids: Set[QID]
+        ) -> Iterator[Tuple[QID, WireFormat]]:
     qdb = lmdb.get_db(LMDB.QUERIES)
-    ddb = lmdb.get_db(LMDB.DIFFS)
-    with lmdb.env.begin() as txn:
-        with txn.cursor(ddb) as diffcur:
-            for qid, diffblob in diffcur:
-                others_agree, diff = pickle.loads(diffblob)
-                qwire = txn.get(qid, db=qdb)
-                yield qid, qwire, others_agree, diff
+    with lmdb.env.begin(qdb) as txn:
+        for qid in qids:
+            key = qid2key(qid)
+            qwire = txn.get(key)
+            yield qid, qwire
 
 
 def main():
@@ -188,34 +139,52 @@ def main():
     parser = argparse.ArgumentParser(
         description='read queries from LMDB, send them in parallel to servers '
                     'listed in configuration file, and record answers into LMDB')
+    parser.add_argument('-d', '--datafile', default='report.json',
+                        help='JSON report file (default: report.json)')
     parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
                         help='config file (default: respdiff.cfg)')
-    parser.add_argument('-l', '--limit', type=int, default=10,
-                        help='number of displayed mismatches in fields (default: 10; '
-                             'use 0 to display all)')
+    parser.add_argument('-l', '--limit', type=int, default=DEFAULT_LIMIT,
+                        help='number of displayed mismatches in fields (default: {}; '
+                             'use 0 to display all)'.format(DEFAULT_LIMIT))
     parser.add_argument('envdir', type=str,
                         help='LMDB environment to read queries and answers from')
     args = parser.parse_args()
     config = cfg.read_cfg(args.cfgpath)
+    report = DiffReport.from_json(args.datafile)
     field_weights = config['report']['field_weights']
 
-    with LMDB(args.envdir, readonly=True) as lmdb:
-        qdb = lmdb.open_db(LMDB.QUERIES)
-        adb = lmdb.open_db(LMDB.ANSWERS)
-        lmdb.open_db(LMDB.DIFFS)
-        sdb = lmdb.open_db(LMDB.STATS)
-        diff_stream = read_diffs_lmdb(lmdb)
-        global_stats, field_stats = process_results(field_weights, diff_stream)
-        with lmdb.env.begin() as txn:
-            global_stats['queries'] = txn.stat(qdb)['entries']
-            global_stats['answers'] = txn.stat(adb)['entries']
-        if global_stats['answers'] == 0:
-            logging.error('No answers in DB!')
-            sys.exit(1)
-        with lmdb.env.begin(sdb) as txn:
-            stats = pickle.loads(txn.get(b'global_stats'))
-    global_stats['duration'] = stats['end_time'] - stats['start_time']
-    print_results(global_stats, field_weights, field_stats, n=args.limit)
+    if not report.total_answers:
+        logging.error('No answers in DB!')
+        sys.exit(1)
+    if report.target_disagreements is None:
+        logging.error('JSON report is missing diff data! Did you forget to run msgdiff?')
+        sys.exit(1)
+
+    report = DiffReport.from_json(args.datafile)
+    report.summary = Summary.from_report(report, field_weights)
+
+    print_global_stats(report)
+    print_differences_stats(report.summary, report.total_answers)
+
+    if report.summary:
+        print_fields_overview(report.summary)
+        for field in field_weights:
+            if field in report.summary.field_labels:
+                print_field_mismatch_stats(
+                    field,
+                    report.summary.get_field_mismatches(field),
+                    len(report.summary))
+
+        # query details
+        with LMDB(args.envdir, readonly=True) as lmdb:
+            lmdb.open_db(LMDB.QUERIES)
+            for field in field_weights:
+                if field in report.summary.field_labels:
+                    for mismatch, qids in report.summary.get_field_mismatches(field):
+                        queries = get_query_iterator(lmdb, qids)
+                        print_mismatch_queries(field, mismatch, queries, args.limit)
+
+    report.export_json(args.datafile)
 
 
 if __name__ == '__main__':
