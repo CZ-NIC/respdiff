@@ -18,7 +18,6 @@ class LMDB:
     ANSWERS = b'answers'
     DIFFS = b'diffs'
     QUERIES = b'queries'
-    REPROSTATS = b'reprostats'
 
     ENV_DEFAULTS = {
         'map_size': 10 * 1024**3,  # 10 G

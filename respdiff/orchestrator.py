@@ -8,11 +8,11 @@ import pickle
 import random
 import threading
 import time
-from typing import List, Tuple, Dict, Any  # noqa: type hints
+from typing import List, Tuple, Dict, Any, Mapping, Sequence  # noqa: type hints
 import sys
 
 import cfg
-from dataformat import DiffReport
+from dataformat import DiffReport, ResolverID
 from dbhelper import LMDB
 import sendrecv
 
@@ -109,9 +109,18 @@ def export_statistics(lmdb, datafile, start_time):
     report.export_json(datafile)
 
 
+def get_resolvers(config: Mapping[str, Any]) -> Sequence[Tuple[ResolverID, str, str, int]]:
+    resolvers_ = []
+    for resname in config['servers']['names']:
+        rescfg = config[resname]
+        resolvers_.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
+    return resolvers_
+
+
 def main():
     global ignore_timeout
     global max_timeouts
+    global resolvers
     global timeout
     global time_delay_min
     global time_delay_max
@@ -131,10 +140,7 @@ def main():
                         help='LMDB environment to read queries from and to write answers to')
     args = parser.parse_args()
 
-    for resname in args.cfg['servers']['names']:
-        rescfg = args.cfg[resname]
-        resolvers.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
-
+    resolvers = get_resolvers(args.cfg)
     ignore_timeout = args.ignore_timeout
     timeout = args.cfg['sendrecv']['timeout']
     time_delay_min = args.cfg['sendrecv']['time_delay_min']

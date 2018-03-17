@@ -63,11 +63,6 @@ class DataMismatch(Exception):
         return hash(self.key)
 
 
-def read_json(filename):
-    with open(filename, 'r') as f:
-        return json.load(f)
-
-
 class JSONDataObject:
     """Object class for (de)serialization into JSON-compatible dictionary."""
     _ATTRIBUTES = {}  # type: Mapping[str, Tuple[RestoreFunction, SaveFunction]]
