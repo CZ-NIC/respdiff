@@ -8,4 +8,4 @@ FILES=$(find . \
 	-path './cache_usage_benchmark' -prune -o \
 	-name '*.py' -print)
 
-python3 -m pylint --rcfile pylintrc ${FILES}
+PYTHONPATH=response_differences python3 -m pylint --rcfile pylintrc ${FILES}
