@@ -14,6 +14,7 @@ Respdiff v2 is conceptually chain of independent tools:
 2. orchestrator: send pre-generated wire format to servers and gather answers
 3. msgdiff: compare DNS answers
 4. diffsum: summarize differences into textual report
+5. histogram: plot graph of answer latencies
 
 This split allows us to repeat steps using the same data as necessary,
 e.g. run analysis with different parameters without re-querying the
@@ -78,6 +79,15 @@ with higher granularity, producing stats for each field in DNS message
 Ordering and grouping of mismatches is specified in ``[report]`` section of config file.
 
 
+Histogram
+---------
+
+``orchestrator.py`` saves the latency for each answer in LMDB. Afterwards, they
+can be used to analyze the performance of the resolver. ``histrogram.py`` generates a
+`logarithmic percentile histogram <https://blog.powerdns.com/2017/11/02/dns-performance-metrics-the-logarithmic-percentile-histogram/>`_
+from these latencies.
+
+
 Usage
 -----
 Please note that this is very basic use-case where nothing is prepared beforehand.
@@ -104,5 +114,11 @@ Compute differences in responses and generate a text report from them.
 
   $ ./msgdiff.py "${DIR}"
   $ ./diffsum.py "${DIR}" > "${DIR}"/"${DIR}".txt
+
+Plot a logarithmic percentile graph of answer latencies.
+
+.. code-block:: console
+
+  $ ./histogram.py -o histogram.svg "${DIR}"
 
 You can also re-run ``msgdiff.py`` and ``diffsum.py`` using different configuration.
