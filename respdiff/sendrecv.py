@@ -115,6 +115,21 @@ def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBl
     return qkey, blob
 
 
+def worker_perform_single_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBlob]:
+    """Perform a single DNS query with setup and teardown of sockets. Used by diffrepro."""
+    qkey, qwire = args
+    worker_reinit()
+    selector = __worker_state.selector
+    sockets = __worker_state.sockets
+
+    replies, _ = send_recv_parallel(qwire, selector, sockets, __timeout)
+
+    worker_deinit()
+
+    blob = pickle.dumps(replies)
+    return qkey, blob
+
+
 def get_resolvers(
             config: Mapping[str, Any]
         ) -> Sequence[Tuple[ResolverID, IP, Protocol, Port]]:
