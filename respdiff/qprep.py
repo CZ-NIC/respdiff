@@ -13,6 +13,7 @@ import dns.message
 import dns.rdatatype
 
 import blacklist
+import cli
 from dbhelper import LMDB, qid2key
 
 REPORT_CHUNKS = 10000
@@ -109,19 +110,19 @@ def wire_from_text(text):
 
 
 def main():
-    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
         description='Convert queries data from standard input and store '
                     'wire format into LMDB "queries" DB.')
-
-    parser.add_argument('envdir', type=str, help='path where to create LMDB environment')
+    cli.add_arg_envdir(parser)
     parser.add_argument('-f', '--in-format', type=str, choices=['text', 'pcap'], default='text',
                         help='define format for input data, default value is text\n'
                              'Expected input for "text" is: "<qname> <RR type>", '
                              'one query per line.\n'
                              'Expected input for "pcap" is content of the pcap file.')
     parser.add_argument('--pcap-file', type=argparse.FileType('rb'))
+
     args = parser.parse_args()
 
     if args.in_format == 'text' and args.pcap_file:

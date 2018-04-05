@@ -12,7 +12,7 @@ from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # no
 import dns.message
 import dns.exception
 
-import cfg
+import cli
 from dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter, FieldLabel, MismatchValue,
     Reply, ResolverID, QID)
@@ -256,24 +256,21 @@ def export_json(filename):
 def main():
     global lmdb
 
-    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='compute diff from answers stored in LMDB and write diffs to LMDB')
-    parser.add_argument('-d', '--datafile', type=str, default='report.json',
-                        help='JSON report file (default: report.json)')
-    parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
-                        help='config file (default: respdiff.cfg)')
-    parser.add_argument('envdir', type=str,
-                        help='LMDB environment to read answers from and to write diffs to')
-    args = parser.parse_args()
-    config = cfg.read_cfg(args.cfgpath)
+    cli.add_arg_envdir(parser)
+    cli.add_arg_config(parser)
+    cli.add_arg_datafile(parser)
 
-    criteria = config['diff']['criteria']
-    target = config['diff']['target']
+    args = parser.parse_args()
+    datafile = cli.get_datafile(args)
+    criteria = args.cfg['diff']['criteria']
+    target = args.cfg['diff']['target']
 
     # JSON report has to be created by orchestrator
-    if not os.path.exists(args.datafile):
-        logging.error("JSON report (%s) doesn't exist!", args.datafile)
+    if not os.path.exists(datafile):
+        logging.error("JSON report (%s) doesn't exist!", datafile)
         sys.exit(1)
 
     with LMDB(args.envdir, fast=True) as lmdb_:
@@ -285,7 +282,7 @@ def main():
         with pool.Pool() as p:
             for _ in p.imap_unordered(func, qid_stream, chunksize=10):
                 pass
-        export_json(args.datafile)
+        export_json(datafile)
 
 
 if __name__ == '__main__':

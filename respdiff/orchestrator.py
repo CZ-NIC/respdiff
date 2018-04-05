@@ -11,7 +11,7 @@ import time
 from typing import List, Tuple, Dict, Any, Mapping, Sequence  # noqa: type hints
 import sys
 
-import cfg
+import cli
 from dataformat import DiffReport, ResolverID
 from dbhelper import LMDB
 import sendrecv
@@ -125,21 +125,18 @@ def main():
     global time_delay_min
     global time_delay_max
 
-    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.INFO)
-
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='read queries from LMDB, send them in parallel to servers '
                     'listed in configuration file, and record answers into LMDB')
-    parser.add_argument('-c', '--config', type=cfg.read_cfg, default='respdiff.cfg', dest='cfg',
-                        help='config file (default: respdiff.cfg)')
+    cli.add_arg_envdir(parser)
+    cli.add_arg_config(parser)
+    cli.add_arg_datafile(parser)
     parser.add_argument('--ignore-timeout', action="store_true",
                         help='continue despite consecutive timeouts from resolvers')
-    parser.add_argument('-d', '--datafile', type=str, default='report.json',
-                        help='JSON report file (default: report.json)')
-    parser.add_argument('envdir', type=str,
-                        help='LMDB environment to read queries from and to write answers to')
-    args = parser.parse_args()
 
+    args = parser.parse_args()
+    datafile = cli.get_datafile(args)
     resolvers = get_resolvers(args.cfg)
     ignore_timeout = args.ignore_timeout
     timeout = args.cfg['sendrecv']['timeout']
@@ -177,7 +174,7 @@ def main():
             txn.commit()
 
             # get query/answer statistics
-            export_statistics(lmdb, args.datafile, start_time)
+            export_statistics(lmdb, datafile, start_time)
 
 
 if __name__ == "__main__":

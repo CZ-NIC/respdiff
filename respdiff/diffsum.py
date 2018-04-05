@@ -10,7 +10,7 @@ import dns.message
 import dns.rdatatype
 from tabulate import tabulate
 
-import cfg
+import cli
 from dbhelper import LMDB, qid2key
 from dataformat import (
     DataMismatch, DiffReport, FieldLabel, Summary,
@@ -135,23 +135,21 @@ def get_query_iterator(
 
 
 def main():
-    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.DEBUG)
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
-        description='read queries from LMDB, send them in parallel to servers '
-                    'listed in configuration file, and record answers into LMDB')
-    parser.add_argument('-d', '--datafile', default='report.json',
-                        help='JSON report file (default: report.json)')
-    parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
-                        help='config file (default: respdiff.cfg)')
+        description='create a summary report from gathered data stored in LMDB '
+                    'and JSON datafile')
+    cli.add_arg_envdir(parser)
+    cli.add_arg_config(parser)
+    cli.add_arg_datafile(parser)
     parser.add_argument('-l', '--limit', type=int, default=DEFAULT_LIMIT,
                         help='number of displayed mismatches in fields (default: {}; '
                              'use 0 to display all)'.format(DEFAULT_LIMIT))
-    parser.add_argument('envdir', type=str,
-                        help='LMDB environment to read queries and answers from')
+
     args = parser.parse_args()
-    config = cfg.read_cfg(args.cfgpath)
-    report = DiffReport.from_json(args.datafile)
-    field_weights = config['report']['field_weights']
+    datafile = cli.get_datafile(args)
+    report = DiffReport.from_json(datafile)
+    field_weights = args.cfg['report']['field_weights']
 
     if not report.total_answers:
         logging.error('No answers in DB!')
@@ -160,7 +158,7 @@ def main():
         logging.error('JSON report is missing diff data! Did you forget to run msgdiff?')
         sys.exit(1)
 
-    report = DiffReport.from_json(args.datafile)
+    report = DiffReport.from_json(datafile)
     report.summary = Summary.from_report(report, field_weights)
 
     print_global_stats(report)
@@ -184,7 +182,7 @@ def main():
                         queries = get_query_iterator(lmdb, qids)
                         print_mismatch_queries(field, mismatch, queries, args.limit)
 
-    report.export_json(args.datafile)
+    report.export_json(datafile)
 
 
 if __name__ == '__main__':

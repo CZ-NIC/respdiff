@@ -6,7 +6,7 @@ import subprocess
 from typing import Any, Mapping
 import sys
 
-import cfg
+import cli
 from dbhelper import LMDB
 import diffsum
 from dataformat import Diff, DiffReport, ReproData, ResolverID
@@ -37,24 +37,22 @@ def get_restart_scripts(config: Mapping[str, Any]) -> Mapping[ResolverID, str]:
 
 
 def main():
-    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.INFO)
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='attempt to reproduce original diffs from JSON report')
-    parser.add_argument('-d', '--datafile', default='report.json',
-                        help='JSON report file (default: report.json)')
-    parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
-                        help='config file (default: respdiff.cfg)')
-    parser.add_argument('envdir', type=str,
-                        help='LMDB environment to read queries and answers from')
-    args = parser.parse_args()
-    config = cfg.read_cfg(args.cfgpath)
-    report = DiffReport.from_json(args.datafile)
-    criteria = config['diff']['criteria']
-    timeout = config['sendrecv']['timeout']
-    selector, sockets = sendrecv.sock_init(get_resolvers(config))
-    restart_scripts = get_restart_scripts(config)
+    cli.add_arg_envdir(parser)
+    cli.add_arg_config(parser)
+    cli.add_arg_datafile(parser)
 
-    if len(sockets) < len(config['servers']['names']):
+    args = parser.parse_args()
+    datafile = cli.get_datafile(args)
+    report = DiffReport.from_json(datafile)
+    criteria = args.cfg['diff']['criteria']
+    timeout = args.cfg['sendrecv']['timeout']
+    selector, sockets = sendrecv.sock_init(get_resolvers(args.cfg))
+    restart_scripts = get_restart_scripts(args.cfg)
+
+    if len(sockets) < len(args.cfg['servers']['names']):
         logging.critical("Couldn't create sockets for all resolvers.")
         sys.exit(1)
 
@@ -78,7 +76,8 @@ def main():
 
             wire_blobs, _ = sendrecv.send_recv_parallel(qwire, selector, sockets, timeout)
             answers = msgdiff.decode_wire_dict(wire_blobs)
-            others_agree, mismatches = msgdiff.compare(answers, criteria, config['diff']['target'])
+            others_agree, mismatches = msgdiff.compare(
+                answers, criteria, args.cfg['diff']['target'])
 
             reprocounter.retries += 1
             if others_agree:
@@ -86,7 +85,7 @@ def main():
                 if diff == Diff(diff.qid, mismatches):
                     reprocounter.verified += 1
 
-    report.export_json(args.datafile)
+    report.export_json(datafile)
 
 
 if __name__ == '__main__':
