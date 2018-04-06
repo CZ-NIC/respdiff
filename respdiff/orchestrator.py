@@ -4,87 +4,13 @@ import argparse
 import logging
 import multiprocessing.pool as pool
 import os
-import pickle
-import random
-import threading
 import time
-from typing import List, Tuple, Dict, Any, Mapping, Sequence  # noqa: type hints
 import sys
 
 import cli
-from dataformat import DiffReport, ResolverID
+from dataformat import DiffReport
 from dbhelper import LMDB
 import sendrecv
-
-
-worker_state = threading.local()
-
-resolvers = []  # type: List[Tuple[str, str, str, int]]
-ignore_timeout = False
-max_timeouts = 10  # crash when N consecutive timeouts are received from a single resolver
-timeout = None
-time_delay_min = 0
-time_delay_max = 0
-
-
-def worker_init():
-    """
-    make sure it works with distincts processes and threads as well
-    """
-    worker_state.timeouts = {}
-    worker_reinit()
-
-
-def worker_reinit():
-    selector, sockets = sendrecv.sock_init(resolvers)
-    worker_state.selector = selector
-    worker_state.sockets = sockets
-
-
-def worker_deinit(selector, sockets):
-    """
-    Close all sockets and selector.
-    """
-    selector.close()
-    for _, sck, _ in sockets:
-        sck.close()
-
-
-def worker_query_lmdb_wrapper(args):
-    qid, qwire = args
-
-    selector = worker_state.selector
-    sockets = worker_state.sockets
-
-    # optional artificial delay for testing
-    if time_delay_max > 0:
-        time.sleep(random.uniform(time_delay_min, time_delay_max))
-
-    replies, reinit = sendrecv.send_recv_parallel(qwire, selector, sockets, timeout)
-    if not ignore_timeout:
-        check_timeout(replies)
-
-    if reinit:  # a connection is broken or something
-        # TODO: log this?
-        worker_deinit(selector, sockets)
-        worker_reinit()
-
-    blob = pickle.dumps(replies)
-    return (qid, blob)
-
-
-def check_timeout(replies):
-    for resolver, reply in replies.items():
-        timeouts = worker_state.timeouts
-        if reply.wire is not None:
-            timeouts[resolver] = 0
-        else:
-            timeouts[resolver] = timeouts.get(resolver, 0) + 1
-            if timeouts[resolver] >= max_timeouts:
-                raise RuntimeError(
-                    "Resolver '{}' timed-out {:d} times in a row. "
-                    "Use '--ignore-timeout' to supress this error.".format(
-                        resolver, max_timeouts))
 
 
 def export_statistics(lmdb, datafile, start_time):
@@ -109,22 +35,7 @@ def export_statistics(lmdb, datafile, start_time):
     report.export_json(datafile)
 
 
-def get_resolvers(config: Mapping[str, Any]) -> Sequence[Tuple[ResolverID, str, str, int]]:
-    resolvers_ = []
-    for resname in config['servers']['names']:
-        rescfg = config[resname]
-        resolvers_.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
-    return resolvers_
-
-
 def main():
-    global ignore_timeout
-    global max_timeouts
-    global resolvers
-    global timeout
-    global time_delay_min
-    global time_delay_max
-
     cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='read queries from LMDB, send them in parallel to servers '
@@ -136,16 +47,8 @@ def main():
                         help='continue despite consecutive timeouts from resolvers')
 
     args = parser.parse_args()
+    sendrecv.module_init(args)
     datafile = cli.get_datafile(args)
-    resolvers = get_resolvers(args.cfg)
-    ignore_timeout = args.ignore_timeout
-    timeout = args.cfg['sendrecv']['timeout']
-    time_delay_min = args.cfg['sendrecv']['time_delay_min']
-    time_delay_max = args.cfg['sendrecv']['time_delay_max']
-    try:
-        max_timeouts = args.cfg['sendrecv']['max_timeouts']
-    except KeyError:
-        pass
     start_time = int(time.time())
 
     with LMDB(args.envdir) as lmdb:
@@ -158,9 +61,9 @@ def main():
             # process queries in parallel
             with pool.Pool(
                     processes=args.cfg['sendrecv']['jobs'],
-                    initializer=worker_init) as p:
+                    initializer=sendrecv.worker_init) as p:
                 i = 0
-                for qid, blob in p.imap(worker_query_lmdb_wrapper, qstream,
+                for qid, blob in p.imap(sendrecv.worker_perform_query, qstream,
                                         chunksize=100):
                     i += 1
                     if i % 10000 == 0:

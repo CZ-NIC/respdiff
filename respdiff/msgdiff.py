@@ -15,8 +15,9 @@ import dns.exception
 import cli
 from dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter, FieldLabel, MismatchValue,
-    Reply, ResolverID, QID)
+    Reply, QID)
 from dbhelper import LMDB, key2qid
+from sendrecv import ResolverID
 
 
 lmdb = None  # type: Optional[Any]
