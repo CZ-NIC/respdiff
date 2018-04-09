@@ -63,12 +63,12 @@ def main():
                     processes=args.cfg['sendrecv']['jobs'],
                     initializer=sendrecv.worker_init) as p:
                 i = 0
-                for qid, blob in p.imap(sendrecv.worker_perform_query, qstream,
-                                        chunksize=100):
+                for qkey, blob in p.imap(sendrecv.worker_perform_query, qstream,
+                                         chunksize=100):
                     i += 1
                     if i % 10000 == 0:
                         logging.info('Received {:d} answers'.format(i))
-                    txn.put(qid, blob)
+                    txn.put(qkey, blob)
         except RuntimeError as err:
             logging.error(err)
             sys.exit(1)

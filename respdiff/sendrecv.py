@@ -23,7 +23,8 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dataformat import Reply, QID, WireFormat
+from dataformat import Reply, WireFormat
+from dbhelper import QKey
 
 
 ResolverID = str
@@ -91,9 +92,9 @@ def worker_deinit() -> None:
         sck.close()
 
 
-def worker_perform_query(args: Tuple[QID, WireFormat]) -> Tuple[QID, RepliesBlob]:
+def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBlob]:
     """DNS query performed by orchestrator"""
-    qid, qwire = args
+    qkey, qwire = args
 
     selector = __worker_state.selector
     sockets = __worker_state.sockets
@@ -111,7 +112,7 @@ def worker_perform_query(args: Tuple[QID, WireFormat]) -> Tuple[QID, RepliesBlob
         worker_reinit()
 
     blob = pickle.dumps(replies)
-    return qid, blob
+    return qkey, blob
 
 
 def get_resolvers(
