@@ -13,6 +13,7 @@ Respdiff v2 is conceptually chain of independent tools:
 1. qprep: generate queries in wire format
 2. orchestrator: send pre-generated wire format to servers and gather answers
 3. msgdiff: compare DNS answers
+4. diffrepro: (optional) attempt to reproduce the differences
 4. diffsum: summarize differences into textual report
 5. histogram: plot graph of answer latencies
 
@@ -60,7 +61,23 @@ which reads configuration from config file section ``[diff]``.
 
 The tool refers to one resolver as ``target`` and to remaining servers
 as ``others``. Msgdiff compares specified fields and stores result
-in the LMDB.
+in the LMDB and the JSON datafile.
+
+
+Diffrepro
+---------
+
+Use of this tool is optional. It can be used to filter "unstable" differences,
+which aren't reproducible. If the upstream answers differ (between resolvers or
+over time), the query is flagged as unstable.
+
+The tool can run queries in parallel (like orchestrator), or sequentially (slower,
+but more predictable). Resolvers should be restarted (and cache cleared) between
+the queries. Path to an executable restart script can be provided with
+``restart_script`` value in each resolver's section in config.
+
+The output is written to the JSON datafile and other tools automatically use
+this data if present.
 
 
 Diffsum
