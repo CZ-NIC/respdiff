@@ -3,14 +3,16 @@
 import argparse
 import logging
 import multiprocessing.pool as pool
+import os
 import pickle
 import random
 import threading
 import time
-from typing import List, Tuple, Dict, Any  # noqa: type hints
+from typing import List, Tuple, Dict, Any, Mapping, Sequence  # noqa: type hints
 import sys
 
-import cfg
+import cli
+from dataformat import DiffReport, ResolverID
 from dbhelper import LMDB
 import sendrecv
 
@@ -85,30 +87,57 @@ def check_timeout(replies):
                         resolver, max_timeouts))
 
 
+def export_statistics(lmdb, datafile, start_time):
+    qdb = lmdb.get_db(LMDB.QUERIES)
+    adb = lmdb.get_db(LMDB.ANSWERS)
+    with lmdb.env.begin() as txn:
+        total_queries = txn.stat(qdb)['entries']
+        total_answers = txn.stat(adb)['entries']
+    report = DiffReport(
+        start_time,
+        int(time.time()),
+        total_queries,
+        total_answers)
+
+    # it doesn't make sense to use existing report.json in orchestrator
+    if os.path.exists(datafile):
+        backup_filename = datafile + '.bak'
+        os.rename(datafile, backup_filename)
+        logging.warning(
+            'JSON report already exists, overwriting file. Original '
+            'file backed up as %s', backup_filename)
+    report.export_json(datafile)
+
+
+def get_resolvers(config: Mapping[str, Any]) -> Sequence[Tuple[ResolverID, str, str, int]]:
+    resolvers_ = []
+    for resname in config['servers']['names']:
+        rescfg = config[resname]
+        resolvers_.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
+    return resolvers_
+
+
 def main():
     global ignore_timeout
     global max_timeouts
+    global resolvers
     global timeout
     global time_delay_min
     global time_delay_max
 
-    logging.basicConfig(format='%(levelname)s %(message)s', level=logging.INFO)
-
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='read queries from LMDB, send them in parallel to servers '
                     'listed in configuration file, and record answers into LMDB')
-    parser.add_argument('-c', '--config', type=cfg.read_cfg, default='respdiff.cfg', dest='cfg',
-                        help='config file (default: respdiff.cfg)')
+    cli.add_arg_envdir(parser)
+    cli.add_arg_config(parser)
+    cli.add_arg_datafile(parser)
     parser.add_argument('--ignore-timeout', action="store_true",
                         help='continue despite consecutive timeouts from resolvers')
-    parser.add_argument('envdir', type=str,
-                        help='LMDB environment to read queries from and to write answers to')
+
     args = parser.parse_args()
-
-    for resname in args.cfg['servers']['names']:
-        rescfg = args.cfg[resname]
-        resolvers.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
-
+    datafile = cli.get_datafile(args)
+    resolvers = get_resolvers(args.cfg)
     ignore_timeout = args.ignore_timeout
     timeout = args.cfg['sendrecv']['timeout']
     time_delay_min = args.cfg['sendrecv']['time_delay_min']
@@ -117,15 +146,11 @@ def main():
         max_timeouts = args.cfg['sendrecv']['max_timeouts']
     except KeyError:
         pass
-    stats = {
-        'start_time': time.time(),
-        'end_time': None,
-    }
+    start_time = int(time.time())
 
     with LMDB(args.envdir) as lmdb:
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
-        sdb = lmdb.open_db(LMDB.STATS, create=True)
 
         qstream = lmdb.key_value_stream(LMDB.QUERIES)
         txn = lmdb.env.begin(adb, write=True)
@@ -148,9 +173,8 @@ def main():
             # attempt to preserve data if something went wrong (or not)
             txn.commit()
 
-            stats['end_time'] = time.time()
-            with lmdb.env.begin(sdb, write=True) as txn:
-                txn.put(b'global_stats', pickle.dumps(stats))
+            # get query/answer statistics
+            export_statistics(lmdb, datafile, start_time)
 
 
 if __name__ == "__main__":

@@ -13,3 +13,13 @@ disable=
     broad-except,
     bad-continuation,
     global-statement,
+
+
+[SIMILARITIES]
+min-similarity-lines=6
+ignore-comments=yes
+ignore-docstrings=yes
+ignore-imports=no
+
+[DESIGN]
+max-parents=10

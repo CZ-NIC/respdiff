@@ -3,15 +3,15 @@ import socket
 import ssl
 import struct
 import time
-from typing import Dict  # noqa: used in comment type hint
+from typing import Dict, Mapping, Tuple  # noqa
 
 import dns.inet
 import dns.message
 
-import dataformat
+from dataformat import Reply, ResolverID
 
 
-TIMEOUT_REPLIES = {}  # type: Dict[int, dataformat.Reply]
+TIMEOUT_REPLIES = {}  # type: Dict[float, Reply]
 
 
 def sock_init(resolvers):
@@ -66,14 +66,19 @@ def _recv_msg(sock, isstream):
     return sock.recv(length)
 
 
-def send_recv_parallel(dgram, selector, sockets, timeout):
+def send_recv_parallel(
+            dgram,
+            selector,
+            sockets,
+            timeout: float
+        ) -> Tuple[Mapping[ResolverID, Reply], bool]:
     """
     dgram: DNS message in binary format suitable for UDP transport
     """
-    replies = {}
+    replies = {}  # type: Dict[ResolverID, Reply]
     streammsg = None
     # optimization: create only one timeout_reply object per timeout value
-    timeout_reply = TIMEOUT_REPLIES.setdefault(timeout, dataformat.Reply(None, timeout))
+    timeout_reply = TIMEOUT_REPLIES.setdefault(timeout, Reply(None, timeout))
     start_time = time.perf_counter()
     end_time = start_time + timeout
     for _, sock, isstream in sockets:
@@ -104,7 +109,7 @@ def send_recv_parallel(dgram, selector, sockets, timeout):
             # assert len(wire) > 14
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
-            replies[name] = dataformat.Reply(wire, time.perf_counter() - start_time)
+            replies[name] = Reply(wire, time.perf_counter() - start_time)
 
     # set missing replies as timeout
     for resolver, *_ in sockets:

@@ -61,6 +61,7 @@ _CFGFMT_SERVER = {
     'port': (int, True),
     'transport': (transport_opt, True),
     'graph_color': (str, False),
+    'restart_script': (str, False),
 }
 
 
