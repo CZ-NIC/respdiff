@@ -6,6 +6,7 @@ CONFIG="response_differences/respdiff/respdiff.cfg"
 response_differences/respdiff/qprep.py /tmp/respdiff.db < /tmp/queries.txt
 time response_differences/respdiff/orchestrator.py /tmp/respdiff.db -c "${CONFIG}"
 time response_differences/respdiff/msgdiff.py /tmp/respdiff.db -c "${CONFIG}"
+response_differences/respdiff/diffrepro.py /tmp/respdiff.db -c "${CONFIG}"
 response_differences/respdiff/diffsum.py /tmp/respdiff.db -c "${CONFIG}"
 
 # it must not explode/raise an unhandled exception
