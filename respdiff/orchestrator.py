@@ -48,7 +48,7 @@ def main():
 
     args = parser.parse_args()
     sendrecv.module_init(args)
-    datafile = cli.get_datafile(args)
+    datafile = cli.get_datafile(args, check_exists=False)
     start_time = int(time.time())
 
     with LMDB(args.envdir) as lmdb:

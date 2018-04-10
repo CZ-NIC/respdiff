@@ -4,11 +4,9 @@ import argparse
 from itertools import zip_longest
 import logging
 from multiprocessing import pool
-import os
 import pickle
 import random
 import subprocess
-import sys
 from typing import Any, Iterable, Iterator, Mapping, Sequence, Tuple, TypeVar
 
 import cli
@@ -108,19 +106,13 @@ def main():
     args = parser.parse_args()
     sendrecv.module_init(args)
     datafile = cli.get_datafile(args)
+    report = DiffReport.from_json(datafile)
     restart_scripts = get_restart_scripts(args.cfg)
 
     if args.sequential:
         nproc = 1
     else:
         nproc = args.cfg['sendrecv']['jobs']
-
-    # TODO copypasta from msgdiff, should also be checked in diffsum -- refactor?
-    # JSON report has to be created by orchestrator
-    if not os.path.exists(datafile):
-        logging.error("JSON report (%s) doesn't exist!", datafile)
-        sys.exit(1)
-    report = DiffReport.from_json(datafile)
 
     if report.reprodata is None:
         report.reprodata = ReproData()
