@@ -51,47 +51,6 @@ def print_differences_stats(summary: Summary, total_answers: int) -> None:
     print('')
 
 
-def print_fields_overview(summary: Summary) -> None:
-    fields = []
-    for field in summary.field_labels:
-        mismatch_count = 0
-        for _, qids in summary.get_field_mismatches(field):
-            mismatch_count += len(qids)
-        fields.append([field, mismatch_count, mismatch_count * 100.0 / len(summary)])
-    fields.sort(key=lambda data: data[1], reverse=True)
-
-    print('== Target Disagreements')
-    print(tabulate(
-        fields,
-        ['Field', 'Count', '% of mismatches'],
-        tablefmt='psql',
-        floatfmt='.2f'))
-    print('')
-
-
-def print_field_mismatch_stats(
-            field: FieldLabel,
-            mismatches: ItemsView[DataMismatch, Set[QID]],
-            total_mismatches: int
-        ) -> None:
-    fields = []
-    for mismatch, qids in mismatches:
-        fields.append([
-            mismatch.format_value(mismatch.exp_val),
-            mismatch.format_value(mismatch.got_val),
-            len(qids),
-            len(qids) * 100. / total_mismatches])
-    fields.sort(key=lambda data: data[2], reverse=True)
-
-    print('== Field "{}" mismatch statistics'.format(field))
-    print(tabulate(
-        fields,
-        ['Expected', 'Got', 'Count', '% of mismatches'],
-        tablefmt='psql',
-        floatfmt='.2f'))
-    print('')
-
-
 def qwire_to_qname_qtype(qwire: WireFormat) -> str:
     """Get text representation of DNS wire format query"""
     qmsg = dns.message.from_wire(qwire)
@@ -168,13 +127,11 @@ def main():
     print_differences_stats(report.summary, report.total_answers)
 
     if report.summary:
-        print_fields_overview(report.summary)
+        field_counters = report.summary.get_field_counters()
+        cli.print_fields_overview(field_counters)
         for field in field_weights:
             if field in report.summary.field_labels:
-                print_field_mismatch_stats(
-                    field,
-                    report.summary.get_field_mismatches(field),
-                    len(report.summary))
+                cli.print_field_mismatch_stats(field, field_counters[field])
 
         # query details
         with LMDB(args.envdir, readonly=True) as lmdb:

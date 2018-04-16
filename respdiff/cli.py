@@ -2,8 +2,12 @@ from argparse import ArgumentParser, Namespace
 import logging
 import os
 import sys
+from typing import Mapping
+
+from tabulate import tabulate
 
 import cfg
+from dataformat import DataMismatch, FieldCounter, FieldLabel
 
 
 LOGGING_LEVEL = logging.DEBUG
@@ -27,13 +31,13 @@ def add_arg_envdir(parser: ArgumentParser) -> None:
 
 
 def add_arg_datafile(parser: ArgumentParser) -> None:
-    parser.add_argument('-d', '--datafile',
+    parser.add_argument('-d', '--datafile', type=str,
                         help='JSON report file (default: <envdir>/{})'.format(
                             REPORT_FILENAME))
 
 
-def get_datafile(args: Namespace, check_exists=True) -> str:
-    datafile = args.datafile
+def get_datafile(args: Namespace, check_exists: bool = True, key: str = 'datafile') -> str:
+    datafile = getattr(args, key, None)
     if datafile is None:
         datafile = os.path.join(args.envdir, REPORT_FILENAME)
 
@@ -42,3 +46,40 @@ def get_datafile(args: Namespace, check_exists=True) -> str:
         sys.exit(1)
 
     return datafile
+
+
+def print_fields_overview(
+            field_counters: Mapping[FieldLabel, FieldCounter]
+        ) -> None:
+    columns = sorted([
+            (field, counter.count, counter.percent)
+            for field, counter in field_counters.items()],
+        key=lambda data: data[1],
+        reverse=True)
+    print('== Target Disagreements')
+    print(tabulate(
+        columns,
+        ['Field', 'Count', '% of mismatches'],
+        tablefmt='psql',
+        floatfmt='.2f'))
+    print('')
+
+
+def print_field_mismatch_stats(
+            field: FieldLabel,
+            field_counter: FieldCounter
+        ) -> None:
+    columns = sorted([(
+                DataMismatch.format_value(mismatch.exp_val),
+                DataMismatch.format_value(mismatch.got_val),
+                counter.count, counter.percent)
+            for mismatch, counter in field_counter.items()],
+        key=lambda data: data[2],
+        reverse=True)
+    print('== Field "{}" mismatch statistics'.format(field))
+    print(tabulate(
+        columns,
+        ['Expected', 'Got', 'Count', '% of mismatches'],
+        tablefmt='psql',
+        floatfmt='.2f'))
+    print('')
