@@ -3,7 +3,7 @@ import logging
 import math
 import os
 import sys
-from typing import Dict, Mapping, Optional, Tuple, Union  # noqa
+from typing import Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
 
 from tabulate import tabulate
 
@@ -16,6 +16,7 @@ Number = Union[int, float]
 LOGGING_LEVEL = logging.DEBUG
 CONFIG_FILENAME = 'respdiff.cfg'
 REPORT_FILENAME = 'report.json'
+DEFAULT_PRINT_QUERY_LIMIT = 10
 
 
 def setup_logging(level: int = LOGGING_LEVEL) -> None:
@@ -181,4 +182,39 @@ def print_differences_stats(report: DiffReport, reference: DiffReport = None) ->
         len(report.summary), report.summary.usable_answers,
         ref_target_disagrees, ref_usable_answers),
         additional='of not ignored answers'))
+    print('')
+
+
+def print_mismatch_queries(
+            field: FieldLabel,
+            mismatch: DataMismatch,
+            queries: Sequence[Tuple[str, int, str]],
+            limit: Optional[int] = DEFAULT_PRINT_QUERY_LIMIT
+        ) -> None:
+    if limit == 0:
+        limit = None
+
+    def sort_key(data: Tuple[str, int, str]) -> Tuple[int, int]:
+        order = ['+', ' ', '-']
+        try:
+            return order.index(data[0]), data[1]
+        except ValueError:
+            return len(order), data[1]
+
+    def format_line(diff: str, count: str, query: str) -> str:
+        return "{:1s} {:>7s}  {:s}".format(diff, count, query)
+
+    to_print = sorted(queries, key=sort_key)
+    to_print = to_print[:limit]
+
+    print('== Field "{}", mismatch "{}" query details'.format(field, mismatch))
+    print(format_line('', 'Count', 'Query'))
+    for diff, count, query in to_print:
+        print(format_line(diff, str(count), query))
+
+    if limit is not None and limit < len(queries):
+        print(format_line(
+            'x',
+            str(len(queries) - limit),
+            'queries omitted'))
     print('')

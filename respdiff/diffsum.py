@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-import collections
+from collections import Counter
 import logging
 import sys
 from typing import (  # noqa
-    Any, Callable, Iterable, Iterator, ItemsView, List, Optional, Set, Tuple,
+    Any, Callable, Iterable, Iterator, ItemsView, List, Set, Sequence, Tuple,
     Union)
 
 import dns.message
 import dns.rdatatype
-from tabulate import tabulate
 
 import cli
 from dbhelper import LMDB, qid2key, WireFormat
-from dataformat import DataMismatch, DiffReport, FieldLabel, Summary, QID
+from dataformat import DiffReport, Summary, QID
 
 
 DEFAULT_LIMIT = 10
@@ -59,29 +58,43 @@ def qwire_to_qname_qtype(qwire: WireFormat) -> str:
         dns.rdatatype.to_text(qmsg.question[0].rdtype))
 
 
-def print_mismatch_queries(
-            field: FieldLabel,
-            mismatch: DataMismatch,
-            queries: Iterator[Tuple[QID, WireFormat]],
-            limit: Optional[int] = DEFAULT_LIMIT,
+def convert_queries(
+            query_iterator: Iterator[Tuple[QID, WireFormat]],
             qwire_to_text_func: Callable[[WireFormat], str] = qwire_to_qname_qtype
-        ) -> None:
-    occurences = collections.Counter()  # type: collections.Counter
-    for _, qwire in queries:
+        ) -> Counter:
+    qcounter = Counter()  # type: Counter
+    for _, qwire in query_iterator:
         text = qwire_to_text_func(qwire)
-        occurences[text] += 1
-    if limit == 0:
-        limit = None
-    to_print = [(count, text) for text, count in occurences.most_common(limit)]
+        qcounter[text] += 1
+    return qcounter
 
-    print('== Field "{}", mismatch "{}" query details'.format(field, mismatch))
-    print(tabulate(
-        to_print,
-        ['Count', 'Query'],
-        tablefmt='plain'))
-    if limit is not None and limit < len(occurences):
-        print('    ...  omitting {} queries'.format(len(occurences) - limit))
-    print('')
+
+def get_printable_queries_format(
+            queries_mismatch: Counter,
+            queries_all: Counter = None,  # all queries (needed for comparison with ref)
+            reference_mismatch: Counter = None,  # ref queries for the same mismatch
+            reference_all: Counter = None  # ref queries from all mismatches
+        ) -> Sequence[Tuple[str, int, str]]:
+    def get_query_diff(query: str) -> str:
+        if reference_mismatch is None or reference_all is None:
+            return ' '  # no reference to compare to
+        if query in queries_mismatch and query not in reference_all:
+            return '+'  # previously unseen query has appeared
+        if query in reference_mismatch and query not in queries_all:
+            return '-'  # query no longer appears in any mismatch category
+        return ' '  # no change, or query has moved to a different mismatch category
+
+    query_set = set(queries_mismatch.keys())
+    if reference_mismatch is not None:
+        assert reference_all is not None
+        assert queries_all is not None
+        # reference_mismach has to be include to be able to display '-' queries
+        query_set.update(reference_mismatch.keys())
+
+    queries = []
+    for query in query_set:
+        queries.append((get_query_diff(query), queries_mismatch[query], query))
+    return queries
 
 
 def get_query_iterator(
@@ -104,9 +117,11 @@ def main():
     cli.add_arg_envdir(parser)
     cli.add_arg_config(parser)
     cli.add_arg_datafile(parser)
-    parser.add_argument('-l', '--limit', type=int, default=DEFAULT_LIMIT,
+    parser.add_argument('-l', '--limit', type=int,
+                        default=cli.DEFAULT_PRINT_QUERY_LIMIT,
                         help='number of displayed mismatches in fields (default: {}; '
-                             'use 0 to display all)'.format(DEFAULT_LIMIT))
+                             'use 0 to display all)'.format(
+                                cli.DEFAULT_PRINT_QUERY_LIMIT))
 
     args = parser.parse_args()
     datafile = cli.get_datafile(args)
@@ -136,11 +151,17 @@ def main():
         # query details
         with LMDB(args.envdir, readonly=True) as lmdb:
             lmdb.open_db(LMDB.QUERIES)
+
             for field in field_weights:
                 if field in report.summary.field_labels:
                     for mismatch, qids in report.summary.get_field_mismatches(field):
-                        queries = get_query_iterator(lmdb, qids)
-                        print_mismatch_queries(field, mismatch, queries, args.limit)
+                        queries = convert_queries(get_query_iterator(lmdb, qids))
+                        cli.print_mismatch_queries(
+                            field,
+                            mismatch,
+                            get_printable_queries_format(queries),
+                            args.limit)
+                        # TODO in sumcmp -- don't forget to handle removed categories
 
     report.export_json(datafile)
 
