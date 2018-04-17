@@ -123,8 +123,8 @@ def main():
     report = DiffReport.from_json(datafile)
     report.summary = Summary.from_report(report, field_weights)
 
-    print_global_stats(report)
-    print_differences_stats(report.summary, report.total_answers)
+    cli.print_global_stats(report)
+    cli.print_differences_stats(report)
 
     if report.summary:
         field_counters = report.summary.get_field_counters()
