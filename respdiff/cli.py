@@ -60,7 +60,7 @@ def print_fields_overview(
     print(tabulate(
         columns,
         ['Field', 'Count', '% of mismatches'],
-        tablefmt='psql',
+        tablefmt='simple',
         floatfmt='.2f'))
     print('')
 
@@ -80,6 +80,6 @@ def print_field_mismatch_stats(
     print(tabulate(
         columns,
         ['Expected', 'Got', 'Count', '% of mismatches'],
-        tablefmt='psql',
+        tablefmt='simple',
         floatfmt='.2f'))
     print('')
