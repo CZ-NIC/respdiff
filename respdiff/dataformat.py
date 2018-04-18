@@ -438,8 +438,9 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
             self.restore(data)
 
     def export_json(self, filename: str) -> None:
+        json_data = json.dumps(self.save(), indent=2)
         with open(filename, 'w') as f:
-            json.dump(self.save(), f, indent=2)
+            f.write(json_data)
 
     @staticmethod
     def from_json(filename: str) -> 'DiffReport':
