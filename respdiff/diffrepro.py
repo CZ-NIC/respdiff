@@ -46,6 +46,7 @@ def disagreement_query_stream(
             lmdb,
             report: DiffReport,
             skip_unstable: bool = True,
+            skip_non_reproducible: bool = True,
             shuffle: bool = True
         ) -> Iterator[Tuple[QKey, WireFormat]]:
     qids = report.target_disagreements.keys()
@@ -58,7 +59,10 @@ def disagreement_query_stream(
         reprocounter = report.reprodata[qid]
         # verify if answers are stable
         if skip_unstable and reprocounter.retries != reprocounter.upstream_stable:
-            logging.debug('Skipping QID %d: unstable upstream', diff.qid)
+            logging.debug('Skipping QID %7d: unstable upstream', diff.qid)
+            continue
+        if skip_non_reproducible and reprocounter.retries != reprocounter.verified:
+            logging.debug('Skipping QID %7d: not 100 %% reproducible', diff.qid)
             continue
         yield qid2key(qid), qwire
 
