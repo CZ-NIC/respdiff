@@ -4,7 +4,7 @@ import argparse
 import collections
 import logging
 import sys
-from typing import Any, Callable, Iterator, ItemsView, List, Set, Tuple, Union  # noqa
+from typing import Any, Callable, Iterable, Iterator, ItemsView, List, Set, Tuple, Union  # noqa
 
 import dns.message
 import dns.rdatatype
@@ -124,7 +124,7 @@ def print_mismatch_queries(
 
 def get_query_iterator(
             lmdb,
-            qids: Set[QID]
+            qids: Iterable[QID]
         ) -> Iterator[Tuple[QID, WireFormat]]:
     qdb = lmdb.get_db(LMDB.QUERIES)
     with lmdb.env.begin(qdb) as txn:
