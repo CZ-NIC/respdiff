@@ -12,8 +12,8 @@ import dns.message
 import dns.rdatatype
 
 import cli
-from dbhelper import LMDB, qid2key, WireFormat
 from dataformat import DiffReport, Summary, QID
+from dbhelper import LMDB, qid2key, WireFormat
 
 
 DEFAULT_LIMIT = 10
@@ -72,28 +72,34 @@ def convert_queries(
 def get_printable_queries_format(
             queries_mismatch: Counter,
             queries_all: Counter = None,  # all queries (needed for comparison with ref)
-            reference_mismatch: Counter = None,  # ref queries for the same mismatch
-            reference_all: Counter = None  # ref queries from all mismatches
+            ref_queries_mismatch: Counter = None,  # ref queries for the same mismatch
+            ref_queries_all: Counter = None  # ref queries from all mismatches
         ) -> Sequence[Tuple[str, int, str]]:
     def get_query_diff(query: str) -> str:
-        if reference_mismatch is None or reference_all is None:
+        if ref_queries_mismatch is None or ref_queries_all is None:
             return ' '  # no reference to compare to
-        if query in queries_mismatch and query not in reference_all:
+        if query in queries_mismatch and query not in ref_queries_all:
             return '+'  # previously unseen query has appeared
-        if query in reference_mismatch and query not in queries_all:
+        if query in ref_queries_mismatch and query not in queries_all:
             return '-'  # query no longer appears in any mismatch category
         return ' '  # no change, or query has moved to a different mismatch category
 
     query_set = set(queries_mismatch.keys())
-    if reference_mismatch is not None:
-        assert reference_all is not None
+    if ref_queries_mismatch is not None:
+        assert ref_queries_all is not None
         assert queries_all is not None
-        # reference_mismach has to be include to be able to display '-' queries
-        query_set.update(reference_mismatch.keys())
+        # ref_mismach has to be include to be able to display '-' queries
+        query_set.update(ref_queries_mismatch.keys())
 
     queries = []
     for query in query_set:
-        queries.append((get_query_diff(query), queries_mismatch[query], query))
+        diff = get_query_diff(query)
+        count = queries_mismatch[query]
+        if diff == ' ' and count == 0:
+            continue  # omit queries that just moved between categories
+        if diff == '-':
+            count = ref_queries_mismatch[query]  # show how many cases were removed
+        queries.append((diff, count, query))
     return queries
 
 
@@ -117,11 +123,7 @@ def main():
     cli.add_arg_envdir(parser)
     cli.add_arg_config(parser)
     cli.add_arg_datafile(parser)
-    parser.add_argument('-l', '--limit', type=int,
-                        default=cli.DEFAULT_PRINT_QUERY_LIMIT,
-                        help='number of displayed mismatches in fields (default: {}; '
-                             'use 0 to display all)'.format(
-                                cli.DEFAULT_PRINT_QUERY_LIMIT))
+    cli.add_arg_limit(parser)
 
     args = parser.parse_args()
     datafile = cli.get_datafile(args)
@@ -141,12 +143,13 @@ def main():
     cli.print_global_stats(report)
     cli.print_differences_stats(report)
 
-    if report.summary:
+    if report.summary:  # when there are any differences to report
         field_counters = report.summary.get_field_counters()
-        cli.print_fields_overview(field_counters)
+        cli.print_fields_overview(field_counters, len(report.summary))
         for field in field_weights:
             if field in report.summary.field_labels:
-                cli.print_field_mismatch_stats(field, field_counters[field])
+                cli.print_field_mismatch_stats(
+                    field, field_counters[field], len(report.summary))
 
         # query details
         with LMDB(args.envdir, readonly=True) as lmdb:
@@ -161,7 +164,6 @@ def main():
                             mismatch,
                             get_printable_queries_format(queries),
                             args.limit)
-                        # TODO in sumcmp -- don't forget to handle removed categories
 
     report.export_json(datafile)
 

@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, Namespace
+from collections import Counter
 import logging
-import math
 import os
 import sys
 from typing import Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
@@ -8,7 +8,7 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
 from tabulate import tabulate
 
 import cfg
-from dataformat import DataMismatch, DiffReport, FieldCounter, FieldLabel
+from dataformat import DataMismatch, DiffReport, FieldLabel
 
 
 Number = Union[int, float]
@@ -40,7 +40,14 @@ def add_arg_datafile(parser: ArgumentParser) -> None:
                             REPORT_FILENAME))
 
 
-def get_datafile(args: Namespace, check_exists: bool = True, key: str = 'datafile') -> str:
+def add_arg_limit(parser: ArgumentParser) -> None:
+    parser.add_argument('-l', '--limit', type=int,
+                        default=DEFAULT_PRINT_QUERY_LIMIT,
+                        help='number of displayed mismatches in fields (default: {}; '
+                             'use 0 to display all)'.format(DEFAULT_PRINT_QUERY_LIMIT))
+
+
+def get_datafile(args: Namespace, key: str = 'datafile', check_exists: bool = True) -> str:
     datafile = getattr(args, key, None)
     if datafile is None:
         datafile = os.path.join(args.envdir, REPORT_FILENAME)
@@ -66,7 +73,7 @@ def format_stats_line(
     s['pct'] = '{:6.2f} %'.format(pct) if pct is not None else ' ' * 8
     s['additional'] = '{:30s}'.format(additional) if additional is not None else ' ' * 30
     s['diff'] = '{:+6d}'.format(diff) if diff is not None else ' ' * 6
-    s['diff_pct'] = '{:+7.2f}'.format(diff_pct) if diff_pct is not None else ' ' * 7
+    s['diff_pct'] = '{:+7.2f} %'.format(diff_pct) if diff_pct is not None else ' ' * 9
 
     return '{description}   {number}  {pct} {additional} {diff} {diff_pct}'.format(**s)
 
@@ -107,40 +114,84 @@ def get_stats_data(
     return n, pct, diff, diff_pct
 
 
+def get_table_stats_row(
+            count: int,
+            total: int,
+            ref_count: Optional[int] = None
+        ) -> Union[Tuple[int, float], Tuple[int, float, str, float]]:
+    n, pct, diff, diff_pct = get_stats_data(  # type: ignore
+        count,
+        total,
+        ref_count)
+    if ref_count is None:
+        return n, pct
+    s_diff = '{:+d}'.format(diff) if diff is not None else None
+    return n, pct, s_diff, diff_pct
+
+
 def print_fields_overview(
-            field_counters: Mapping[FieldLabel, FieldCounter]
+            field_counters: Mapping[FieldLabel, Counter],
+            n_disagreements: int,
+            ref_field_counters: Optional[Mapping[FieldLabel, Counter]] = None,
         ) -> None:
-    columns = sorted([
-            (field, counter.count, counter.percent)
-            for field, counter in field_counters.items()],
-        key=lambda data: data[1],
-        reverse=True)
+    rows = []
+
+    def get_field_count(counter: Counter) -> int:
+        field_count = 0
+        for count in counter.values():
+            field_count += count
+        return field_count
+
+    ref_field_count = None
+    for field, counter in field_counters.items():
+        field_count = get_field_count(counter)
+        if ref_field_counters is not None:
+            ref_counter = ref_field_counters.get(field, Counter())
+            ref_field_count = get_field_count(ref_counter)
+        rows.append((field, *get_table_stats_row(
+            field_count, n_disagreements, ref_field_count)))
+
+    headers = ['Field', 'Count', '% of mismatches']
+    if ref_field_counters is not None:
+        headers.extend(['Change', 'Change (%)'])
+
     print('== Target Disagreements')
     print(tabulate(
-        columns,
-        ['Field', 'Count', '% of mismatches'],
+        sorted(rows, key=lambda data: data[1], reverse=True),
+        headers,
         tablefmt='simple',
-        floatfmt='.2f'))
+        floatfmt=('s', 'd', '.2f', 's', '+.2f')))
     print('')
 
 
 def print_field_mismatch_stats(
             field: FieldLabel,
-            field_counter: FieldCounter
+            counter: Counter,
+            n_disagreements: int,
+            ref_counter: Counter = None
         ) -> None:
-    columns = sorted([(
-                DataMismatch.format_value(mismatch.exp_val),
-                DataMismatch.format_value(mismatch.got_val),
-                counter.count, counter.percent)
-            for mismatch, counter in field_counter.items()],
-        key=lambda data: data[2],
-        reverse=True)
+    rows = []
+
+    ref_count = None
+    for mismatch, count in counter.items():
+        if ref_counter is not None:
+            ref_count = ref_counter[mismatch]
+        rows.append((
+            DataMismatch.format_value(mismatch.exp_val),
+            DataMismatch.format_value(mismatch.got_val),
+            *get_table_stats_row(
+                count, n_disagreements, ref_count)))
+
+    headers = ['Expected', 'Got', 'Count', '% of mimatches']
+    if ref_counter is not None:
+        headers.extend(['Change', 'Change (%)'])
+
     print('== Field "{}" mismatch statistics'.format(field))
     print(tabulate(
-        columns,
-        ['Expected', 'Got', 'Count', '% of mismatches'],
+        sorted(rows, key=lambda data: data[2], reverse=True),
+        headers,
         tablefmt='simple',
-        floatfmt='.2f'))
+        floatfmt=('s', 's', 'd', '.2f', 's', '+.2f')))
     print('')
 
 
@@ -157,30 +208,29 @@ def print_global_stats(report: DiffReport, reference: DiffReport = None) -> None
         report.total_queries, ref_n=ref_total_queries)))
     print(format_stats_line('answers', *get_stats_data(
         report.total_answers, report.total_queries,
-        ref_total_answers, ref_total_queries)))
+        ref_total_answers),
+        additional='of queries'))
     print('')
 
 
 def print_differences_stats(report: DiffReport, reference: DiffReport = None) -> None:
-    ref_upstream_unstable = getattr(reference, 'upstream_unstable', None)
-    ref_total_answers = getattr(reference, 'total_answers', None)
-    ref_not_reproducible = getattr(reference, 'not_reproducible', None)
     ref_summary = getattr(reference, 'summary', None)
+    ref_upstream_unstable = getattr(ref_summary, 'upstream_unstable', None)
+    ref_not_reproducible = getattr(ref_summary, 'not_reproducible', None)
     ref_target_disagrees = len(ref_summary) if ref_summary is not None else None
-    ref_usable_answers = getattr(reference, 'usable_answers', None)
 
     print('== Differences statistics')
     print(format_stats_line('upstream unstable', *get_stats_data(
         report.summary.upstream_unstable, report.total_answers,
-        ref_upstream_unstable, ref_total_answers),
+        ref_upstream_unstable),
         additional='of answers (ignoring)'))
     print(format_stats_line('not 100% reproducible', *get_stats_data(
         report.summary.not_reproducible, report.total_answers,
-        ref_not_reproducible, ref_total_answers),
+        ref_not_reproducible),
         additional='of answers (ignoring)'))
     print(format_stats_line('target disagrees', *get_stats_data(
         len(report.summary), report.summary.usable_answers,
-        ref_target_disagrees, ref_usable_answers),
+        ref_target_disagrees),
         additional='of not ignored answers'))
     print('')
 
@@ -197,9 +247,9 @@ def print_mismatch_queries(
     def sort_key(data: Tuple[str, int, str]) -> Tuple[int, int]:
         order = ['+', ' ', '-']
         try:
-            return order.index(data[0]), data[1]
+            return order.index(data[0]), -data[1]
         except ValueError:
-            return len(order), data[1]
+            return len(order), -data[1]
 
     def format_line(diff: str, count: str, query: str) -> str:
         return "{:1s} {:>7s}  {:s}".format(diff, count, query)
