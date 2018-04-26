@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 import logging
 import os
+import sys
 
 import cfg
 
@@ -33,7 +34,13 @@ def add_arg_datafile(parser: ArgumentParser) -> None:
                             REPORT_FILENAME))
 
 
-def get_datafile(args: Namespace) -> str:
-    if args.datafile is None:
-        return os.path.join(args.envdir, REPORT_FILENAME)
-    return args.datafile
+def get_datafile(args: Namespace, check_exists=True) -> str:
+    datafile = args.datafile
+    if datafile is None:
+        datafile = os.path.join(args.envdir, REPORT_FILENAME)
+
+    if check_exists and not os.path.exists(datafile):
+        logging.error("JSON report (%s) doesn't exist!", datafile)
+        sys.exit(1)
+
+    return datafile

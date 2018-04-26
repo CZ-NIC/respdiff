@@ -9,7 +9,6 @@ from typing import (  # noqa
 
 
 MismatchValue = Union[str, Sequence[str]]
-ResolverID = str
 QID = int
 WireFormat = bytes
 FieldLabel = str

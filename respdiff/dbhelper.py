@@ -1,16 +1,21 @@
-from typing import Dict, Any, Tuple, Generator  # NOQA: needed for type hint in comment
 import os
 import struct
+from typing import Any, Dict, Iterator, Tuple  # NOQA: needed for type hint in comment
 
 import lmdb
 
+from dataformat import QID
 
-def qid2key(qid):
+
+QKey = bytes
+
+
+def qid2key(qid: QID) -> QKey:
     """Encode query ID to database key"""
     return struct.pack('@I', qid)  # native integer
 
 
-def key2qid(key):
+def key2qid(key: QKey) -> QID:
     return struct.unpack('@I', key)[0]
 
 
@@ -104,7 +109,7 @@ class LMDB:
         except KeyError:
             raise RuntimeError("Database {} isn't open!".format(dbname.decode('utf-8')))
 
-    def key_stream(self, dbname: bytes):
+    def key_stream(self, dbname: bytes) -> Iterator[bytes]:
         """yield all keys from given db"""
         db = self.get_db(dbname)
         with self.env.begin(db) as txn:
@@ -112,7 +117,7 @@ class LMDB:
             for key in cur.iternext(keys=True, values=False):
                 yield key
 
-    def key_value_stream(self, dbname: bytes):
+    def key_value_stream(self, dbname: bytes) -> Iterator[Tuple[bytes, bytes]]:
         """yield all (key, value) pairs from given db"""
         db = self.get_db(dbname)
         with self.env.begin(db) as txn:

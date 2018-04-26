@@ -2,11 +2,8 @@
 
 import argparse
 from functools import partial
-import logging
 import multiprocessing.pool as pool
-import os
 import pickle
-import sys
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
 
 import dns.message
@@ -15,8 +12,9 @@ import dns.exception
 import cli
 from dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter, FieldLabel, MismatchValue,
-    Reply, ResolverID, QID)
+    Reply, QID)
 from dbhelper import LMDB, key2qid
+from sendrecv import ResolverID
 
 
 lmdb = None  # type: Optional[Any]
@@ -267,11 +265,6 @@ def main():
     datafile = cli.get_datafile(args)
     criteria = args.cfg['diff']['criteria']
     target = args.cfg['diff']['target']
-
-    # JSON report has to be created by orchestrator
-    if not os.path.exists(datafile):
-        logging.error("JSON report (%s) doesn't exist!", datafile)
-        sys.exit(1)
 
     with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
