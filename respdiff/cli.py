@@ -16,8 +16,6 @@ def setup_logging(level: int = LOGGING_LEVEL) -> None:
 
 
 def add_arg_config(parser: ArgumentParser) -> None:
-    # parser.add_argument('-c', '--config', default=CONFIG_FILENAME, dest='cfgpath',
-    #                     help='config file (default: {})'.format(CONFIG_FILENAME))
     parser.add_argument('-c', '--config', type=cfg.read_cfg,
                         default=CONFIG_FILENAME, dest='cfg',
                         help='config file (default: {})'.format(CONFIG_FILENAME))
