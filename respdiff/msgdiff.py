@@ -17,7 +17,7 @@ from dbhelper import LMDB, key2qid
 from sendrecv import ResolverID
 
 
-lmdb = None  # type: Optional[Any]
+lmdb = None
 
 
 def compare_val(exp_val: MismatchValue, got_val: MismatchValue):
@@ -160,6 +160,8 @@ def decode_wire_dict(
 
 
 def read_answers_lmdb(qid: QID) -> Mapping[ResolverID, dns.message.Message]:
+    if lmdb is None:
+        raise RuntimeError("LMDB wasn't initialized!")
     adb = lmdb.get_db(LMDB.ANSWERS)
     with lmdb.env.begin(adb) as txn:
         blob = txn.get(qid)

@@ -4,7 +4,9 @@ import argparse
 import collections
 import logging
 import sys
-from typing import Any, Callable, Iterable, Iterator, ItemsView, List, Set, Tuple, Union  # noqa
+from typing import (  # noqa
+    Any, Callable, Iterable, Iterator, ItemsView, List, Optional, Set, Tuple,
+    Union)
 
 import dns.message
 import dns.rdatatype
@@ -23,6 +25,8 @@ GLOBAL_STATS_PCT_FORMAT = '{:21s}   {:8d}   {:5.2f} % {:s}'
 
 
 def print_global_stats(report: DiffReport) -> None:
+    if report.total_answers is None or report.total_queries is None:
+        raise RuntimeError("Report doesn't contain sufficient data to print statistics!")
     print('== Global statistics')
     print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
     print(GLOBAL_STATS_FORMAT.format('queries', report.total_queries))
@@ -101,7 +105,7 @@ def print_mismatch_queries(
             field: FieldLabel,
             mismatch: DataMismatch,
             queries: Iterator[Tuple[QID, WireFormat]],
-            limit: int = DEFAULT_LIMIT,
+            limit: Optional[int] = DEFAULT_LIMIT,
             qwire_to_text_func: Callable[[WireFormat], str] = qwire_to_qname_qtype
         ) -> None:
     occurences = collections.Counter()  # type: collections.Counter
