@@ -17,7 +17,7 @@ SaveFunction = Optional[Callable[[Any], Any]]
 
 
 class Reply:
-    def __init__(self, wire: WireFormat, duration: float) -> None:
+    def __init__(self, wire: Optional[WireFormat], duration: float) -> None:
         self.wire = wire
         self.duration = duration
 
@@ -307,6 +307,11 @@ class Summary(Disagreements):
                 reproducibility_threshold: float = 1
             ) -> 'Summary':
         """Get summary of disagreements above the specified reproduciblity threshold (0, 1]."""
+        if (report.other_disagreements is None
+                or report.target_disagreements is None
+                or report.total_answers is None):
+            raise RuntimeError("Report has insufficient data to create Summary")
+
         summary = Summary()
         summary.upstream_unstable = len(report.other_disagreements)
 
@@ -448,8 +453,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         return DiffReport(data=data)
 
     @property
-    def duration(self) -> int:
-        try:
-            return self.end_time - self.start_time
-        except TypeError:
+    def duration(self) -> Optional[int]:
+        if self.end_time is None or self.start_time is None:
             return None
+        return self.end_time - self.start_time

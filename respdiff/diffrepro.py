@@ -51,6 +51,8 @@ def disagreement_query_stream(
             skip_non_reproducible: bool = True,
             shuffle: bool = True
         ) -> Iterator[Tuple[QKey, WireFormat]]:
+    if report.target_disagreements is None or report.reprodata is None:
+        raise RuntimeError("Report doesn't contain necessary data!")
     qids = report.target_disagreements.keys()  # type: Union[Sequence[QID], AbstractSet[QID]]
     if shuffle:
         # create a new, randomized list from disagreements
@@ -86,6 +88,8 @@ def process_answers(
             criteria: Sequence[FieldLabel],
             target: ResolverID
         ) -> None:
+    if report.target_disagreements is None or report.reprodata is None:
+        raise RuntimeError("Report doesn't contain necessary data!")
     qid = key2qid(qkey)
     reprocounter = report.reprodata[qid]
     wire_dict = pickle.loads(replies)
@@ -95,6 +99,7 @@ def process_answers(
     reprocounter.retries += 1
     if others_agree:
         reprocounter.upstream_stable += 1
+        assert mismatches is not None
         if Diff(qid, mismatches) == report.target_disagreements[qid]:
             reprocounter.verified += 1
 

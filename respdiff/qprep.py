@@ -5,7 +5,7 @@ import logging
 import multiprocessing.pool as pool
 import struct
 import sys
-from typing import Tuple
+from typing import Optional, Tuple
 
 import dpkt
 import dns.exception
@@ -45,7 +45,9 @@ def parse_pcap(pcap_file):
         yield (i, wire, '')
 
 
-def wrk_process_line(args: Tuple[int, str, str]) -> Tuple[bytes, bytes]:
+def wrk_process_line(
+            args: Tuple[int, str, str]
+        ) -> Tuple[Optional[bytes], Optional[bytes]]:
     """
     Worker: parse input line, creates a packet in binary format
 
@@ -69,7 +71,11 @@ def wrk_process_packet(args: Tuple[int, bytes, str]):
     wrk_process_wire_packet(qid, wire, log_repr)
 
 
-def wrk_process_wire_packet(qid: int, wire_packet: bytes, log_repr: str) -> Tuple[bytes, bytes]:
+def wrk_process_wire_packet(
+            qid: int,
+            wire_packet: bytes,
+            log_repr: str
+        ) -> Tuple[Optional[bytes], Optional[bytes]]:
     """
     Worker: Return packet's data if it's not blacklisted
 
