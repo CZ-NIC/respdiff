@@ -8,8 +8,10 @@ from typing import (  # noqa
     Any, Callable, Dict, Hashable, ItemsView, Iterator, KeysView, Mapping,
     Optional, Set, Sequence, Tuple, Type, Union)
 
+import dns.rrset
+
 # replace Any with 'MismatchValue' once nested types are supported with mypy
-MismatchValue = Union[str, Sequence[Any]]
+MismatchValue = Union[str, dns.rrset.RRset, Sequence[Any]]
 QID = int
 WireFormat = bytes
 FieldLabel = str
@@ -30,6 +32,8 @@ class DataMismatch(Exception):
                 return val
             if isinstance(val, collections.abc.Sequence):
                 return [convert_val_type(item) for item in val]
+            if isinstance(val, dns.rrset.RRset):
+                return str(val)
             logging.warning(
                 'DataMismatch: unknown value type (%s), casting to str', type(val),
                 stack_info=True)

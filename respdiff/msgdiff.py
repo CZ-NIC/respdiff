@@ -32,12 +32,12 @@ def compare_rrs(expected: RRset, got: RRset):
     """ Compare lists of RR sets, throw exception if different. """
     for rr in expected:
         if rr not in got:
-            raise DataMismatch(str(expected), str(got))
+            raise DataMismatch(expected, got)
     for rr in got:
         if rr not in expected:
-            raise DataMismatch(str(expected), str(got))
+            raise DataMismatch(expected, got)
     if len(expected) != len(got):
-        raise DataMismatch(str(expected), str(got))
+        raise DataMismatch(expected, got)
     return True
 
 
