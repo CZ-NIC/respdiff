@@ -2,6 +2,7 @@
 
 import argparse
 from functools import partial
+import logging
 import multiprocessing.pool as pool
 import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
@@ -142,20 +143,18 @@ def match(
             yield (code, ex)
 
 
-def decode_wire_dict(
-            wire_dict: Mapping[ResolverID, DNSReply]
+def decode_replies(
+            replies: Mapping[ResolverID, DNSReply]
         ) -> Mapping[ResolverID, dns.message.Message]:
     answers = {}  # type: Dict[ResolverID, dns.message.Message]
-    for k, v in wire_dict.items():
-        # decode bytes to dns.message objects
-        # convert from wire format to DNS message object
-        if v.wire is None:  # query timed out
-            answers[k] = None
+    for resolver, reply in replies.items():
+        if reply.timeout:
+            answers[resolver] = None
             continue
         try:
-            answers[k] = dns.message.from_wire(v.wire)
-        except Exception:
-            # answers[k] = ex  # decoding failed, record it!
+            answers[resolver] = dns.message.from_wire(reply.wire)
+        except Exception as exc:
+            logging.warning('Failed to decode DNS message from wire format: %s', exc)
             continue
     return answers
 
@@ -165,10 +164,10 @@ def read_answers_lmdb(qid: QID) -> Mapping[ResolverID, dns.message.Message]:
         raise RuntimeError("LMDB wasn't initialized!")
     adb = lmdb.get_db(LMDB.ANSWERS)
     with lmdb.env.begin(adb) as txn:
-        blob = txn.get(qid)
-    assert blob
-    wire_dict = pickle.loads(blob)
-    return decode_wire_dict(wire_dict)
+        replies_blob = txn.get(qid)
+    assert replies_blob
+    replies = pickle.loads(replies_blob)
+    return decode_replies(replies)
 
 
 def diff_pair(

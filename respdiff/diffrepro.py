@@ -83,7 +83,7 @@ def chunker(iterable: Iterable[T], size: int) -> Iterator[Iterable[T]]:
 
 def process_answers(
             qkey: QKey,
-            replies: RepliesBlob,
+            replies_blob: RepliesBlob,
             report: DiffReport,
             criteria: Sequence[FieldLabel],
             target: ResolverID
@@ -92,8 +92,8 @@ def process_answers(
         raise RuntimeError("Report doesn't contain necessary data!")
     qid = key2qid(qkey)
     reprocounter = report.reprodata[qid]
-    wire_dict = pickle.loads(replies)
-    answers = msgdiff.decode_wire_dict(wire_dict)
+    replies = pickle.loads(replies_blob)
+    answers = msgdiff.decode_replies(replies)
     others_agree, mismatches = msgdiff.compare(answers, criteria, target)
 
     reprocounter.retries += 1

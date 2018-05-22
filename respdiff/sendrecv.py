@@ -46,7 +46,7 @@ __ignore_timeout = False
 __timeout = 10
 __time_delay_min = 0
 __time_delay_max = 0
-__timeout_replies = {}  # type: Dict[float, DNSReply]
+__timeout_reply = DNSReply(None)  # optimization: create only one timeout_reply object
 
 
 def module_init(args: Namespace) -> None:
@@ -204,8 +204,6 @@ def send_recv_parallel(
         ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
     replies = {}  # type: Dict[ResolverID, DNSReply]
     streammsg = None
-    # optimization: create only one timeout_reply object per timeout value
-    timeout_reply = __timeout_replies.setdefault(timeout, DNSReply(None, timeout))
     start_time = time.perf_counter()
     end_time = start_time + timeout
     for _, sock, isstream in sockets:
@@ -242,6 +240,6 @@ def send_recv_parallel(
     # set missing replies as timeout
     for resolver, *_ in sockets:  # type: ignore  # python/mypy#465
         if resolver not in replies:
-            replies[resolver] = timeout_reply
+            replies[resolver] = __timeout_reply
 
     return replies, reinit

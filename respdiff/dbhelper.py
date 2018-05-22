@@ -128,6 +128,14 @@ class LMDB:
 
 
 class DNSReply:
-    def __init__(self, wire: Optional[WireFormat], duration: float) -> None:
-        self.wire = wire
-        self.duration = duration
+    def __init__(self, wire: Optional[WireFormat], time: float = 0) -> None:
+        if wire is None:
+            self.wire = b''
+            self.time = float('+inf')
+        else:
+            self.wire = wire
+            self.time = time
+
+    @property
+    def timeout(self):
+        return self.time == float('+inf')
