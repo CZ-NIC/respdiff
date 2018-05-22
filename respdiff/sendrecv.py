@@ -23,14 +23,12 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dbhelper import DNSReply, QKey, WireFormat
+from dbhelper import DNSReply, RepliesBlob, ResolverID, QKey, WireFormat
 
 
-ResolverID = str
 IP = str
 Protocol = str
 Port = int
-RepliesBlob = bytes
 IsStreamFlag = bool  # Is message preceeded by RFC 1035 section 4.2.2 length?
 ReinitFlag = bool
 Selector = selectors.BaseSelector

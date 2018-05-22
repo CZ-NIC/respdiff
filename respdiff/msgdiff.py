@@ -15,8 +15,7 @@ import cli
 from dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter,
     FieldLabel, MismatchValue, QID)
-from dbhelper import DNSReply, LMDB, key2qid
-from sendrecv import ResolverID
+from dbhelper import DNSReply, LMDB, key2qid, ResolverID
 
 
 lmdb = None

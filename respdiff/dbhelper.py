@@ -1,5 +1,6 @@
 import os
 import struct
+import sys
 from typing import Any, Dict, Iterator, Optional, Tuple  # noqa
 
 import lmdb
@@ -7,6 +8,8 @@ import lmdb
 from dataformat import QID
 
 
+ResolverID = str
+RepliesBlob = bytes
 QKey = bytes
 WireFormat = bytes
 
@@ -128,6 +131,10 @@ class LMDB:
 
 
 class DNSReply:
+    TIMEOUT_INT = 4294967295
+    SIZEOF_INT = 4
+    SIZEOF_SHORT = 2
+
     def __init__(self, wire: Optional[WireFormat], time: float = 0) -> None:
         if wire is None:
             self.wire = b''
@@ -137,5 +144,49 @@ class DNSReply:
             self.time = time
 
     @property
-    def timeout(self):
+    def timeout(self) -> bool:
         return self.time == float('+inf')
+
+    def __eq__(self, other) -> bool:
+        if self.timeout and other.timeout:
+            return True
+        return self.wire == other.wire and \
+            abs(self.time - other.time) < 10 ** -7
+
+    @property
+    def time_int(self) -> int:
+        if self.time == float('+inf'):
+            return self.TIMEOUT_INT
+        value = round(self.time * (10 ** 6))
+        if value > self.TIMEOUT_INT:
+            raise ValueError('Maximum time value exceeded')
+        return value
+
+    @property
+    def binary(self) -> bytes:
+        length = len(self.wire)
+        assert length < 2**(self.SIZEOF_SHORT*8), 'Maximum wire format length exceeded'
+        return struct.pack('<I', self.time_int) + struct.pack('<H', length) + self.wire
+
+    @classmethod
+    def from_binary(cls, buff: bytes) -> Tuple['DNSReply', bytes]:
+        assert len(buff) >= (cls.SIZEOF_INT + cls.SIZEOF_SHORT), "Malformed bin format"
+        offset = 0
+        time_int, = struct.unpack_from('<I', buff, offset)
+        offset += cls.SIZEOF_INT
+        length, = struct.unpack_from('<H', buff, offset)
+        offset += cls.SIZEOF_SHORT
+        wire = buff[offset:(offset+length)]
+        offset += length
+
+        if time_int == cls.TIMEOUT_INT:
+            time = float('+inf')
+        else:
+            time = time_int / (10 ** 6)
+        reply = DNSReply(wire, time)
+
+        return reply, buff[offset:]
+
+
+# upon import, check we're on a little endian platform
+assert sys.byteorder == 'little', 'Big endian platforms are not supported'
