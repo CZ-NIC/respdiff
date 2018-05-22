@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# pylint: disable=wrong-import-order,wrong-import-position
 import argparse
 import logging
 import math
@@ -13,7 +14,6 @@ import cfg
 from dbhelper import LMDB
 
 # Force matplotlib to use a different backend to handle machines without a display
-# pylint: disable=wrong-import-order,wrong-import-position
 import matplotlib
 import matplotlib.ticker as mtick
 matplotlib.use('Agg')
