@@ -28,7 +28,8 @@ def print_global_stats(report: DiffReport) -> None:
     if report.total_answers is None or report.total_queries is None:
         raise RuntimeError("Report doesn't contain sufficient data to print statistics!")
     print('== Global statistics')
-    print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
+    if report.duration is not None:
+        print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
     print(GLOBAL_STATS_FORMAT.format('queries', report.total_queries))
     print(GLOBAL_STATS_PCT_FORMAT.format(
         'answers', report.total_answers,
