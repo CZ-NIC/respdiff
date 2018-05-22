@@ -12,9 +12,9 @@ from typing import (  # noqa
     Union)
 
 import cli
-from dbhelper import LMDB, qid2key, key2qid, QKey
+from dbhelper import LMDB, qid2key, key2qid, QKey, WireFormat
 import diffsum
-from dataformat import Diff, DiffReport, FieldLabel, ReproData, WireFormat, QID  # noqa
+from dataformat import Diff, DiffReport, FieldLabel, ReproData, QID  # noqa
 import msgdiff
 import sendrecv
 from sendrecv import ResolverID, RepliesBlob

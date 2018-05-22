@@ -12,9 +12,9 @@ from dns.rrset import RRset
 
 import cli
 from dataformat import (
-    DataMismatch, DiffReport, Disagreements, DisagreementsCounter, FieldLabel, MismatchValue,
-    Reply, QID)
-from dbhelper import LMDB, key2qid
+    DataMismatch, DiffReport, Disagreements, DisagreementsCounter,
+    FieldLabel, MismatchValue, QID)
+from dbhelper import DNSReply, LMDB, key2qid
 from sendrecv import ResolverID
 
 
@@ -143,7 +143,7 @@ def match(
 
 
 def decode_wire_dict(
-            wire_dict: Mapping[ResolverID, Reply]
+            wire_dict: Mapping[ResolverID, DNSReply]
         ) -> Mapping[ResolverID, dns.message.Message]:
     answers = {}  # type: Dict[ResolverID, dns.message.Message]
     for k, v in wire_dict.items():

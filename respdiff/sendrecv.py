@@ -23,8 +23,7 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dataformat import Reply, WireFormat
-from dbhelper import QKey
+from dbhelper import DNSReply, QKey, WireFormat
 
 
 ResolverID = str
@@ -47,7 +46,7 @@ __ignore_timeout = False
 __timeout = 10
 __time_delay_min = 0
 __time_delay_max = 0
-__timeout_replies = {}  # type: Dict[float, Reply]
+__timeout_replies = {}  # type: Dict[float, DNSReply]
 
 
 def module_init(args: Namespace) -> None:
@@ -140,7 +139,7 @@ def get_resolvers(
     return resolvers
 
 
-def _check_timeout(replies: Mapping[ResolverID, Reply]) -> None:
+def _check_timeout(replies: Mapping[ResolverID, DNSReply]) -> None:
     for resolver, reply in replies.items():
         timeouts = __worker_state.timeouts
         if reply.wire is not None:
@@ -202,11 +201,11 @@ def send_recv_parallel(
             selector: Selector,
             sockets: ResolverSockets,
             timeout: float
-        ) -> Tuple[Mapping[ResolverID, Reply], ReinitFlag]:
-    replies = {}  # type: Dict[ResolverID, Reply]
+        ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
+    replies = {}  # type: Dict[ResolverID, DNSReply]
     streammsg = None
     # optimization: create only one timeout_reply object per timeout value
-    timeout_reply = __timeout_replies.setdefault(timeout, Reply(None, timeout))
+    timeout_reply = __timeout_replies.setdefault(timeout, DNSReply(None, timeout))
     start_time = time.perf_counter()
     end_time = start_time + timeout
     for _, sock, isstream in sockets:
@@ -238,7 +237,7 @@ def send_recv_parallel(
             # assert len(wire) > 14
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
-            replies[name] = Reply(wire, time.perf_counter() - start_time)
+            replies[name] = DNSReply(wire, time.perf_counter() - start_time)
 
     # set missing replies as timeout
     for resolver, *_ in sockets:  # type: ignore  # python/mypy#465

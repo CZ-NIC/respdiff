@@ -1,6 +1,6 @@
 import os
 import struct
-from typing import Any, Dict, Iterator, Tuple  # NOQA: needed for type hint in comment
+from typing import Any, Dict, Iterator, Optional, Tuple  # noqa
 
 import lmdb
 
@@ -8,6 +8,7 @@ from dataformat import QID
 
 
 QKey = bytes
+WireFormat = bytes
 
 
 def qid2key(qid: QID) -> QKey:
@@ -124,3 +125,9 @@ class LMDB:
             cur = txn.cursor(db)
             for key, blob in cur:
                 yield key, blob
+
+
+class DNSReply:
+    def __init__(self, wire: Optional[WireFormat], duration: float) -> None:
+        self.wire = wire
+        self.duration = duration

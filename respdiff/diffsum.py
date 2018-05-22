@@ -13,10 +13,8 @@ import dns.rdatatype
 from tabulate import tabulate
 
 import cli
-from dbhelper import LMDB, qid2key
-from dataformat import (
-    DataMismatch, DiffReport, FieldLabel, Summary,
-    QID, WireFormat)
+from dbhelper import LMDB, qid2key, WireFormat
+from dataformat import DataMismatch, DiffReport, FieldLabel, Summary, QID
 
 
 DEFAULT_LIMIT = 10
