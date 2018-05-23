@@ -16,12 +16,11 @@ WireFormat = bytes
 
 
 def qid2key(qid: QID) -> QKey:
-    """Encode query ID to database key"""
-    return struct.pack('@I', qid)  # native integer
+    return struct.pack('<I', qid)
 
 
 def key2qid(key: QKey) -> QID:
-    return struct.unpack('@I', key)[0]
+    return struct.unpack('<I', key)[0]
 
 
 class LMDB:
