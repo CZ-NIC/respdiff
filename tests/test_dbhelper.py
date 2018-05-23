@@ -1,6 +1,6 @@
 import pytest
 
-from respdiff.dbhelper import DNSReply
+from respdiff.dbhelper import DNSReply, DNSRepliesFactory
 
 
 def create_reply(wire, time):
@@ -81,3 +81,20 @@ def test_dns_reply_deserialization(binary, reply, remaining):
     got_reply, buff = DNSReply.from_binary(binary)
     assert reply == got_reply
     assert buff == remaining
+
+
+def test_dns_replies_factory_init():
+    with pytest.raises(ValueError):
+        DNSRepliesFactory([])
+
+    rf = DNSRepliesFactory(['a'])
+    replies = rf.parse(DR_TIMEOUT_BIN)
+    assert replies['a'] == DR_TIMEOUT
+
+    rf2 = DNSRepliesFactory(['a', 'b'])
+    replies = rf2.parse(DR_A_0_BIN + DR_ABCD_1_BIN)
+    assert replies['a'] == DR_A_0
+    assert replies['b'] == DR_ABCD_1
+
+    with pytest.raises(ValueError):
+        rf2.parse(DR_A_0_BIN + b'a')

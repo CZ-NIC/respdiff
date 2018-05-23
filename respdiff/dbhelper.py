@@ -1,7 +1,8 @@
+import logging
 import os
 import struct
 import sys
-from typing import Any, Dict, Iterator, Optional, Tuple  # noqa
+from typing import Any, Dict, Iterator, Optional, Tuple, Sequence  # noqa
 
 import lmdb
 
@@ -170,7 +171,8 @@ class DNSReply:
 
     @classmethod
     def from_binary(cls, buff: bytes) -> Tuple['DNSReply', bytes]:
-        assert len(buff) >= (cls.SIZEOF_INT + cls.SIZEOF_SHORT), "Malformed bin format"
+        if len(buff) < (cls.SIZEOF_INT + cls.SIZEOF_SHORT):
+            raise ValueError('Missing data in binary format')
         offset = 0
         time_int, = struct.unpack_from('<I', buff, offset)
         offset += cls.SIZEOF_INT
@@ -179,6 +181,9 @@ class DNSReply:
         wire = buff[offset:(offset+length)]
         offset += length
 
+        if len(wire) != length:
+            raise ValueError('Missing data in binary format')
+
         if time_int == cls.TIMEOUT_INT:
             time = float('+inf')
         else:
@@ -186,6 +191,22 @@ class DNSReply:
         reply = DNSReply(wire, time)
 
         return reply, buff[offset:]
+
+
+class DNSRepliesFactory:
+    def __init__(self, servers: Sequence[ResolverID]) -> None:
+        if not servers:
+            raise ValueError('One or more servers have to be specified')
+        self.servers = servers
+
+    def parse(self, buff: bytes) -> Dict[ResolverID, DNSReply]:
+        replies = {}
+        for server in self.servers:
+            reply, buff = DNSReply.from_binary(buff)
+            replies[server] = reply
+        if buff:
+            logging.warning('Trailing data in buffer')
+        return replies
 
 
 # upon import, check we're on a little endian platform
