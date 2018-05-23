@@ -3,12 +3,15 @@
 import collections
 import collections.abc
 import json
+import logging
 from typing import (  # noqa
     Any, Callable, Dict, Hashable, ItemsView, Iterator, KeysView, Mapping,
     Optional, Set, Sequence, Tuple, Type, Union)
 
+import dns.rrset
 
-MismatchValue = Union[str, Sequence[str]]
+# replace Any with 'MismatchValue' once nested types are supported with mypy
+MismatchValue = Union[str, dns.rrset.RRset, Sequence[Any]]
 QID = int
 WireFormat = bytes
 FieldLabel = str
@@ -24,6 +27,21 @@ class Reply:
 
 class DataMismatch(Exception):
     def __init__(self, exp_val: MismatchValue, got_val: MismatchValue) -> None:
+        def convert_val_type(val: Any) -> MismatchValue:
+            if isinstance(val, str):
+                return val
+            if isinstance(val, collections.abc.Sequence):
+                return [convert_val_type(item) for item in val]
+            if isinstance(val, dns.rrset.RRset):
+                return str(val)
+            logging.warning(
+                'DataMismatch: unknown value type (%s), casting to str', type(val),
+                stack_info=True)
+            return str(val)
+
+        exp_val = convert_val_type(exp_val)
+        got_val = convert_val_type(got_val)
+
         super(DataMismatch, self).__init__(exp_val, got_val)
         if exp_val == got_val:
             raise RuntimeError("exp_val == got_val ({})".format(exp_val))
