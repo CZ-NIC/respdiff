@@ -17,3 +17,6 @@ coverage.xml
 
 # mypy
 .mypy_cache/
+
+# test data
+lock.mdb

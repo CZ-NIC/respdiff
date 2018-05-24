@@ -1,6 +1,11 @@
+import os
 import pytest
 
-from respdiff.dbhelper import DNSReply, DNSRepliesFactory
+from respdiff.dbhelper import (
+    DNSReply, DNSRepliesFactory, LMDB, MetaDatabase, VERSION, qid2key)
+
+
+LMDB_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lmdb', VERSION)
 
 
 def create_reply(wire, time):
@@ -98,3 +103,53 @@ def test_dns_replies_factory_init():
 
     with pytest.raises(ValueError):
         rf2.parse(DR_A_0_BIN + b'a')
+
+
+INT_3M = 3000000000
+TIME_3M = 3000.0
+
+
+def test_lmdb_answers_single_server():
+    envdir = os.path.join(LMDB_DIR, 'answers_single_server')
+    with LMDB(envdir) as lmdb:
+        adb = lmdb.open_db(LMDB.ANSWERS)
+        meta = MetaDatabase(lmdb)
+        assert meta.read_start_time() == INT_3M
+        assert meta.read_end_time() == INT_3M
+
+        servers = meta.read_servers()
+        assert len(servers) == 1
+        assert servers[0] == 'kresd'
+
+        with lmdb.env.begin(adb) as txn:
+            data = txn.get(qid2key(INT_3M))
+        df = DNSRepliesFactory(servers)
+        replies = df.parse(data)
+        assert len(replies) == 1
+        assert replies[servers[0]] == DNSReply(b'a', TIME_3M)
+
+
+def test_lmdb_answers_multiple_servers():
+    envdir = os.path.join(LMDB_DIR, 'answers_multiple_servers')
+    with LMDB(envdir) as lmdb:
+        adb = lmdb.open_db(LMDB.ANSWERS)
+        meta = MetaDatabase(lmdb)
+        assert meta.read_start_time() is None
+        assert meta.read_end_time() is None
+
+        servers = meta.read_servers()
+        assert len(servers) == 3
+        assert servers[0] == 'kresd'
+        assert servers[1] == 'bind'
+        assert servers[2] == 'unbound'
+
+        df = DNSRepliesFactory(servers)
+
+        with lmdb.env.begin(adb) as txn:
+            data = txn.get(qid2key(INT_3M))
+
+        replies = df.parse(data)
+        assert len(replies) == 3
+        assert replies[servers[0]] == DNSReply(b'', TIME_3M)
+        assert replies[servers[1]] == DNSReply(b'ab', TIME_3M)
+        assert replies[servers[2]] == DNSReply(b'a', TIME_3M)
