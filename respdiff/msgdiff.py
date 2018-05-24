@@ -6,6 +6,7 @@ import logging
 import multiprocessing.pool as pool
 import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
+import sys
 
 import dns.exception
 import dns.message
@@ -15,7 +16,7 @@ import cli
 from dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter,
     FieldLabel, MismatchValue, QID)
-from dbhelper import DNSReply, LMDB, key2qid, ResolverID
+from dbhelper import DNSReply, key2qid, LMDB, MetaDatabase, ResolverID
 
 
 lmdb = None
@@ -267,8 +268,18 @@ def main():
     criteria = args.cfg['diff']['criteria']
     target = args.cfg['diff']['target']
 
+    # fast=True would later cause lmdb.BadRslotError in conjuction with multiprocessing
+    with LMDB(args.envdir) as lmdb_:
+        meta = MetaDatabase(lmdb_)
+        try:
+            meta.check_version()
+        except ValueError as exc:
+            logging.critical(exc)
+            sys.exit(1)
+
     with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
+
         lmdb.open_db(LMDB.ANSWERS)
         lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
         qid_stream = lmdb.key_stream(LMDB.ANSWERS)

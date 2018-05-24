@@ -9,7 +9,7 @@ import sys
 
 import cli
 from dataformat import DiffReport
-from dbhelper import LMDB
+from dbhelper import LMDB, MetaDatabase
 import sendrecv
 
 
@@ -52,6 +52,11 @@ def main():
     start_time = int(time.time())
 
     with LMDB(args.envdir) as lmdb:
+        meta = MetaDatabase(lmdb)
+        meta.write_version()
+        meta.write_start_time()
+        meta.write_servers(args.cfg['servers']['names'])
+
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
 
@@ -75,6 +80,7 @@ def main():
         finally:
             # attempt to preserve data if something went wrong (or not)
             txn.commit()
+            meta.write_end_time()
 
             # get query/answer statistics
             export_statistics(lmdb, datafile, start_time)
