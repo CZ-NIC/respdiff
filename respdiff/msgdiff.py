@@ -4,6 +4,7 @@ import argparse
 from functools import partial
 import logging
 import multiprocessing.pool as pool
+import os
 import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
 import sys
@@ -232,8 +233,10 @@ def compare_lmdb_wrapper(criteria, target, qid):
         txn.put(qid, blob)
 
 
-def export_json(filename):
-    report = DiffReport.from_json(filename)
+def export_json(filename: str, report: DiffReport):
+    if lmdb is None:
+        raise RuntimeError("LMDB wasn't initialized!")
+
     report.other_disagreements = DisagreementsCounter()
     report.target_disagreements = Disagreements()
 
@@ -250,7 +253,32 @@ def export_json(filename):
                     for field, mismatch in diff.items():
                         report.target_disagreements.add_mismatch(field, mismatch, qid)
 
+    # it doesn't make sense to use existing report.json
+    if os.path.exists(filename):
+        backup_filename = filename + '.bak'
+        os.rename(filename, backup_filename)
+        logging.warning(
+            'JSON report already exists, overwriting file. Original '
+            'file backed up as %s', backup_filename)
     report.export_json(filename)
+
+
+def prepare_report(lmdb_):
+    qdb = lmdb_.open_db(LMDB.QUERIES)
+    adb = lmdb_.open_db(LMDB.ANSWERS)
+    with lmdb_.env.begin() as txn:
+        total_queries = txn.stat(qdb)['entries']
+        total_answers = txn.stat(adb)['entries']
+
+    meta = MetaDatabase(lmdb_)
+    start_time = meta.read_start_time()
+    end_time = meta.read_end_time()
+
+    return DiffReport(
+        start_time,
+        end_time,
+        total_queries,
+        total_answers)
 
 
 def main():
@@ -264,12 +292,15 @@ def main():
     cli.add_arg_datafile(parser)
 
     args = parser.parse_args()
-    datafile = cli.get_datafile(args)
+    datafile = cli.get_datafile(args, check_exists=False)
     criteria = args.cfg['diff']['criteria']
     target = args.cfg['diff']['target']
 
-    # fast=True would later cause lmdb.BadRslotError in conjuction with multiprocessing
     with LMDB(args.envdir) as lmdb_:
+        # NOTE: To avoid an lmdb.BadRslotError, probably caused by weird
+        # interaction when using multiple transaction / processes, open a separate
+        # environment. Also, any dbs have to be opened before using MetaDatabase().
+        report = prepare_report(lmdb_)
         meta = MetaDatabase(lmdb_)
         try:
             meta.check_version()
@@ -287,7 +318,7 @@ def main():
         with pool.Pool() as p:
             for _ in p.imap_unordered(func, qid_stream, chunksize=10):
                 pass
-        export_json(datafile)
+        export_json(datafile, report)
 
 
 if __name__ == '__main__':

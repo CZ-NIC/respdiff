@@ -80,11 +80,11 @@ class LMDB:
                 check_notexists: bool = False, drop: bool = False):
         assert self.env is not None, "LMDB wasn't initialized!"
         if not create and not self.exists_db(dbname):
-            msg = 'LMDB environment "{}" does not contain DB {}! '.format(
+            msg = 'LMDB environment "{}" does not contain DB "{}"! '.format(
                 self.path, dbname.decode('utf-8'))
             raise RuntimeError(msg)
         if check_notexists and self.exists_db(dbname):
-            msg = ('LMDB environment "{}" already contains DB {}! '
+            msg = ('LMDB environment "{}" already contains DB "{}"! '
                    'Overwritting it would invalidate data in the environment, '
                    'terminating.').format(self.path, dbname.decode('utf-8'))
             raise RuntimeError(msg)
@@ -118,7 +118,7 @@ class LMDB:
         try:
             return self.dbs[dbname]
         except KeyError:
-            raise RuntimeError("Database {} isn't open!".format(dbname.decode('utf-8')))
+            raise ValueError("Database {} isn't open!".format(dbname.decode('utf-8')))
 
     def key_stream(self, dbname: bytes) -> Iterator[bytes]:
         """yield all keys from given db"""
@@ -228,7 +228,10 @@ class Database(ABC):
         if self.db is None:
             if not self.DB_NAME:
                 raise RuntimeError('No database to initialize!')
-            self.lmdb.open_db(self.DB_NAME, create=True)
+            try:
+                self.db = self.lmdb.get_db(self.DB_NAME)
+            except ValueError:
+                self.db = self.lmdb.open_db(self.DB_NAME, create=True)
 
         with self.lmdb.env.begin(self.db, write=write) as txn:
             yield txn
