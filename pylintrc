@@ -9,6 +9,7 @@ disable=
     too-many-branches,
     fixme,
     unused-import,  # checked by flake8
+    line-too-long,  # checked by flake8
     invalid-name,
     broad-except,
     bad-continuation,
