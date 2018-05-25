@@ -10,7 +10,6 @@ threads or processes. Make sure not to break this compatibility.
 
 
 from argparse import Namespace
-import pickle
 import random
 import selectors
 import socket
@@ -23,7 +22,7 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dbhelper import DNSReply, RepliesBlob, ResolverID, QKey, WireFormat
+from dbhelper import DNSReply, DNSRepliesFactory, RepliesBlob, ResolverID, QKey, WireFormat
 
 
 IP = str
@@ -45,6 +44,7 @@ __timeout = 10
 __time_delay_min = 0
 __time_delay_max = 0
 __timeout_reply = DNSReply(None)  # optimization: create only one timeout_reply object
+__dnsreplies_factory = None
 
 
 def module_init(args: Namespace) -> None:
@@ -54,6 +54,7 @@ def module_init(args: Namespace) -> None:
     global __timeout
     global __time_delay_min
     global __time_delay_max
+    global __dnsreplies_factory
 
     __resolvers = get_resolvers(args.cfg)
     __timeout = args.cfg['sendrecv']['timeout']
@@ -67,6 +68,9 @@ def module_init(args: Namespace) -> None:
         __ignore_timeout = args.ignore_timeout
     except AttributeError:
         pass
+
+    servers = [resolver[0] for resolver in __resolvers]
+    __dnsreplies_factory = DNSRepliesFactory(servers)
 
 
 def worker_init() -> None:
@@ -108,7 +112,8 @@ def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBl
         worker_deinit()
         worker_reinit()
 
-    blob = pickle.dumps(replies)
+    assert __dnsreplies_factory is not None, "Module wasn't initilized!"
+    blob = __dnsreplies_factory.serialize(replies)
     return qkey, blob
 
 
@@ -123,7 +128,8 @@ def worker_perform_single_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, Re
 
     worker_deinit()
 
-    blob = pickle.dumps(replies)
+    assert __dnsreplies_factory is not None, "Module wasn't initilized!"
+    blob = __dnsreplies_factory.serialize(replies)
     return qkey, blob
 
 

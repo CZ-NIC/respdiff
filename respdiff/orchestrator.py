@@ -24,10 +24,9 @@ def main():
     sendrecv.module_init(args)
 
     with LMDB(args.envdir) as lmdb:
-        meta = MetaDatabase(lmdb)
+        meta = MetaDatabase(lmdb, args.cfg['servers']['names'], create=True)
         meta.write_version()
         meta.write_start_time()
-        meta.write_servers(args.cfg['servers']['names'])
 
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)

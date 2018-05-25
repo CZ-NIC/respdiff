@@ -17,7 +17,7 @@ import cli
 from dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter,
     FieldLabel, MismatchValue, QID)
-from dbhelper import DNSReply, key2qid, LMDB, MetaDatabase, ResolverID
+from dbhelper import DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID
 
 
 lmdb = None
@@ -160,14 +160,16 @@ def decode_replies(
     return answers
 
 
-def read_answers_lmdb(qid: QID) -> Mapping[ResolverID, dns.message.Message]:
-    if lmdb is None:
-        raise RuntimeError("LMDB wasn't initialized!")
+def read_answers_lmdb(
+            dnsreplies_factory: DNSRepliesFactory,
+            qid: QID
+        ) -> Mapping[ResolverID, dns.message.Message]:
+    assert lmdb is not None, "LMDB wasn't initialized!"
     adb = lmdb.get_db(LMDB.ANSWERS)
     with lmdb.env.begin(adb) as txn:
         replies_blob = txn.get(qid)
     assert replies_blob
-    replies = pickle.loads(replies_blob)
+    replies = dnsreplies_factory.parse(replies_blob)
     return decode_replies(replies)
 
 
@@ -222,8 +224,14 @@ def compare(
     return (others_agree, target_diffs)
 
 
-def compare_lmdb_wrapper(criteria, target, qid):
-    answers = read_answers_lmdb(qid)
+def compare_lmdb_wrapper(
+            criteria: Sequence[FieldLabel],
+            target: ResolverID,
+            dnsreplies_factory: DNSRepliesFactory,
+            qid: QID
+        ) -> None:
+    assert lmdb is not None, "LMDB wasn't initialized!"
+    answers = read_answers_lmdb(dnsreplies_factory, qid)
     others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
         return  # all agreed, nothing to write
@@ -234,9 +242,7 @@ def compare_lmdb_wrapper(criteria, target, qid):
 
 
 def export_json(filename: str, report: DiffReport):
-    if lmdb is None:
-        raise RuntimeError("LMDB wasn't initialized!")
-
+    assert lmdb is not None, "LMDB wasn't initialized!"
     report.other_disagreements = DisagreementsCounter()
     report.target_disagreements = Disagreements()
 
@@ -263,14 +269,14 @@ def export_json(filename: str, report: DiffReport):
     report.export_json(filename)
 
 
-def prepare_report(lmdb_):
+def prepare_report(lmdb_, servers: Sequence[ResolverID]) -> DiffReport:
     qdb = lmdb_.open_db(LMDB.QUERIES)
     adb = lmdb_.open_db(LMDB.ANSWERS)
     with lmdb_.env.begin() as txn:
         total_queries = txn.stat(qdb)['entries']
         total_answers = txn.stat(adb)['entries']
 
-    meta = MetaDatabase(lmdb_)
+    meta = MetaDatabase(lmdb_, servers)
     start_time = meta.read_start_time()
     end_time = meta.read_end_time()
 
@@ -295,26 +301,27 @@ def main():
     datafile = cli.get_datafile(args, check_exists=False)
     criteria = args.cfg['diff']['criteria']
     target = args.cfg['diff']['target']
+    servers = args.cfg['servers']['names']
 
     with LMDB(args.envdir) as lmdb_:
         # NOTE: To avoid an lmdb.BadRslotError, probably caused by weird
         # interaction when using multiple transaction / processes, open a separate
         # environment. Also, any dbs have to be opened before using MetaDatabase().
-        report = prepare_report(lmdb_)
-        meta = MetaDatabase(lmdb_)
+        report = prepare_report(lmdb_, servers)
         try:
-            meta.check_version()
-        except ValueError as exc:
+            MetaDatabase(lmdb_, servers, create=False)  # check version and servers
+        except NotImplementedError as exc:
             logging.critical(exc)
             sys.exit(1)
 
     with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
-
         lmdb.open_db(LMDB.ANSWERS)
         lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
         qid_stream = lmdb.key_stream(LMDB.ANSWERS)
-        func = partial(compare_lmdb_wrapper, criteria, target)
+
+        dnsreplies_factory = DNSRepliesFactory(servers)
+        func = partial(compare_lmdb_wrapper, criteria, target, dnsreplies_factory)
         with pool.Pool() as p:
             for _ in p.imap_unordered(func, qid_stream, chunksize=10):
                 pass

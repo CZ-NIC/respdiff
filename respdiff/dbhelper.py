@@ -12,6 +12,8 @@ import lmdb
 
 from dataformat import QID
 
+# upon import, check we're on a little endian platform
+assert sys.byteorder == 'little', 'Big endian platforms are not supported'
 
 ResolverID = str
 RepliesBlob = bytes
@@ -233,9 +235,10 @@ class DNSRepliesFactory:
 class Database(ABC):
     DB_NAME = b''
 
-    def __init__(self, lmdb_):
+    def __init__(self, lmdb_, create: bool = False) -> None:
         self.lmdb = lmdb_
         self.db = None
+        self.create = create
 
     @contextmanager
     def transaction(self, write: bool = False):
@@ -246,7 +249,10 @@ class Database(ABC):
             try:
                 self.db = self.lmdb.get_db(self.DB_NAME)
             except ValueError:
-                self.db = self.lmdb.open_db(self.DB_NAME, create=True)
+                try:
+                    self.db = self.lmdb.open_db(self.DB_NAME, create=self.create)
+                except lmdb.Error as exc:
+                    raise RuntimeError('Failed to open LMDB database: {}'.format(exc))
 
         with self.lmdb.env.begin(self.db, write=write) as txn:
             yield txn
@@ -255,7 +261,7 @@ class Database(ABC):
         with self.transaction() as txn:
             data = txn.get(key)
         if data is None:
-            raise ValueError("Missing '{}' key in '{}' database!".format(
+            raise KeyError("Missing '{}' key in '{}' database!".format(
                 key.decode('ascii'), self.DB_NAME.decode('ascii')))
         return data
 
@@ -272,6 +278,19 @@ class MetaDatabase(Database):
     KEY_SERVERS = b'servers'
     KEY_NAME = b'name'
 
+    def __init__(
+                self,
+                lmdb_,
+                servers: Sequence[ResolverID],
+                create: bool = False
+            ) -> None:
+        super(MetaDatabase, self).__init__(lmdb_, create)
+        if create:
+            self.write_servers(servers)
+        else:
+            self.check_version()
+            self.check_servers(servers)
+
     def read_servers(self) -> List[ResolverID]:
         servers = []
         ndata = self.read_key(self.KEY_SERVERS)
@@ -283,11 +302,20 @@ class MetaDatabase(Database):
         return servers
 
     def write_servers(self, servers: Sequence[ResolverID]) -> None:
+        if not servers:
+            raise ValueError("Empty list of servers!")
         n = struct.pack('<I', len(servers))
         self.write_key(self.KEY_SERVERS, n)
         for i, server in enumerate(servers):
             key = self.KEY_NAME + str(i).encode('ascii')
             self.write_key(key, server.encode('ascii'))
+
+    def check_servers(self, servers: Sequence[ResolverID]) -> None:
+        db_servers = self.read_servers()
+        if not servers == db_servers:
+            raise NotImplementedError(
+                'Servers defined in config differ from the ones in "meta" database! '
+                '(config: "{}", meta db: "{}")'.format(servers, db_servers))
 
     def write_version(self) -> None:
         self.write_key(self.KEY_VERSION, VERSION.encode('ascii'))
@@ -295,7 +323,7 @@ class MetaDatabase(Database):
     def check_version(self) -> None:
         version = self.read_key(self.KEY_VERSION).decode('ascii')
         if version != VERSION:
-            raise ValueError(
+            raise NotImplementedError(
                 'LMDB version mismatch! (expected "{}", got "{}")'.format(
                     VERSION, version))
 
@@ -314,7 +342,7 @@ class MetaDatabase(Database):
     def _read_timestamp(self, key: bytes) -> Optional[int]:
         try:
             data = self.read_key(key)
-        except ValueError:
+        except KeyError:
             return None
         else:
             return struct.unpack('<I', data)[0]
@@ -324,7 +352,3 @@ class MetaDatabase(Database):
             timestamp = round(time.time())
         data = struct.pack('<I', timestamp)
         self.write_key(key, data)
-
-
-# upon import, check we're on a little endian platform
-assert sys.byteorder == 'little', 'Big endian platforms are not supported'

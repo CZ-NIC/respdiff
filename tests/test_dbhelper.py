@@ -116,7 +116,7 @@ def test_lmdb_answers_single_server():
     envdir = os.path.join(LMDB_DIR, 'answers_single_server')
     with LMDB(envdir) as lmdb:
         adb = lmdb.open_db(LMDB.ANSWERS)
-        meta = MetaDatabase(lmdb)
+        meta = MetaDatabase(lmdb, ['kresd'])
         assert meta.read_start_time() == INT_3M
         assert meta.read_end_time() == INT_3M
 
@@ -136,7 +136,7 @@ def test_lmdb_answers_multiple_servers():
     envdir = os.path.join(LMDB_DIR, 'answers_multiple_servers')
     with LMDB(envdir) as lmdb:
         adb = lmdb.open_db(LMDB.ANSWERS)
-        meta = MetaDatabase(lmdb)
+        meta = MetaDatabase(lmdb, ['kresd', 'bind', 'unbound'])
         assert meta.read_start_time() is None
         assert meta.read_end_time() is None
 
