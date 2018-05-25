@@ -1,6 +1,5 @@
 from abc import ABC
 from contextlib import contextmanager
-import logging
 import os
 import struct
 import sys
@@ -160,6 +159,8 @@ class DNSReply:
     def __eq__(self, other) -> bool:
         if self.timeout and other.timeout:
             return True
+        # float equality comparison: use 10^-7 tolerance since it's less than available
+        # resoltuion from the time_int integer value (which is 10^-6)
         return self.wire == other.wire and \
             abs(self.time - other.time) < 10 ** -7
 
@@ -169,13 +170,14 @@ class DNSReply:
             return self.TIMEOUT_INT
         value = round(self.time * (10 ** 6))
         if value > self.TIMEOUT_INT:
-            raise ValueError('Maximum time value exceeded')
+            raise ValueError(
+                'Maximum time value exceeded: (value: "{}", max: {})'.format(
+                    value, self.TIMEOUT_INT))
         return value
 
     @property
     def binary(self) -> bytes:
         length = len(self.wire)
-        assert length < 2**(self.SIZEOF_SHORT*8), 'Maximum wire format length exceeded'
         return struct.pack('<I', self.time_int) + struct.pack('<H', length) + self.wire
 
     @classmethod
@@ -215,10 +217,12 @@ class DNSRepliesFactory:
             reply, buff = DNSReply.from_binary(buff)
             replies[server] = reply
         if buff:
-            logging.warning('Trailing data in buffer')
+            raise ValueError('Trailing data in buffer')
         return replies
 
     def serialize(self, replies: Mapping[ResolverID, DNSReply]) -> bytes:
+        if len(replies) > len(self.servers):
+            raise ValueError('Extra unexpected data to serialize!')
         data = []
         for server in self.servers:
             try:
@@ -227,8 +231,6 @@ class DNSRepliesFactory:
                 raise ValueError('Missing reply for server "{}"!'.format(server))
             else:
                 data.append(reply.binary)
-        if len(replies) > len(self.servers):
-            raise ValueError('Extra unexpected data to serialize!')
         return b''.join(data)
 
 

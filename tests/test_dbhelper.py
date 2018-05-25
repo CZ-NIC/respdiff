@@ -46,7 +46,7 @@ def test_dns_reply_time_int(time, time_int):
     assert reply.time_int == time_int
 
 
-DR_TIMEOUT = DNSReply(None, None)
+DR_TIMEOUT = DNSReply(None)
 DR_TIMEOUT_BIN = b'\xff\xff\xff\xff\x00\x00'
 DR_EMPTY_0 = DNSReply(b'')
 DR_EMPTY_0_BIN = b'\x00\x00\x00\x00\x00\x00'

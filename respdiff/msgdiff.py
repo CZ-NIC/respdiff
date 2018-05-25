@@ -259,7 +259,8 @@ def export_json(filename: str, report: DiffReport):
                     for field, mismatch in diff.items():
                         report.target_disagreements.add_mismatch(field, mismatch, qid)
 
-    # it doesn't make sense to use existing report.json
+    # NOTE: msgdiff is the first tool in the toolchain to generate report.json
+    #       thus it doesn't make sense to re-use existing report.json file
     if os.path.exists(filename):
         backup_filename = filename + '.bak'
         os.rename(filename, backup_filename)
@@ -321,9 +322,10 @@ def main():
         qid_stream = lmdb.key_stream(LMDB.ANSWERS)
 
         dnsreplies_factory = DNSRepliesFactory(servers)
-        func = partial(compare_lmdb_wrapper, criteria, target, dnsreplies_factory)
+        compare_func = partial(
+            compare_lmdb_wrapper, criteria, target, dnsreplies_factory)
         with pool.Pool() as p:
-            for _ in p.imap_unordered(func, qid_stream, chunksize=10):
+            for _ in p.imap_unordered(compare_func, qid_stream, chunksize=10):
                 pass
         export_json(datafile, report)
 

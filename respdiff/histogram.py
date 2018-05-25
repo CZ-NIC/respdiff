@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# NOTE: Due to a weird bug, numpy is detected as a 3rd party module, while lmdb
+#       is not and pylint complains about wrong-import-order.
+#       Since these checks have to be disabled for matplotlib imports anyway, they
+#       were moved a bit higher up to avoid the issue.
 # pylint: disable=wrong-import-order,wrong-import-position
 import argparse
 import logging
