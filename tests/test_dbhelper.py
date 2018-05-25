@@ -88,7 +88,7 @@ def test_dns_reply_deserialization(binary, reply, remaining):
     assert buff == remaining
 
 
-def test_dns_replies_factory_init():
+def test_dns_replies_factory():
     with pytest.raises(ValueError):
         DNSRepliesFactory([])
 
@@ -97,12 +97,15 @@ def test_dns_replies_factory_init():
     assert replies['a'] == DR_TIMEOUT
 
     rf2 = DNSRepliesFactory(['a', 'b'])
-    replies = rf2.parse(DR_A_0_BIN + DR_ABCD_1_BIN)
+    bin_data = DR_A_0_BIN + DR_ABCD_1_BIN
+    replies = rf2.parse(bin_data)
     assert replies['a'] == DR_A_0
     assert replies['b'] == DR_ABCD_1
 
     with pytest.raises(ValueError):
         rf2.parse(DR_A_0_BIN + b'a')
+
+    assert rf2.serialize(replies) == bin_data
 
 
 INT_3M = 3000000000

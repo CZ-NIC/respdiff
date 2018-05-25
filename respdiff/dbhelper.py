@@ -5,7 +5,8 @@ import os
 import struct
 import sys
 import time
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Sequence  # noqa
+from typing import (  # noqa
+    Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Sequence)
 
 import lmdb
 
@@ -200,6 +201,7 @@ class DNSReply:
 
 
 class DNSRepliesFactory:
+    """Thread-safe factory to parse DNSReply objects from binary blob."""
     def __init__(self, servers: Sequence[ResolverID]) -> None:
         if not servers:
             raise ValueError('One or more servers have to be specified')
@@ -213,6 +215,19 @@ class DNSRepliesFactory:
         if buff:
             logging.warning('Trailing data in buffer')
         return replies
+
+    def serialize(self, replies: Mapping[ResolverID, DNSReply]) -> bytes:
+        data = []
+        for server in self.servers:
+            try:
+                reply = replies[server]
+            except KeyError:
+                raise ValueError('Missing reply for server "{}"!'.format(server))
+            else:
+                data.append(reply.binary)
+        if len(replies) > len(self.servers):
+            raise ValueError('Extra unexpected data to serialize!')
+        return b''.join(data)
 
 
 class Database(ABC):
