@@ -10,7 +10,6 @@ threads or processes. Make sure not to break this compatibility.
 
 
 from argparse import Namespace
-import pickle
 import random
 import selectors
 import socket
@@ -23,15 +22,12 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dataformat import Reply, WireFormat
-from dbhelper import QKey
+from dbhelper import DNSReply, DNSRepliesFactory, RepliesBlob, ResolverID, QKey, WireFormat
 
 
-ResolverID = str
 IP = str
 Protocol = str
 Port = int
-RepliesBlob = bytes
 IsStreamFlag = bool  # Is message preceeded by RFC 1035 section 4.2.2 length?
 ReinitFlag = bool
 Selector = selectors.BaseSelector
@@ -47,7 +43,8 @@ __ignore_timeout = False
 __timeout = 10
 __time_delay_min = 0
 __time_delay_max = 0
-__timeout_replies = {}  # type: Dict[float, Reply]
+__timeout_reply = DNSReply(None)  # optimization: create only one timeout_reply object
+__dnsreplies_factory = None
 
 
 def module_init(args: Namespace) -> None:
@@ -57,6 +54,7 @@ def module_init(args: Namespace) -> None:
     global __timeout
     global __time_delay_min
     global __time_delay_max
+    global __dnsreplies_factory
 
     __resolvers = get_resolvers(args.cfg)
     __timeout = args.cfg['sendrecv']['timeout']
@@ -70,6 +68,9 @@ def module_init(args: Namespace) -> None:
         __ignore_timeout = args.ignore_timeout
     except AttributeError:
         pass
+
+    servers = [resolver[0] for resolver in __resolvers]
+    __dnsreplies_factory = DNSRepliesFactory(servers)
 
 
 def worker_init() -> None:
@@ -111,7 +112,8 @@ def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBl
         worker_deinit()
         worker_reinit()
 
-    blob = pickle.dumps(replies)
+    assert __dnsreplies_factory is not None, "Module wasn't initilized!"
+    blob = __dnsreplies_factory.serialize(replies)
     return qkey, blob
 
 
@@ -126,7 +128,8 @@ def worker_perform_single_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, Re
 
     worker_deinit()
 
-    blob = pickle.dumps(replies)
+    assert __dnsreplies_factory is not None, "Module wasn't initilized!"
+    blob = __dnsreplies_factory.serialize(replies)
     return qkey, blob
 
 
@@ -140,7 +143,7 @@ def get_resolvers(
     return resolvers
 
 
-def _check_timeout(replies: Mapping[ResolverID, Reply]) -> None:
+def _check_timeout(replies: Mapping[ResolverID, DNSReply]) -> None:
     for resolver, reply in replies.items():
         timeouts = __worker_state.timeouts
         if reply.wire is not None:
@@ -202,11 +205,9 @@ def send_recv_parallel(
             selector: Selector,
             sockets: ResolverSockets,
             timeout: float
-        ) -> Tuple[Mapping[ResolverID, Reply], ReinitFlag]:
-    replies = {}  # type: Dict[ResolverID, Reply]
+        ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
+    replies = {}  # type: Dict[ResolverID, DNSReply]
     streammsg = None
-    # optimization: create only one timeout_reply object per timeout value
-    timeout_reply = __timeout_replies.setdefault(timeout, Reply(None, timeout))
     start_time = time.perf_counter()
     end_time = start_time + timeout
     for _, sock, isstream in sockets:
@@ -238,11 +239,11 @@ def send_recv_parallel(
             # assert len(wire) > 14
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
-            replies[name] = Reply(wire, time.perf_counter() - start_time)
+            replies[name] = DNSReply(wire, time.perf_counter() - start_time)
 
     # set missing replies as timeout
     for resolver, *_ in sockets:  # type: ignore  # python/mypy#465
         if resolver not in replies:
-            replies[resolver] = timeout_reply
+            replies[resolver] = __timeout_reply
 
     return replies, reinit

@@ -4,20 +4,21 @@ import argparse
 from itertools import zip_longest
 import logging
 from multiprocessing import pool
-import pickle
 import random
 import subprocess
+import sys
 from typing import (  # noqa
     Any, AbstractSet, Iterable, Iterator, Mapping, Sequence, Tuple, TypeVar,
     Union)
 
 import cli
-from dbhelper import LMDB, qid2key, key2qid, QKey
+from dbhelper import (
+    DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID, qid2key,
+    QKey, WireFormat)
 import diffsum
-from dataformat import Diff, DiffReport, FieldLabel, ReproData, WireFormat, QID  # noqa
+from dataformat import Diff, DiffReport, FieldLabel, ReproData, QID  # noqa
 import msgdiff
 import sendrecv
-from sendrecv import ResolverID, RepliesBlob
 
 
 T = TypeVar('T')
@@ -83,7 +84,7 @@ def chunker(iterable: Iterable[T], size: int) -> Iterator[Iterable[T]]:
 
 def process_answers(
             qkey: QKey,
-            replies: RepliesBlob,
+            replies: Mapping[ResolverID, DNSReply],
             report: DiffReport,
             criteria: Sequence[FieldLabel],
             target: ResolverID
@@ -92,8 +93,7 @@ def process_answers(
         raise RuntimeError("Report doesn't contain necessary data!")
     qid = key2qid(qkey)
     reprocounter = report.reprodata[qid]
-    wire_dict = pickle.loads(replies)
-    answers = msgdiff.decode_wire_dict(wire_dict)
+    answers = msgdiff.decode_replies(replies)
     others_agree, mismatches = msgdiff.compare(answers, criteria, target)
 
     reprocounter.retries += 1
@@ -119,6 +119,8 @@ def main():
     datafile = cli.get_datafile(args)
     report = DiffReport.from_json(datafile)
     restart_scripts = get_restart_scripts(args.cfg)
+    servers = args.cfg['servers']['names']
+    dnsreplies_factory = DNSRepliesFactory(servers)
 
     if args.sequential:
         nproc = 1
@@ -131,6 +133,12 @@ def main():
     with LMDB(args.envdir, readonly=True) as lmdb:
         lmdb.open_db(LMDB.QUERIES)
 
+        try:
+            MetaDatabase(lmdb, servers, create=False)  # check version and servers
+        except NotImplementedError as exc:
+            logging.critical(exc)
+            sys.exit(1)
+
         dstream = disagreement_query_stream(lmdb, report)
         try:
             with pool.Pool(processes=nproc) as p:
@@ -141,10 +149,11 @@ def main():
                         restart_resolver(script)
 
                     process_args = [args for args in process_args if args is not None]
-                    for qkey, replies, in p.imap_unordered(
+                    for qkey, replies_data, in p.imap_unordered(
                             sendrecv.worker_perform_single_query,
                             process_args,
                             chunksize=1):
+                        replies = dnsreplies_factory.parse(replies_data)
                         process_answers(qkey, replies, report,
                                         args.cfg['diff']['criteria'],
                                         args.cfg['diff']['target'])

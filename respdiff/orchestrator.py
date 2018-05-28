@@ -3,36 +3,11 @@
 import argparse
 import logging
 import multiprocessing.pool as pool
-import os
-import time
 import sys
 
 import cli
-from dataformat import DiffReport
-from dbhelper import LMDB
+from dbhelper import LMDB, MetaDatabase
 import sendrecv
-
-
-def export_statistics(lmdb, datafile, start_time):
-    qdb = lmdb.get_db(LMDB.QUERIES)
-    adb = lmdb.get_db(LMDB.ANSWERS)
-    with lmdb.env.begin() as txn:
-        total_queries = txn.stat(qdb)['entries']
-        total_answers = txn.stat(adb)['entries']
-    report = DiffReport(
-        start_time,
-        int(time.time()),
-        total_queries,
-        total_answers)
-
-    # it doesn't make sense to use existing report.json in orchestrator
-    if os.path.exists(datafile):
-        backup_filename = datafile + '.bak'
-        os.rename(datafile, backup_filename)
-        logging.warning(
-            'JSON report already exists, overwriting file. Original '
-            'file backed up as %s', backup_filename)
-    report.export_json(datafile)
 
 
 def main():
@@ -42,16 +17,17 @@ def main():
                     'listed in configuration file, and record answers into LMDB')
     cli.add_arg_envdir(parser)
     cli.add_arg_config(parser)
-    cli.add_arg_datafile(parser)
     parser.add_argument('--ignore-timeout', action="store_true",
                         help='continue despite consecutive timeouts from resolvers')
 
     args = parser.parse_args()
     sendrecv.module_init(args)
-    datafile = cli.get_datafile(args, check_exists=False)
-    start_time = int(time.time())
 
     with LMDB(args.envdir) as lmdb:
+        meta = MetaDatabase(lmdb, args.cfg['servers']['names'], create=True)
+        meta.write_version()
+        meta.write_start_time()
+
         lmdb.open_db(LMDB.QUERIES)
         adb = lmdb.open_db(LMDB.ANSWERS, create=True, check_notexists=True)
 
@@ -75,9 +51,7 @@ def main():
         finally:
             # attempt to preserve data if something went wrong (or not)
             txn.commit()
-
-            # get query/answer statistics
-            export_statistics(lmdb, datafile, start_time)
+            meta.write_end_time()
 
 
 if __name__ == "__main__":

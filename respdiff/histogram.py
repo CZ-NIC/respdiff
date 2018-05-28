@@ -1,32 +1,40 @@
 #!/usr/bin/env python3
 
+# NOTE: Due to a weird bug, numpy is detected as a 3rd party module, while lmdb
+#       is not and pylint complains about wrong-import-order.
+#       Since these checks have to be disabled for matplotlib imports anyway, they
+#       were moved a bit higher up to avoid the issue.
+# pylint: disable=wrong-import-order,wrong-import-position
 import argparse
 import logging
 import math
-import pickle
 from typing import Dict, List
+import sys
 
 import lmdb
 import numpy as np
 
 import cfg
-from dbhelper import LMDB
+import cli
+from dbhelper import DNSRepliesFactory, LMDB, MetaDatabase, ResolverID
 
 # Force matplotlib to use a different backend to handle machines without a display
-# pylint: disable=wrong-import-order,wrong-import-position
 import matplotlib
 import matplotlib.ticker as mtick
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa
 
 
-def load_data(txn: lmdb.Transaction) -> Dict[str, List[float]]:
-    data = {}  # type: Dict[str, List[float]]
+def load_data(
+            txn: lmdb.Transaction,
+            dnsreplies_factory: DNSRepliesFactory
+        ) -> Dict[ResolverID, List[float]]:
+    data = {}  # type: Dict[ResolverID, List[float]]
     cursor = txn.cursor()
     for value in cursor.iternext(keys=False, values=True):
-        replies = pickle.loads(value)
+        replies = dnsreplies_factory.parse(value)
         for resolver, reply in replies.items():
-            data.setdefault(resolver, []).append(reply.duration)
+            data.setdefault(resolver, []).append(reply.time)
     return data
 
 
@@ -69,8 +77,7 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]], config=None):
 
 
 def main():
-    logging.basicConfig(
-        format='%(levelname)s %(message)s', level=logging.DEBUG)
+    cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='Plot query response time histogram from answers stored '
                     'in LMDB')
@@ -83,11 +90,20 @@ def main():
                         help='LMDB environment to read answers from')
     args = parser.parse_args()
     config = cfg.read_cfg(args.cfgpath)
+    servers = config['servers']['names']
+    dnsreplies_factory = DNSRepliesFactory(servers)
 
     with LMDB(args.envdir, readonly=True) as lmdb_:
         adb = lmdb_.open_db(LMDB.ANSWERS)
+
+        try:
+            MetaDatabase(lmdb_, servers, create=False)  # check version and servers
+        except NotImplementedError as exc:
+            logging.critical(exc)
+            sys.exit(1)
+
         with lmdb_.env.begin(adb) as txn:
-            data = load_data(txn)
+            data = load_data(txn, dnsreplies_factory)
     plot_log_percentile_histogram(data, config)
 
     # save to file

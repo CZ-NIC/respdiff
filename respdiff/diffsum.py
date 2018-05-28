@@ -13,10 +13,8 @@ import dns.rdatatype
 from tabulate import tabulate
 
 import cli
-from dbhelper import LMDB, qid2key
-from dataformat import (
-    DataMismatch, DiffReport, FieldLabel, Summary,
-    QID, WireFormat)
+from dbhelper import LMDB, qid2key, WireFormat
+from dataformat import DataMismatch, DiffReport, FieldLabel, Summary, QID
 
 
 DEFAULT_LIMIT = 10
@@ -28,7 +26,8 @@ def print_global_stats(report: DiffReport) -> None:
     if report.total_answers is None or report.total_queries is None:
         raise RuntimeError("Report doesn't contain sufficient data to print statistics!")
     print('== Global statistics')
-    print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
+    if report.duration is not None:
+        print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
     print(GLOBAL_STATS_FORMAT.format('queries', report.total_queries))
     print(GLOBAL_STATS_PCT_FORMAT.format(
         'answers', report.total_answers,

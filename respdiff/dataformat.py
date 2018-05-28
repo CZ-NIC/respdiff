@@ -13,16 +13,9 @@ import dns.rrset
 # replace Any with 'MismatchValue' once nested types are supported with mypy
 MismatchValue = Union[str, dns.rrset.RRset, Sequence[Any]]
 QID = int
-WireFormat = bytes
 FieldLabel = str
 RestoreFunction = Optional[Callable[[Any], Any]]
 SaveFunction = Optional[Callable[[Any], Any]]
-
-
-class Reply:
-    def __init__(self, wire: Optional[WireFormat], duration: float) -> None:
-        self.wire = wire
-        self.duration = duration
 
 
 class DataMismatch(Exception):
