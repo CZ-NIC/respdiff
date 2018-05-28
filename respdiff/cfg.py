@@ -131,18 +131,22 @@ def read_cfg(filename):
         empty_lines_in_values=False)
     parser.read(filename)
 
-    # parse things which must be present
-    cdict = cfg2dict_convert(_CFGFMT, parser)
+    try:
+        # parse things which must be present
+        cdict = cfg2dict_convert(_CFGFMT, parser)
 
-    # parse variable server-specific data
-    cfgfmt_servers = _CFGFMT.copy()
-    for server in cdict['servers']['names']:
-        cfgfmt_servers[server] = _CFGFMT_SERVER
-    cdict = cfg2dict_convert(cfgfmt_servers, parser)
+        # parse variable server-specific data
+        cfgfmt_servers = _CFGFMT.copy()
+        for server in cdict['servers']['names']:
+            cfgfmt_servers[server] = _CFGFMT_SERVER
+        cdict = cfg2dict_convert(cfgfmt_servers, parser)
 
-    # check existence of undefined extra sections
-    cfg2dict_check_sect(cfgfmt_servers, parser)
-    cfg2dict_check_diff(cdict)
+        # check existence of undefined extra sections
+        cfg2dict_check_sect(cfgfmt_servers, parser)
+        cfg2dict_check_diff(cdict)
+    except ValueError as exc:
+        # change type of exception so argument parser doesn't hide the error message
+        raise RuntimeError(exc)
 
     return cdict
 
