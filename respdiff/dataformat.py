@@ -1,6 +1,7 @@
 # Cusom data structures and JSON utility functions
 
 import collections
+from collections import Counter
 import collections.abc
 import json
 import logging
@@ -344,6 +345,15 @@ class Summary(Disagreements):
         summary.usable_answers = (
             report.total_answers - summary.upstream_unstable - summary.not_reproducible)
         return summary
+
+    def get_field_counters(self) -> Mapping[FieldLabel, Counter]:
+        field_counters = {}
+        for field in self.field_labels:
+            counter = Counter()  # type: Counter
+            for mismatch, qids in self.get_field_mismatches(field):
+                counter[mismatch] = len(qids)
+            field_counters[field] = counter
+        return field_counters
 
 
 class ReproCounter(JSONDataObject):

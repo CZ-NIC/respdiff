@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 
 import argparse
-import collections
+from collections import Counter
 import logging
 import sys
 from typing import (  # noqa
-    Any, Callable, Iterable, Iterator, ItemsView, List, Optional, Set, Tuple,
+    Any, Callable, Iterable, Iterator, ItemsView, List, Set, Sequence, Tuple,
     Union)
 
 import dns.message
 import dns.rdatatype
-from tabulate import tabulate
 
 import cli
+from dataformat import DiffReport, Summary, QID
 from dbhelper import LMDB, qid2key, WireFormat
-from dataformat import DataMismatch, DiffReport, FieldLabel, Summary, QID
 
 
 DEFAULT_LIMIT = 10
@@ -51,47 +50,6 @@ def print_differences_stats(summary: Summary, total_answers: int) -> None:
     print('')
 
 
-def print_fields_overview(summary: Summary) -> None:
-    fields = []
-    for field in summary.field_labels:
-        mismatch_count = 0
-        for _, qids in summary.get_field_mismatches(field):
-            mismatch_count += len(qids)
-        fields.append([field, mismatch_count, mismatch_count * 100.0 / len(summary)])
-    fields.sort(key=lambda data: data[1], reverse=True)
-
-    print('== Target Disagreements')
-    print(tabulate(
-        fields,
-        ['Field', 'Count', '% of mismatches'],
-        tablefmt='psql',
-        floatfmt='.2f'))
-    print('')
-
-
-def print_field_mismatch_stats(
-            field: FieldLabel,
-            mismatches: ItemsView[DataMismatch, Set[QID]],
-            total_mismatches: int
-        ) -> None:
-    fields = []
-    for mismatch, qids in mismatches:
-        fields.append([
-            mismatch.format_value(mismatch.exp_val),
-            mismatch.format_value(mismatch.got_val),
-            len(qids),
-            len(qids) * 100. / total_mismatches])
-    fields.sort(key=lambda data: data[2], reverse=True)
-
-    print('== Field "{}" mismatch statistics'.format(field))
-    print(tabulate(
-        fields,
-        ['Expected', 'Got', 'Count', '% of mismatches'],
-        tablefmt='psql',
-        floatfmt='.2f'))
-    print('')
-
-
 def qwire_to_qname_qtype(qwire: WireFormat) -> str:
     """Get text representation of DNS wire format query"""
     qmsg = dns.message.from_wire(qwire)
@@ -100,29 +58,52 @@ def qwire_to_qname_qtype(qwire: WireFormat) -> str:
         dns.rdatatype.to_text(qmsg.question[0].rdtype))
 
 
-def print_mismatch_queries(
-            field: FieldLabel,
-            mismatch: DataMismatch,
-            queries: Iterator[Tuple[QID, WireFormat]],
-            limit: Optional[int] = DEFAULT_LIMIT,
+def convert_queries(
+            query_iterator: Iterator[Tuple[QID, WireFormat]],
             qwire_to_text_func: Callable[[WireFormat], str] = qwire_to_qname_qtype
-        ) -> None:
-    occurences = collections.Counter()  # type: collections.Counter
-    for _, qwire in queries:
+        ) -> Counter:
+    qcounter = Counter()  # type: Counter
+    for _, qwire in query_iterator:
         text = qwire_to_text_func(qwire)
-        occurences[text] += 1
-    if limit == 0:
-        limit = None
-    to_print = [(count, text) for text, count in occurences.most_common(limit)]
+        qcounter[text] += 1
+    return qcounter
 
-    print('== Field "{}", mismatch "{}" query details'.format(field, mismatch))
-    print(tabulate(
-        to_print,
-        ['Count', 'Query'],
-        tablefmt='plain'))
-    if limit is not None and limit < len(occurences):
-        print('    ...  omitting {} queries'.format(len(occurences) - limit))
-    print('')
+
+def get_printable_queries_format(
+            queries_mismatch: Counter,
+            queries_all: Counter = None,  # all queries (needed for comparison with ref)
+            ref_queries_mismatch: Counter = None,  # ref queries for the same mismatch
+            ref_queries_all: Counter = None  # ref queries from all mismatches
+        ) -> Sequence[Tuple[str, int, str]]:
+    def get_query_diff(query: str) -> str:
+        if (ref_queries_mismatch is None
+                or ref_queries_all is None
+                or queries_all is None):
+            return ' '  # no reference to compare to
+        if query in queries_mismatch and query not in ref_queries_all:
+            return '+'  # previously unseen query has appeared
+        if query in ref_queries_mismatch and query not in queries_all:
+            return '-'  # query no longer appears in any mismatch category
+        return ' '  # no change, or query has moved to a different mismatch category
+
+    query_set = set(queries_mismatch.keys())
+    if ref_queries_mismatch is not None:
+        assert ref_queries_all is not None
+        assert queries_all is not None
+        # ref_mismach has to be include to be able to display '-' queries
+        query_set.update(ref_queries_mismatch.keys())
+
+    queries = []
+    for query in query_set:
+        diff = get_query_diff(query)
+        count = queries_mismatch[query]
+        if diff == ' ' and count == 0:
+            continue  # omit queries that just moved between categories
+        if diff == '-':
+            assert ref_queries_mismatch is not None
+            count = ref_queries_mismatch[query]  # show how many cases were removed
+        queries.append((diff, count, query))
+    return queries
 
 
 def get_query_iterator(
@@ -145,9 +126,7 @@ def main():
     cli.add_arg_envdir(parser)
     cli.add_arg_config(parser)
     cli.add_arg_datafile(parser)
-    parser.add_argument('-l', '--limit', type=int, default=DEFAULT_LIMIT,
-                        help='number of displayed mismatches in fields (default: {}; '
-                             'use 0 to display all)'.format(DEFAULT_LIMIT))
+    cli.add_arg_limit(parser)
 
     args = parser.parse_args()
     datafile = cli.get_datafile(args)
@@ -164,26 +143,30 @@ def main():
     report = DiffReport.from_json(datafile)
     report.summary = Summary.from_report(report, field_weights)
 
-    print_global_stats(report)
-    print_differences_stats(report.summary, report.total_answers)
+    cli.print_global_stats(report)
+    cli.print_differences_stats(report)
 
-    if report.summary:
-        print_fields_overview(report.summary)
+    if report.summary:  # when there are any differences to report
+        field_counters = report.summary.get_field_counters()
+        cli.print_fields_overview(field_counters, len(report.summary))
         for field in field_weights:
             if field in report.summary.field_labels:
-                print_field_mismatch_stats(
-                    field,
-                    report.summary.get_field_mismatches(field),
-                    len(report.summary))
+                cli.print_field_mismatch_stats(
+                    field, field_counters[field], len(report.summary))
 
         # query details
         with LMDB(args.envdir, readonly=True) as lmdb:
             lmdb.open_db(LMDB.QUERIES)
+
             for field in field_weights:
                 if field in report.summary.field_labels:
                     for mismatch, qids in report.summary.get_field_mismatches(field):
-                        queries = get_query_iterator(lmdb, qids)
-                        print_mismatch_queries(field, mismatch, queries, args.limit)
+                        queries = convert_queries(get_query_iterator(lmdb, qids))
+                        cli.print_mismatch_queries(
+                            field,
+                            mismatch,
+                            get_printable_queries_format(queries),
+                            args.limit)
 
     report.export_json(datafile)
 
