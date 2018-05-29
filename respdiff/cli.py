@@ -12,6 +12,9 @@ from dataformat import DataMismatch, DiffReport, FieldLabel
 
 
 Number = Union[int, float]
+StatsTuple = Tuple[int, Optional[float]]
+ChangeStatsTuple = Tuple[int, Optional[float], Optional[int], Optional[float]]
+ChangeStatsTupleStr = Tuple[int, Optional[float], Optional[str], Optional[float]]
 
 LOGGING_LEVEL = logging.DEBUG
 CONFIG_FILENAME = 'respdiff.cfg'
@@ -82,15 +85,15 @@ def get_stats_data(
             n: int,
             total: int = None,
             ref_n: int = None,
-        ) -> Tuple[int, float, Optional[int], Optional[float]]:
+        ) -> ChangeStatsTuple:
     """
     Return absolute and relative data statistics
 
     Optionally, the data is compared with a reference.
     """
     def percentage(
-                dividend: Union[int, float],
-                divisor: Union[int, float]
+                dividend: Number,
+                divisor: Optional[Number]
             ) -> Optional[float]:
         """Return dividend/divisor value in %"""
         if divisor is None:
@@ -118,7 +121,7 @@ def get_table_stats_row(
             count: int,
             total: int,
             ref_count: Optional[int] = None
-        ) -> Union[Tuple[int, float], Tuple[int, float, str, float]]:
+        ) -> Union[StatsTuple, ChangeStatsTupleStr]:
     n, pct, diff, diff_pct = get_stats_data(  # type: ignore
         count,
         total,
@@ -200,6 +203,11 @@ def print_global_stats(report: DiffReport, reference: DiffReport = None) -> None
     ref_total_answers = getattr(reference, 'total_answers', None)
     ref_total_queries = getattr(reference, 'total_queries', None)
 
+    if (report.duration is None
+            or report.total_answers is None
+            or report.total_queries is None):
+        raise RuntimeError("Report doesn't containt necassary data!")
+
     print('== Global statistics')
     print(format_stats_line('duration', *get_stats_data(
         report.duration, ref_n=ref_duration),
@@ -218,6 +226,9 @@ def print_differences_stats(report: DiffReport, reference: DiffReport = None) ->
     ref_upstream_unstable = getattr(ref_summary, 'upstream_unstable', None)
     ref_not_reproducible = getattr(ref_summary, 'not_reproducible', None)
     ref_target_disagrees = len(ref_summary) if ref_summary is not None else None
+
+    if report.summary is None:
+        raise RuntimeError("Report doesn't containt necassary data!")
 
     print('== Differences statistics')
     print(format_stats_line('upstream unstable', *get_stats_data(

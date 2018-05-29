@@ -22,6 +22,8 @@ def check_report_summary(report: DiffReport):
 
 
 def check_usable_answers(report: DiffReport, ref_report: DiffReport):
+    if report.summary is None or ref_report.summary is None:
+        raise RuntimeError("Report doesn't contain necessary data!")
     answers_difference = math.fabs(
             report.summary.usable_answers - ref_report.summary.usable_answers
         ) / ref_report.summary.usable_answers

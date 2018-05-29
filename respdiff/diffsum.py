@@ -76,7 +76,9 @@ def get_printable_queries_format(
             ref_queries_all: Counter = None  # ref queries from all mismatches
         ) -> Sequence[Tuple[str, int, str]]:
     def get_query_diff(query: str) -> str:
-        if ref_queries_mismatch is None or ref_queries_all is None:
+        if (ref_queries_mismatch is None
+                or ref_queries_all is None
+                or queries_all is None):
             return ' '  # no reference to compare to
         if query in queries_mismatch and query not in ref_queries_all:
             return '+'  # previously unseen query has appeared
@@ -98,6 +100,7 @@ def get_printable_queries_format(
         if diff == ' ' and count == 0:
             continue  # omit queries that just moved between categories
         if diff == '-':
+            assert ref_queries_mismatch is not None
             count = ref_queries_mismatch[query]  # show how many cases were removed
         queries.append((diff, count, query))
     return queries
