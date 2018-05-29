@@ -5,6 +5,7 @@ Read-only.
 """
 
 import configparser
+import logging
 import os
 
 import dns.inet
@@ -75,6 +76,8 @@ def cfg2dict_convert(fmt, cparser):
     cdict = {}
     for sectname, sectfmt in fmt.items():
         sectdict = cdict.setdefault(sectname, {})
+        if sectname not in cparser:
+            raise KeyError('section "{}" missing in config'.format(sectname))
         for valname, (valfmt, valreq) in sectfmt.items():
             try:
                 if not cparser[sectname][valname].strip():
@@ -122,16 +125,18 @@ def read_cfg(filename):
     """
     # verify the file exists (ConfigParser does not do it)
     if not os.path.isfile(filename):
-        raise RuntimeError("Config file {} doesn't exist".format(filename))
-
-    parser = configparser.ConfigParser(
-        delimiters='=',
-        comment_prefixes='#',
-        interpolation=None,
-        empty_lines_in_values=False)
-    parser.read(filename)
+        msg = "Config file {} doesn't exist".format(filename)
+        logging.critical(msg)
+        raise ValueError(msg)
 
     try:
+        parser = configparser.ConfigParser(
+            delimiters='=',
+            comment_prefixes='#',
+            interpolation=None,
+            empty_lines_in_values=False)
+        parser.read(filename)
+
         # parse things which must be present
         cdict = cfg2dict_convert(_CFGFMT, parser)
 
@@ -144,9 +149,9 @@ def read_cfg(filename):
         # check existence of undefined extra sections
         cfg2dict_check_sect(cfgfmt_servers, parser)
         cfg2dict_check_diff(cdict)
-    except ValueError as exc:
-        # change type of exception so argument parser doesn't hide the error message
-        raise RuntimeError(exc)
+    except Exception as exc:
+        logging.critical('Failed to parse config: %s', exc)
+        raise ValueError(exc)
 
     return cdict
 
