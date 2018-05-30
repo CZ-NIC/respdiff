@@ -11,14 +11,13 @@ from typing import (  # noqa
     Any, AbstractSet, Iterable, Iterator, Mapping, Sequence, Tuple, TypeVar,
     Union)
 
-import cli
-from dbhelper import (
-    DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID, qid2key,
-    QKey, WireFormat)
-import diffsum
-from dataformat import Diff, DiffReport, FieldLabel, ReproData, QID  # noqa
-import msgdiff
-import sendrecv
+from respdiff import cli, sendrecv
+from respdiff.database import (
+    DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase,
+    ResolverID, qid2key, QKey, WireFormat)
+from respdiff.dataformat import Diff, DiffReport, FieldLabel, ReproData, QID  # noqa
+from respdiff.match import compare
+from respdiff.query import get_query_iterator
 
 
 T = TypeVar('T')
@@ -58,7 +57,7 @@ def disagreement_query_stream(
     if shuffle:
         # create a new, randomized list from disagreements
         qids = random.sample(qids, len(qids))
-    queries = diffsum.get_query_iterator(lmdb, qids)
+    queries = get_query_iterator(lmdb, qids)
     for qid, qwire in queries:
         diff = report.target_disagreements[qid]
         reprocounter = report.reprodata[qid]
@@ -93,8 +92,8 @@ def process_answers(
         raise RuntimeError("Report doesn't contain necessary data!")
     qid = key2qid(qkey)
     reprocounter = report.reprodata[qid]
-    answers = msgdiff.decode_replies(replies)
-    others_agree, mismatches = msgdiff.compare(answers, criteria, target)
+    answers = DNSRepliesFactory.decode_parsed(replies)
+    others_agree, mismatches = compare(answers, criteria, target)
 
     reprocounter.retries += 1
     if others_agree:

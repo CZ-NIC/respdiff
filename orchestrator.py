@@ -5,9 +5,8 @@ import logging
 import multiprocessing.pool as pool
 import sys
 
-import cli
-from dbhelper import LMDB, MetaDatabase
-import sendrecv
+from respdiff import cli, sendrecv
+from respdiff.database import LMDB, MetaDatabase
 
 
 def main():

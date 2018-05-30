@@ -6,10 +6,11 @@ import logging
 import math
 import sys
 
-import cli
-from dataformat import DiffReport
-from dbhelper import LMDB
-from diffsum import convert_queries, get_query_iterator, get_printable_queries_format
+from respdiff import cli
+from respdiff.database import LMDB
+from respdiff.dataformat import DiffReport
+from respdiff.query import (
+    convert_queries, get_printable_queries_format, get_query_iterator)
 
 
 ANSWERS_DIFFERENCE_THRESHOLD_WARNING = 0.05
