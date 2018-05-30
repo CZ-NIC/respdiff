@@ -14,9 +14,10 @@ from typing import (  # noqa
 from respdiff import cli, sendrecv
 from respdiff.dataformat import Diff, DiffReport, FieldLabel, ReproData, QID  # noqa
 from respdiff.dbhelper import (
-    DNSReply, DNSRepliesFactory, get_query_iterator, key2qid, LMDB, MetaDatabase,
+    DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase,
     ResolverID, qid2key, QKey, WireFormat)
 from respdiff.match import compare
+from respdiff.query import get_query_iterator
 
 
 T = TypeVar('T')
