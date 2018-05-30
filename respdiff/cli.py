@@ -8,7 +8,8 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
 from tabulate import tabulate
 
 from .cfg import read_cfg
-from .dataformat import DataMismatch, DiffReport, FieldLabel
+from .dataformat import DiffReport, FieldLabel
+from .match import DataMismatch
 
 Number = Union[int, float]
 StatsTuple = Tuple[int, Optional[float]]

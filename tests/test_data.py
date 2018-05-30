@@ -4,8 +4,9 @@ import json
 import pytest
 
 from respdiff.dataformat import (
-    DataMismatch, Diff, DiffReport, Disagreements,
-    DisagreementsCounter, JSONDataObject, ReproCounter, ReproData, Summary)
+    Diff, DiffReport, Disagreements, DisagreementsCounter, JSONDataObject, ReproCounter,
+    ReproData, Summary)
+from respdiff.match import DataMismatch
 
 
 MISMATCH_DATA = [

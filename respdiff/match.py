@@ -1,10 +1,68 @@
-from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
+import collections
+import logging
+from typing import (  # noqa
+    Any, Dict, Hashable, Iterator, Mapping, Optional, Sequence, Tuple)
 
 import dns.rdatatype
 from dns.rrset import RRset
+import dns.message
 
-from respdiff.dataformat import DataMismatch
 from .typing import FieldLabel, MismatchValue, ResolverID
+
+
+class DataMismatch(Exception):
+    def __init__(self, exp_val: MismatchValue, got_val: MismatchValue) -> None:
+        def convert_val_type(val: Any) -> MismatchValue:
+            if isinstance(val, str):
+                return val
+            if isinstance(val, collections.abc.Sequence):
+                return [convert_val_type(item) for item in val]
+            if isinstance(val, dns.rrset.RRset):
+                return str(val)
+            logging.warning(
+                'DataMismatch: unknown value type (%s), casting to str', type(val),
+                stack_info=True)
+            return str(val)
+
+        exp_val = convert_val_type(exp_val)
+        got_val = convert_val_type(got_val)
+
+        super(DataMismatch, self).__init__(exp_val, got_val)
+        if exp_val == got_val:
+            raise RuntimeError("exp_val == got_val ({})".format(exp_val))
+        self.exp_val = exp_val
+        self.got_val = got_val
+
+    @staticmethod
+    def format_value(value: MismatchValue) -> str:
+        if isinstance(value, list):
+            value = ' '.join(value)
+        return str(value)
+
+    def __str__(self) -> str:
+        return "expected '{}' got '{}'".format(
+            self.format_value(self.exp_val),
+            self.format_value(self.got_val))
+
+    def __repr__(self) -> str:
+        return 'DataMismatch({}, {})'.format(self.exp_val, self.got_val)
+
+    def __eq__(self, other) -> bool:
+        return (isinstance(other, DataMismatch)
+                and tuple(self.exp_val) == tuple(other.exp_val)
+                and tuple(self.got_val) == tuple(other.got_val))
+
+    @property
+    def key(self) -> Tuple[Hashable, Hashable]:
+        def make_hashable(value):
+            if isinstance(value, list):
+                value = tuple(value)
+            return value
+
+        return (make_hashable(self.exp_val), make_hashable(self.got_val))
+
+    def __hash__(self) -> int:
+        return hash(self.key)
 
 
 def compare_val(exp_val: MismatchValue, got_val: MismatchValue):
