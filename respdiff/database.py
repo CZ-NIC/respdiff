@@ -1,26 +1,20 @@
 from abc import ABC
 from contextlib import contextmanager
+import logging
 import os
 import struct
-import sys
 import time
 from typing import (  # noqa
     Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Sequence)
 
+import dns.message
 import lmdb
 
-from dataformat import QID
-
-# upon import, check we're on a little endian platform
-assert sys.byteorder == 'little', 'Big endian platforms are not supported'
-
-ResolverID = str
-RepliesBlob = bytes
-QKey = bytes
-WireFormat = bytes
+from .dataformat import QID
+from .typing import ResolverID, QKey, WireFormat
 
 
-VERSION = '2018-05-21'
+BIN_FORMAT_VERSION = '2018-05-21'
 
 
 def qid2key(qid: QID) -> QKey:
@@ -233,6 +227,22 @@ class DNSRepliesFactory:
                 data.append(reply.binary)
         return b''.join(data)
 
+    @staticmethod
+    def decode_parsed(
+                replies: Mapping[ResolverID, DNSReply]
+            ) -> Mapping[ResolverID, dns.message.Message]:
+        answers = {}  # type: Dict[ResolverID, dns.message.Message]
+        for resolver, reply in replies.items():
+            if reply.timeout:
+                answers[resolver] = None
+                continue
+            try:
+                answers[resolver] = dns.message.from_wire(reply.wire)
+            except Exception as exc:
+                logging.warning('Failed to decode DNS message from wire format: %s', exc)
+                continue
+        return answers
+
 
 class Database(ABC):
     DB_NAME = b''
@@ -320,14 +330,14 @@ class MetaDatabase(Database):
                 '(config: "{}", meta db: "{}")'.format(servers, db_servers))
 
     def write_version(self) -> None:
-        self.write_key(self.KEY_VERSION, VERSION.encode('ascii'))
+        self.write_key(self.KEY_VERSION, BIN_FORMAT_VERSION.encode('ascii'))
 
     def check_version(self) -> None:
         version = self.read_key(self.KEY_VERSION).decode('ascii')
-        if version != VERSION:
+        if version != BIN_FORMAT_VERSION:
             raise NotImplementedError(
                 'LMDB version mismatch! (expected "{}", got "{}")'.format(
-                    VERSION, version))
+                    BIN_FORMAT_VERSION, version))
 
     def write_start_time(self, timestamp: Optional[int] = None) -> None:
         self._write_timestamp(self.KEY_START_TIME, timestamp)

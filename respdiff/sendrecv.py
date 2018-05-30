@@ -22,14 +22,15 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dbhelper import DNSReply, DNSRepliesFactory, RepliesBlob, ResolverID, QKey, WireFormat
-
+from .database import DNSReply, DNSRepliesFactory
+from .typing import ResolverID, QKey, WireFormat
 
 IP = str
-Protocol = str
-Port = int
 IsStreamFlag = bool  # Is message preceeded by RFC 1035 section 4.2.2 length?
+Port = int
+Protocol = str
 ReinitFlag = bool
+RepliesBlob = bytes
 Selector = selectors.BaseSelector
 Socket = socket.socket
 ResolverSockets = Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]

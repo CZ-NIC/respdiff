@@ -3,7 +3,7 @@ import math
 import pytest
 from pytest import approx
 
-from cli import get_stats_data
+from respdiff.cli import get_stats_data
 
 
 @pytest.mark.parametrize('n, total, ref_n, expected', [

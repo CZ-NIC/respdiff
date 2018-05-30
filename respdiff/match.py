@@ -1,26 +1,68 @@
-#!/usr/bin/env python3
-
-import argparse
-from functools import partial
+import collections
 import logging
-import multiprocessing.pool as pool
-import os
-import pickle
-from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
-import sys
+from typing import (  # noqa
+    Any, Dict, Hashable, Iterator, Mapping, Optional, Sequence, Tuple)
 
-import dns.exception
-import dns.message
+import dns.rdatatype
 from dns.rrset import RRset
+import dns.message
 
-import cli
-from dataformat import (
-    DataMismatch, DiffReport, Disagreements, DisagreementsCounter,
-    FieldLabel, MismatchValue, QID)
-from dbhelper import DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID
+from .typing import FieldLabel, MismatchValue, ResolverID
 
 
-lmdb = None
+class DataMismatch(Exception):
+    def __init__(self, exp_val: MismatchValue, got_val: MismatchValue) -> None:
+        def convert_val_type(val: Any) -> MismatchValue:
+            if isinstance(val, str):
+                return val
+            if isinstance(val, collections.abc.Sequence):
+                return [convert_val_type(item) for item in val]
+            if isinstance(val, dns.rrset.RRset):
+                return str(val)
+            logging.warning(
+                'DataMismatch: unknown value type (%s), casting to str', type(val),
+                stack_info=True)
+            return str(val)
+
+        exp_val = convert_val_type(exp_val)
+        got_val = convert_val_type(got_val)
+
+        super(DataMismatch, self).__init__(exp_val, got_val)
+        if exp_val == got_val:
+            raise RuntimeError("exp_val == got_val ({})".format(exp_val))
+        self.exp_val = exp_val
+        self.got_val = got_val
+
+    @staticmethod
+    def format_value(value: MismatchValue) -> str:
+        if isinstance(value, list):
+            value = ' '.join(value)
+        return str(value)
+
+    def __str__(self) -> str:
+        return "expected '{}' got '{}'".format(
+            self.format_value(self.exp_val),
+            self.format_value(self.got_val))
+
+    def __repr__(self) -> str:
+        return 'DataMismatch({}, {})'.format(self.exp_val, self.got_val)
+
+    def __eq__(self, other) -> bool:
+        return (isinstance(other, DataMismatch)
+                and tuple(self.exp_val) == tuple(other.exp_val)
+                and tuple(self.got_val) == tuple(other.got_val))
+
+    @property
+    def key(self) -> Tuple[Hashable, Hashable]:
+        def make_hashable(value):
+            if isinstance(value, list):
+                value = tuple(value)
+            return value
+
+        return (make_hashable(self.exp_val), make_hashable(self.got_val))
+
+    def __hash__(self) -> int:
+        return hash(self.key)
 
 
 def compare_val(exp_val: MismatchValue, got_val: MismatchValue):
@@ -144,35 +186,6 @@ def match(
             yield (code, ex)
 
 
-def decode_replies(
-            replies: Mapping[ResolverID, DNSReply]
-        ) -> Mapping[ResolverID, dns.message.Message]:
-    answers = {}  # type: Dict[ResolverID, dns.message.Message]
-    for resolver, reply in replies.items():
-        if reply.timeout:
-            answers[resolver] = None
-            continue
-        try:
-            answers[resolver] = dns.message.from_wire(reply.wire)
-        except Exception as exc:
-            logging.warning('Failed to decode DNS message from wire format: %s', exc)
-            continue
-    return answers
-
-
-def read_answers_lmdb(
-            dnsreplies_factory: DNSRepliesFactory,
-            qid: QID
-        ) -> Mapping[ResolverID, dns.message.Message]:
-    assert lmdb is not None, "LMDB wasn't initialized!"
-    adb = lmdb.get_db(LMDB.ANSWERS)
-    with lmdb.env.begin(adb) as txn:
-        replies_blob = txn.get(qid)
-    assert replies_blob
-    replies = dnsreplies_factory.parse(replies_blob)
-    return decode_replies(replies)
-
-
 def diff_pair(
             answers: Mapping[ResolverID, dns.message.Message],
             criteria: Sequence[FieldLabel],
@@ -222,113 +235,3 @@ def compare(
         others_agree = True
     target_diffs = dict(diff_pair(answers, criteria, random_other, target))
     return (others_agree, target_diffs)
-
-
-def compare_lmdb_wrapper(
-            criteria: Sequence[FieldLabel],
-            target: ResolverID,
-            dnsreplies_factory: DNSRepliesFactory,
-            qid: QID
-        ) -> None:
-    assert lmdb is not None, "LMDB wasn't initialized!"
-    answers = read_answers_lmdb(dnsreplies_factory, qid)
-    others_agree, target_diffs = compare(answers, criteria, target)
-    if others_agree and not target_diffs:
-        return  # all agreed, nothing to write
-    blob = pickle.dumps((others_agree, target_diffs))
-    ddb = lmdb.get_db(LMDB.DIFFS)
-    with lmdb.env.begin(ddb, write=True) as txn:
-        txn.put(qid, blob)
-
-
-def export_json(filename: str, report: DiffReport):
-    assert lmdb is not None, "LMDB wasn't initialized!"
-    report.other_disagreements = DisagreementsCounter()
-    report.target_disagreements = Disagreements()
-
-    # get diff data
-    ddb = lmdb.get_db(LMDB.DIFFS)
-    with lmdb.env.begin(ddb) as txn:
-        with txn.cursor() as diffcur:
-            for key, diffblob in diffcur:
-                qid = key2qid(key)
-                others_agree, diff = pickle.loads(diffblob)
-                if not others_agree:
-                    report.other_disagreements.count += 1
-                else:
-                    for field, mismatch in diff.items():
-                        report.target_disagreements.add_mismatch(field, mismatch, qid)
-
-    # NOTE: msgdiff is the first tool in the toolchain to generate report.json
-    #       thus it doesn't make sense to re-use existing report.json file
-    if os.path.exists(filename):
-        backup_filename = filename + '.bak'
-        os.rename(filename, backup_filename)
-        logging.warning(
-            'JSON report already exists, overwriting file. Original '
-            'file backed up as %s', backup_filename)
-    report.export_json(filename)
-
-
-def prepare_report(lmdb_, servers: Sequence[ResolverID]) -> DiffReport:
-    qdb = lmdb_.open_db(LMDB.QUERIES)
-    adb = lmdb_.open_db(LMDB.ANSWERS)
-    with lmdb_.env.begin() as txn:
-        total_queries = txn.stat(qdb)['entries']
-        total_answers = txn.stat(adb)['entries']
-
-    meta = MetaDatabase(lmdb_, servers)
-    start_time = meta.read_start_time()
-    end_time = meta.read_end_time()
-
-    return DiffReport(
-        start_time,
-        end_time,
-        total_queries,
-        total_answers)
-
-
-def main():
-    global lmdb
-
-    cli.setup_logging()
-    parser = argparse.ArgumentParser(
-        description='compute diff from answers stored in LMDB and write diffs to LMDB')
-    cli.add_arg_envdir(parser)
-    cli.add_arg_config(parser)
-    cli.add_arg_datafile(parser)
-
-    args = parser.parse_args()
-    datafile = cli.get_datafile(args, check_exists=False)
-    criteria = args.cfg['diff']['criteria']
-    target = args.cfg['diff']['target']
-    servers = args.cfg['servers']['names']
-
-    with LMDB(args.envdir) as lmdb_:
-        # NOTE: To avoid an lmdb.BadRslotError, probably caused by weird
-        # interaction when using multiple transaction / processes, open a separate
-        # environment. Also, any dbs have to be opened before using MetaDatabase().
-        report = prepare_report(lmdb_, servers)
-        try:
-            MetaDatabase(lmdb_, servers, create=False)  # check version and servers
-        except NotImplementedError as exc:
-            logging.critical(exc)
-            sys.exit(1)
-
-    with LMDB(args.envdir, fast=True) as lmdb_:
-        lmdb = lmdb_
-        lmdb.open_db(LMDB.ANSWERS)
-        lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
-        qid_stream = lmdb.key_stream(LMDB.ANSWERS)
-
-        dnsreplies_factory = DNSRepliesFactory(servers)
-        compare_func = partial(
-            compare_lmdb_wrapper, criteria, target, dnsreplies_factory)
-        with pool.Pool() as p:
-            for _ in p.imap_unordered(compare_func, qid_stream, chunksize=10):
-                pass
-        export_json(datafile, report)
-
-
-if __name__ == '__main__':
-    main()
