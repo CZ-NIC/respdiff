@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from dataformat import (
+from respdiff.dataformat import (
     DataMismatch, Diff, DiffReport, Disagreements,
     DisagreementsCounter, JSONDataObject, ReproCounter, ReproData, Summary)
 
