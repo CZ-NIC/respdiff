@@ -13,7 +13,8 @@ import dns.rdatatype
 
 from respdiff import cli
 from respdiff.dataformat import DiffReport, Summary, QID
-from respdiff.dbhelper import get_query_iterator, LMDB, WireFormat
+from respdiff.dbhelper import LMDB, WireFormat
+from respdiff.query import get_query_iterator
 
 
 DEFAULT_LIMIT = 10
