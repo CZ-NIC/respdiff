@@ -13,7 +13,7 @@ import dns.rdatatype
 
 from respdiff import cli
 from respdiff.dataformat import DiffReport, Summary, QID
-from respdiff.dbhelper import LMDB, qid2key, WireFormat
+from respdiff.dbhelper import get_query_iterator, LMDB, WireFormat
 
 
 DEFAULT_LIMIT = 10
@@ -104,18 +104,6 @@ def get_printable_queries_format(
             count = ref_queries_mismatch[query]  # show how many cases were removed
         queries.append((diff, count, query))
     return queries
-
-
-def get_query_iterator(
-            lmdb,
-            qids: Iterable[QID]
-        ) -> Iterator[Tuple[QID, WireFormat]]:
-    qdb = lmdb.get_db(LMDB.QUERIES)
-    with lmdb.env.begin(qdb) as txn:
-        for qid in qids:
-            key = qid2key(qid)
-            qwire = txn.get(key)
-            yield qid, qwire
 
 
 def main():

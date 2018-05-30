@@ -5,11 +5,11 @@ import struct
 import sys
 import time
 from typing import (  # noqa
-    Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Sequence)
+    Any, Callable, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple, Sequence)
 
 import lmdb
 
-from dataformat import QID
+from .dataformat import QID
 
 # upon import, check we're on a little endian platform
 assert sys.byteorder == 'little', 'Big endian platforms are not supported'
@@ -29,6 +29,18 @@ def qid2key(qid: QID) -> QKey:
 
 def key2qid(key: QKey) -> QID:
     return struct.unpack('<I', key)[0]
+
+
+def get_query_iterator(
+            lmdb_,
+            qids: Iterable[QID]
+        ) -> Iterator[Tuple[QID, WireFormat]]:
+    qdb = lmdb_.get_db(LMDB.QUERIES)
+    with lmdb_.env.begin(qdb) as txn:
+        for qid in qids:
+            key = qid2key(qid)
+            qwire = txn.get(key)
+            yield qid, qwire
 
 
 class LMDB:
