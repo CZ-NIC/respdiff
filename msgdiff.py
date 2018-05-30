@@ -16,7 +16,7 @@ from respdiff import cli
 from respdiff.dataformat import (
     DiffReport, Disagreements, DisagreementsCounter, FieldLabel, QID)
 from respdiff.dbhelper import DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID
-from match import compare
+from respdiff.match import compare
 
 
 lmdb = None
