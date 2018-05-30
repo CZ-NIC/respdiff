@@ -8,8 +8,8 @@ from typing import (  # noqa
     Union)
 
 from respdiff import cli
+from respdiff.database import LMDB
 from respdiff.dataformat import DiffReport, Summary
-from respdiff.dbhelper import LMDB
 from respdiff.query import (
     convert_queries, get_printable_queries_format, get_query_iterator)
 

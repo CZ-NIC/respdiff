@@ -13,7 +13,7 @@ import dns.message
 import dns.rdatatype
 
 from respdiff import blacklist, cli
-from respdiff.dbhelper import LMDB, qid2key
+from respdiff.database import LMDB, qid2key
 
 REPORT_CHUNKS = 10000
 

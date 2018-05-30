@@ -15,7 +15,8 @@ import lmdb
 import numpy as np
 
 from respdiff import cfg, cli
-from respdiff.dbhelper import DNSRepliesFactory, LMDB, MetaDatabase, ResolverID
+from respdiff.database import DNSRepliesFactory, LMDB, MetaDatabase
+from respdiff.typing import ResolverID
 
 # Force matplotlib to use a different backend to handle machines without a display
 import matplotlib

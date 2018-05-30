@@ -7,8 +7,8 @@ import math
 import sys
 
 from respdiff import cli
+from respdiff.database import LMDB
 from respdiff.dataformat import DiffReport
-from respdiff.dbhelper import LMDB
 from respdiff.query import (
     convert_queries, get_printable_queries_format, get_query_iterator)
 

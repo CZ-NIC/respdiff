@@ -15,8 +15,9 @@ import dns.message
 from respdiff import cli
 from respdiff.dataformat import (
     DiffReport, Disagreements, DisagreementsCounter, FieldLabel, QID)
-from respdiff.dbhelper import DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID
+from respdiff.database import DNSRepliesFactory, key2qid, LMDB, MetaDatabase
 from respdiff.match import compare
+from respdiff.typing import ResolverID
 
 
 lmdb = None

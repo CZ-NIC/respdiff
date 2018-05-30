@@ -1,7 +1,7 @@
 import os
 import pytest
 
-from respdiff.dbhelper import (
+from respdiff.database import (
     DNSReply, DNSRepliesFactory, LMDB, MetaDatabase, BIN_FORMAT_VERSION, qid2key)
 
 
