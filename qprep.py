@@ -12,9 +12,8 @@ import dns.exception
 import dns.message
 import dns.rdatatype
 
-import blacklist
-import cli
-from dbhelper import LMDB, qid2key
+from respdiff import blacklist, cli
+from respdiff.dbhelper import LMDB, qid2key
 
 REPORT_CHUNKS = 10000
 
