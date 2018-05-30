@@ -10,7 +10,6 @@ from tabulate import tabulate
 from .cfg import read_cfg
 from .dataformat import DataMismatch, DiffReport, FieldLabel
 
-
 Number = Union[int, float]
 StatsTuple = Tuple[int, Optional[float]]
 ChangeStatsTuple = Tuple[int, Optional[float], Optional[int], Optional[float]]

@@ -3,8 +3,8 @@ from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # no
 import dns.rdatatype
 from dns.rrset import RRset
 
-from respdiff.dataformat import DataMismatch, MismatchValue, FieldLabel
-from respdiff.dbhelper import ResolverID
+from respdiff.dataformat import DataMismatch
+from .typing import FieldLabel, MismatchValue, ResolverID
 
 
 def compare_val(exp_val: MismatchValue, got_val: MismatchValue):
