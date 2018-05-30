@@ -13,11 +13,11 @@ import dns.exception
 import dns.message
 from dns.rrset import RRset
 
-import cli
-from dataformat import (
+from respdiff import cli
+from respdiff.dataformat import (
     DataMismatch, DiffReport, Disagreements, DisagreementsCounter,
     FieldLabel, MismatchValue, QID)
-from dbhelper import DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID
+from respdiff.dbhelper import DNSReply, DNSRepliesFactory, key2qid, LMDB, MetaDatabase, ResolverID
 
 
 lmdb = None
