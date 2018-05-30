@@ -11,9 +11,9 @@ from typing import (  # noqa
 import dns.message
 import dns.rdatatype
 
-import cli
-from dataformat import DiffReport, Summary, QID
-from dbhelper import LMDB, qid2key, WireFormat
+from respdiff import cli
+from respdiff.dataformat import DiffReport, Summary, QID
+from respdiff.dbhelper import LMDB, qid2key, WireFormat
 
 
 DEFAULT_LIMIT = 10
