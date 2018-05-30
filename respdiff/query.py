@@ -4,7 +4,7 @@ from typing import Callable, Iterable, Iterator, Sequence, Tuple
 import dns.message
 import dns.rdatatype
 
-from .dbhelper import LMDB, qid2key
+from .database import LMDB, qid2key
 from .typing import QID, WireFormat
 
 

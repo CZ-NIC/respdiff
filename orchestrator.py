@@ -6,7 +6,7 @@ import multiprocessing.pool as pool
 import sys
 
 from respdiff import cli, sendrecv
-from respdiff.dbhelper import LMDB, MetaDatabase
+from respdiff.database import LMDB, MetaDatabase
 
 
 def main():
