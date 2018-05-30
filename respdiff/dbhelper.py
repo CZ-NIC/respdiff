@@ -12,14 +12,10 @@ import dns.message
 import lmdb
 
 from .dataformat import QID
+from .typing import ResolverID, QKey, WireFormat
 
 # upon import, check we're on a little endian platform
 assert sys.byteorder == 'little', 'Big endian platforms are not supported'
-
-ResolverID = str
-RepliesBlob = bytes
-QKey = bytes
-WireFormat = bytes
 
 
 VERSION = '2018-05-21'

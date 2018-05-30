@@ -4,8 +4,8 @@ from typing import Callable, Iterable, Iterator, Sequence, Tuple
 import dns.message
 import dns.rdatatype
 
-from .dataformat import QID
-from .dbhelper import LMDB, qid2key, WireFormat
+from .dbhelper import LMDB, qid2key
+from .typing import QID, WireFormat
 
 
 def get_query_iterator(

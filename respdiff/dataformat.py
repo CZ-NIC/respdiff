@@ -11,10 +11,8 @@ from typing import (  # noqa
 
 import dns.rrset
 
-# replace Any with 'MismatchValue' once nested types are supported with mypy
-MismatchValue = Union[str, dns.rrset.RRset, Sequence[Any]]
-QID = int
-FieldLabel = str
+from .typing import FieldLabel, MismatchValue, QID
+
 RestoreFunction = Optional[Callable[[Any], Any]]
 SaveFunction = Optional[Callable[[Any], Any]]
 
