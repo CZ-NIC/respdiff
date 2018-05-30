@@ -3,7 +3,6 @@ from contextlib import contextmanager
 import logging
 import os
 import struct
-import sys
 import time
 from typing import (  # noqa
     Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Sequence)
@@ -13,9 +12,6 @@ import lmdb
 
 from .dataformat import QID
 from .typing import ResolverID, QKey, WireFormat
-
-# upon import, check we're on a little endian platform
-assert sys.byteorder == 'little', 'Big endian platforms are not supported'
 
 
 VERSION = '2018-05-21'
