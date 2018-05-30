@@ -1,5 +1,6 @@
 from abc import ABC
 from contextlib import contextmanager
+import logging
 import os
 import struct
 import sys
@@ -7,6 +8,7 @@ import time
 from typing import (  # noqa
     Any, Callable, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple, Sequence)
 
+import dns.message
 import lmdb
 
 from .dataformat import QID
@@ -244,6 +246,22 @@ class DNSRepliesFactory:
             else:
                 data.append(reply.binary)
         return b''.join(data)
+
+    @staticmethod
+    def decode_parsed(
+                replies: Mapping[ResolverID, DNSReply]
+            ) -> Mapping[ResolverID, dns.message.Message]:
+        answers = {}  # type: Dict[ResolverID, dns.message.Message]
+        for resolver, reply in replies.items():
+            if reply.timeout:
+                answers[resolver] = None
+                continue
+            try:
+                answers[resolver] = dns.message.from_wire(reply.wire)
+            except Exception as exc:
+                logging.warning('Failed to decode DNS message from wire format: %s', exc)
+                continue
+        return answers
 
 
 class Database(ABC):
