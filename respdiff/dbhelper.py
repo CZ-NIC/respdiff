@@ -14,7 +14,7 @@ from .dataformat import QID
 from .typing import ResolverID, QKey, WireFormat
 
 
-VERSION = '2018-05-21'
+BIN_FORMAT_VERSION = '2018-05-21'
 
 
 def qid2key(qid: QID) -> QKey:
@@ -330,14 +330,14 @@ class MetaDatabase(Database):
                 '(config: "{}", meta db: "{}")'.format(servers, db_servers))
 
     def write_version(self) -> None:
-        self.write_key(self.KEY_VERSION, VERSION.encode('ascii'))
+        self.write_key(self.KEY_VERSION, BIN_FORMAT_VERSION.encode('ascii'))
 
     def check_version(self) -> None:
         version = self.read_key(self.KEY_VERSION).decode('ascii')
-        if version != VERSION:
+        if version != BIN_FORMAT_VERSION:
             raise NotImplementedError(
                 'LMDB version mismatch! (expected "{}", got "{}")'.format(
-                    VERSION, version))
+                    BIN_FORMAT_VERSION, version))
 
     def write_start_time(self, timestamp: Optional[int] = None) -> None:
         self._write_timestamp(self.KEY_START_TIME, timestamp)

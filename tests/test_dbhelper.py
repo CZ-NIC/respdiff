@@ -2,10 +2,11 @@ import os
 import pytest
 
 from respdiff.dbhelper import (
-    DNSReply, DNSRepliesFactory, LMDB, MetaDatabase, VERSION, qid2key)
+    DNSReply, DNSRepliesFactory, LMDB, MetaDatabase, BIN_FORMAT_VERSION, qid2key)
 
 
-LMDB_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'lmdb', VERSION)
+LMDB_DIR = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), 'lmdb', BIN_FORMAT_VERSION)
 
 
 def create_reply(wire, time):
