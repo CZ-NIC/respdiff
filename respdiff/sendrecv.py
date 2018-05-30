@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
 import dns.inet
 import dns.message
 
-from dbhelper import DNSReply, DNSRepliesFactory, RepliesBlob, ResolverID, QKey, WireFormat
+from .dbhelper import DNSReply, DNSRepliesFactory, RepliesBlob, ResolverID, QKey, WireFormat
 
 
 IP = str

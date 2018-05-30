@@ -7,8 +7,8 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
 
 from tabulate import tabulate
 
-import cfg
-from dataformat import DataMismatch, DiffReport, FieldLabel
+from .cfg import read_cfg
+from .dataformat import DataMismatch, DiffReport, FieldLabel
 
 
 Number = Union[int, float]
@@ -27,7 +27,7 @@ def setup_logging(level: int = LOGGING_LEVEL) -> None:
 
 
 def add_arg_config(parser: ArgumentParser) -> None:
-    parser.add_argument('-c', '--config', type=cfg.read_cfg,
+    parser.add_argument('-c', '--config', type=read_cfg,
                         default=CONFIG_FILENAME, dest='cfg',
                         help='config file (default: {})'.format(CONFIG_FILENAME))
 
