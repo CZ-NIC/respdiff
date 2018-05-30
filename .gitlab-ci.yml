@@ -30,9 +30,7 @@ test:pylint:
 test:pytest:
   <<: *debian_stable
   script:
-    # TODO: https://gitlab.labs.nic.cz/knot/resolver-benchmarking/issues/36
-    - export PYTHONPATH="response_differences/:response_differences/respdiff/:$PYTHONPATH"
-    - python3 -m pytest response_differences
+    - python3 -m pytest tests/
 
 test:respdiff:
   <<: *debian_stable
