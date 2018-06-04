@@ -1,7 +1,7 @@
 configparser
-dnspython
+dnspython>=1.15.0
 dpkt
-lmdb
+lmdb>=0.92
 matplotlib
 numpy
 tabulate
