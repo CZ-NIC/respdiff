@@ -111,42 +111,42 @@ def compare_rrs_types(exp_val: RRset, got_val: RRset, compare_rrsigs: bool):
             tuple(key_to_text(i) for i in sorted(got_types)))
 
 
-def match_part(exp_msg, got_msg, code):  # pylint: disable=inconsistent-return-statements
+def match_part(exp_msg, got_msg, criteria):  # pylint: disable=inconsistent-return-statements
     """ Compare scripted reply to given message using single criteria. """
-    if code == 'opcode':
+    if criteria == 'opcode':
         return compare_val(exp_msg.opcode(), got_msg.opcode())
-    elif code == 'qtype':
+    elif criteria == 'qtype':
         if not exp_msg.question:
             return True
         return compare_val(exp_msg.question[0].rdtype, got_msg.question[0].rdtype)
-    elif code == 'qname':
+    elif criteria == 'qname':
         if not exp_msg.question:
             return True
         return compare_val(exp_msg.question[0].name, got_msg.question[0].name)
-    elif code == 'qcase':
+    elif criteria == 'qcase':
         return compare_val(got_msg.question[0].name.labels, exp_msg.question[0].name.labels)
-    elif code == 'flags':
+    elif criteria == 'flags':
         return compare_val(dns.flags.to_text(exp_msg.flags), dns.flags.to_text(got_msg.flags))
-    elif code == 'rcode':
+    elif criteria == 'rcode':
         return compare_val(dns.rcode.to_text(exp_msg.rcode()), dns.rcode.to_text(got_msg.rcode()))
-    elif code == 'question':
+    elif criteria == 'question':
         return compare_rrs(exp_msg.question, got_msg.question)
-    elif code == 'answer' or code == 'ttl':
+    elif criteria == 'answer' or criteria == 'ttl':
         return compare_rrs(exp_msg.answer, got_msg.answer)
-    elif code == 'answertypes':
+    elif criteria == 'answertypes':
         return compare_rrs_types(exp_msg.answer, got_msg.answer, compare_rrsigs=False)
-    elif code == 'answerrrsigs':
+    elif criteria == 'answerrrsigs':
         return compare_rrs_types(exp_msg.answer, got_msg.answer, compare_rrsigs=True)
-    elif code == 'authority':
+    elif criteria == 'authority':
         return compare_rrs(exp_msg.authority, got_msg.authority)
-    elif code == 'additional':
+    elif criteria == 'additional':
         return compare_rrs(exp_msg.additional, got_msg.additional)
-    elif code == 'edns':
+    elif criteria == 'edns':
         if got_msg.edns != exp_msg.edns:
             raise DataMismatch(str(exp_msg.edns), str(got_msg.edns))
         if got_msg.payload != exp_msg.payload:
             raise DataMismatch(str(exp_msg.payload), str(got_msg.payload))
-    elif code == 'nsid':
+    elif criteria == 'nsid':
         nsid_opt = None
         for opt in exp_msg.options:
             if opt.otype == dns.edns.NSID:
@@ -164,7 +164,7 @@ def match_part(exp_msg, got_msg, code):  # pylint: disable=inconsistent-return-s
         if nsid_opt:
             raise DataMismatch(str(nsid_opt.data), '')
     else:
-        raise NotImplementedError('unknown match request "%s"' % code)
+        raise NotImplementedError('unknown match request "%s"' % criteria)
 
 
 def match(
@@ -179,11 +179,11 @@ def match(
         if got is not None:
             yield 'timeout', DataMismatch('timeout', 'answer')
         return  # don't attempt to match any other fields if one answer is timeout
-    for code in match_fields:
+    for criteria in match_fields:
         try:
-            match_part(expected, got, code)
+            match_part(expected, got, criteria)
         except DataMismatch as ex:
-            yield (code, ex)
+            yield criteria, ex
 
 
 def diff_pair(
