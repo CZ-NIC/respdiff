@@ -44,11 +44,15 @@ def main():
                     if i % 10000 == 0:
                         logging.info('Received {:d} answers'.format(i))
                     txn.put(qkey, blob)
+        except KeyboardInterrupt as err:
+            logging.info('SIGINT received, exiting...')
+            sys.exit(130)
         except RuntimeError as err:
             logging.error(err)
             sys.exit(1)
         finally:
             # attempt to preserve data if something went wrong (or not)
+            logging.debug('Comitting LMDB transaction...')
             txn.commit()
             meta.write_end_time()
 
