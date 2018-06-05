@@ -11,6 +11,7 @@ threads or processes. Make sure not to break this compatibility.
 
 from argparse import Namespace
 import random
+import signal
 import selectors
 import socket
 import ssl
@@ -76,6 +77,7 @@ def module_init(args: Namespace) -> None:
 
 def worker_init() -> None:
     __worker_state.timeouts = {}
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     worker_reinit()
 
 
