@@ -3,6 +3,7 @@
 import argparse
 import logging
 import multiprocessing.pool as pool
+import signal
 import struct
 import sys
 from typing import Optional, Tuple
@@ -139,8 +140,11 @@ def main():
 
     with LMDB(args.envdir) as lmdb:
         qdb = lmdb.open_db(LMDB.QUERIES, create=True, check_notexists=True)
-        with lmdb.env.begin(qdb, write=True) as txn:
-            with pool.Pool() as workers:
+        txn = lmdb.env.begin(qdb, write=True)
+        try:
+            with pool.Pool(
+                    initializer=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN)
+                    ) as workers:
                 if args.in_format == 'text':
                     data_stream = read_lines(sys.stdin)
                     method = wrk_process_line
@@ -153,6 +157,16 @@ def main():
                 for key, wire in workers.imap(method, data_stream, chunksize=1000):
                     if key is not None:
                         txn.put(key, wire)
+        except KeyboardInterrupt as err:
+            logging.info('SIGINT received, exiting...')
+            sys.exit(130)
+        except RuntimeError as err:
+            logging.error(err)
+            sys.exit(1)
+        finally:
+            # attempt to preserve data if something went wrong (or not)
+            logging.debug('Comitting LMDB transaction...')
+            txn.commit()
 
 
 if __name__ == '__main__':
