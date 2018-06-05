@@ -7,6 +7,7 @@ import dns.rdatatype
 from dns.rrset import RRset
 import dns.message
 
+from .database import DNSReply
 from .typing import FieldLabel, MismatchValue, ResolverID
 
 
@@ -111,7 +112,11 @@ def compare_rrs_types(exp_val: RRset, got_val: RRset, compare_rrsigs: bool):
             tuple(key_to_text(i) for i in sorted(got_types)))
 
 
-def match_part(exp_msg, got_msg, criteria):  # pylint: disable=inconsistent-return-statements
+def match_part(  # pylint: disable=inconsistent-return-statements
+            exp_msg: dns.message.Message,
+            got_msg: dns.message.Message,
+            criteria: FieldLabel
+        ):
     """ Compare scripted reply to given message using single criteria. """
     if criteria == 'opcode':
         return compare_val(exp_msg.opcode(), got_msg.opcode())
@@ -168,26 +173,40 @@ def match_part(exp_msg, got_msg, criteria):  # pylint: disable=inconsistent-retu
 
 
 def match(
-            expected: dns.message.Message,
-            got: dns.message.Message,
+            expected: DNSReply,
+            got: DNSReply,
             match_fields: Sequence[FieldLabel]
         ) -> Iterator[Tuple[FieldLabel, DataMismatch]]:
     """ Compare scripted reply to given message based on match criteria. """
-    if expected is None or got is None:
-        if expected is not None:
+    exp_msg, exp_res = expected.parse_wire()
+    got_msg, got_res = got.parse_wire()
+    exp_malformed = exp_res != DNSReply.WIREFORMAT_VALID
+    got_malformed = got_res != DNSReply.WIREFORMAT_VALID
+
+    if expected.timeout or got.timeout:
+        if not expected.timeout:
             yield 'timeout', DataMismatch('answer', 'timeout')
-        if got is not None:
+        if not got.timeout:
             yield 'timeout', DataMismatch('timeout', 'answer')
-        return  # don't attempt to match any other fields if one answer is timeout
+    elif exp_malformed or got_malformed:
+        if exp_res == got_res:
+            logging.warning(
+                'match: DNS replies malformed in the same way! (%s)', exp_res)
+        else:
+            yield 'malformed', DataMismatch(exp_res, got_res)
+
+    if expected.timeout or got.timeout or exp_malformed or got_malformed:
+        return  # don't attempt to match any other fields
+
     for criteria in match_fields:
         try:
-            match_part(expected, got, criteria)
+            match_part(exp_msg, got_msg, criteria)
         except DataMismatch as ex:
             yield criteria, ex
 
 
 def diff_pair(
-            answers: Mapping[ResolverID, dns.message.Message],
+            answers: Mapping[ResolverID, DNSReply],
             criteria: Sequence[FieldLabel],
             name1: ResolverID,
             name2: ResolverID
@@ -196,7 +215,7 @@ def diff_pair(
 
 
 def transitive_equality(
-            answers: Mapping[ResolverID, dns.message.Message],
+            answers: Mapping[ResolverID, DNSReply],
             criteria: Sequence[FieldLabel],
             resolvers: Sequence[ResolverID]
         ) -> bool:
@@ -213,7 +232,7 @@ def transitive_equality(
 
 
 def compare(
-            answers: Mapping[ResolverID, dns.message.Message],
+            answers: Mapping[ResolverID, DNSReply],
             criteria: Sequence[FieldLabel],
             target: ResolverID
         ) -> Tuple[bool, Optional[Mapping[FieldLabel, DataMismatch]]]:
