@@ -83,7 +83,7 @@ def chunker(iterable: Iterable[T], size: int) -> Iterator[Iterable[T]]:
 
 def process_answers(
             qkey: QKey,
-            replies: Mapping[ResolverID, DNSReply],
+            answers: Mapping[ResolverID, DNSReply],
             report: DiffReport,
             criteria: Sequence[FieldLabel],
             target: ResolverID
@@ -92,7 +92,6 @@ def process_answers(
         raise RuntimeError("Report doesn't contain necessary data!")
     qid = key2qid(qkey)
     reprocounter = report.reprodata[qid]
-    answers = DNSRepliesFactory.decode_parsed(replies)
     others_agree, mismatches = compare(answers, criteria, target)
 
     reprocounter.retries += 1
