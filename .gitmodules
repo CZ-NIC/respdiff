@@ -1,0 +1,3 @@
+[submodule "ci/deckard"]
+	path = ci/deckard
+	url = https://gitlab.labs.nic.cz/knot/deckard.git
