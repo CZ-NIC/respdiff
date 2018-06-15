@@ -1,0 +1,145 @@
+stub-addr: 1.2.3.4
+CONFIG_END
+
+SCENARIO_BEGIN Respond to any query with malformed DNS message
+
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+length1.malformed. A
+RAW
+00
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST raw_id
+SECTION QUESTION
+incomplete.header.malformed. A
+RAW
+00008180
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST raw_id
+SECTION QUESTION
+incomplete.body.malformed. A
+RAW
+000081a000010001000000000200
+;reply QUERY RD RA NOERROR 1 question 1 answer
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST raw_id
+SECTION QUESTION
+trailing.zeros.malformed. A
+RAW
+000081a0000100010000000008747261696c696e67057a65726f73096d616c666f726d65640000010001c00c00010001000007080004020304050000
+;reply QUERY RD RA NOERRIR TTL 1800 trailing.zeros.malformed. IN A 2.3.4.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+ADJUST raw_id
+SECTION QUESTION
+trailing.garbage.malformed. A
+RAW
+000081a0000100010000000008747261696c696e670767617262616765096d616c666f726d65640000010001c00c00010001000007080004020304051234
+;reply QUERY RD RA NOERRIR TTL 1800 trailing.garbage.malformed. IN A 2.3.4.5
+ENTRY_END
+RANGE_END
+
+
+RANGE_BEGIN 0 100
+	ADDRESS 2.3.4.5
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+length1.malformed. A
+SECTION ANSWER
+length1.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+incomplete.header.malformed. A
+SECTION ANSWER
+incomplete.header.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+incomplete.body.malformed. A
+SECTION ANSWER
+incomplete.body.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+trailing.zeros.malformed. A
+SECTION ANSWER
+trailing.zeros.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+trailing.garbage.malformed. A
+SECTION ANSWER
+trailing.garbage.malformed. IN A 9.0.0.1
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 0 100
+	ADDRESS 3.4.5.6
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+length1.malformed. A
+SECTION ANSWER
+length1.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+incomplete.header.malformed. A
+SECTION ANSWER
+incomplete.header.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+incomplete.body.malformed. A
+SECTION ANSWER
+incomplete.body.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+trailing.zeros.malformed. A
+SECTION ANSWER
+trailing.zeros.malformed. IN A 9.0.0.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qname qtype
+SECTION QUESTION
+trailing.garbage.malformed. A
+SECTION ANSWER
+trailing.garbage.malformed. IN A 9.0.0.1
+ENTRY_END
+RANGE_END
+
+STEP 1 TIME_PASSES ELAPSE 1
+
+SCENARIO_END
