@@ -30,6 +30,11 @@ test:pylint:
 test:pytest:
   <<: *debian_stable
   script:
+    - git clone --depth=1 https://gitlab.labs.nic.cz/knot/deckard.git /tmp/deckard
+    - pushd /tmp/deckard
+    - make depend -C "/tmp/deckard" &>/dev/null
+    - popd
+    - export DECKARD_PATH=/tmp/deckard
     - python3 -m pytest tests/
 
 test:respdiff:
