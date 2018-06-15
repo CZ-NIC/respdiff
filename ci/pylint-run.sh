@@ -4,6 +4,7 @@ set -e
 # Find Python modules and standalone Python scripts
 FILES=$(find . \
 	-type d -exec test -e '{}/__init__.py' \; -print -prune -o \
+	-path './ci' -prune -o \
 	-name '*.py' -print)
 
 python3 -m pylint -j 2 --rcfile pylintrc ${FILES}

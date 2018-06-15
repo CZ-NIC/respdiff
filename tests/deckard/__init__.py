@@ -1,18 +1,21 @@
 import os
+import subprocess
 import sys
 
 import pytest
 
 
+DECKARD_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), '..', '..', 'ci', 'deckard'))
 try:
-    DECKARD_PATH = os.environ['DECKARD_PATH']
-except KeyError:
-    pytest.skip("DECKARD_PATH env var not set", allow_module_level=True)
+    subprocess.run(
+        'test -f "{path}/env.sh" || make depend -C "{path}"'.format(path=DECKARD_PATH),
+        cwd=DECKARD_PATH,
+        shell=True,
+        check=True)
+except subprocess.CalledProcessError as exc:
+    pytest.skip(
+        "Failed to compile deckard: {}".format(exc), allow_module_level=True)
 else:
     sys.path.append(DECKARD_PATH)
     pytest.importorskip("pydnstest")
-
-    if not os.path.exists(os.path.join(DECKARD_PATH, 'env.sh')):
-        pytest.skip(
-            "env.sh script doesn't exist in DECKARD_PATH",
-            allow_module_level=True)
