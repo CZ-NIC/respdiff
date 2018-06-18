@@ -287,7 +287,7 @@ class Summary(Disagreements):
         return summary
 
     def get_field_counters(self) -> Mapping[FieldLabel, Counter]:
-        field_counters = {}
+        field_counters = collections.defaultdict(Counter)  # type: Dict[str, Counter]
         for field in self.field_labels:
             counter = Counter()  # type: Counter
             for mismatch, qids in self.get_field_mismatches(field):
