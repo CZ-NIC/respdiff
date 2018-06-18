@@ -23,7 +23,7 @@ class JSONDataObject:
     _ATTRIBUTES = {}  # type: Mapping[str, Tuple[RestoreFunction, SaveFunction]]
 
     def __init__(self, **kwargs):  # pylint: disable=unused-argument
-        pass
+        self.fileorigin = ''
 
     def export_json(self, filename: str) -> None:
         json_data = json.dumps(self.save(), indent=2)
@@ -36,8 +36,10 @@ class JSONDataObject:
             with open(filename) as f:
                 data = json.load(f)
         except json.decoder.JSONDecodeError:
-            raise InvalidFileFormat()
-        return cls(data=data)
+            raise InvalidFileFormat("Couldn't parse JSON file: {}".format(filename))
+        inst = cls(data=data)
+        inst.fileorigin = filename
+        return inst
 
     def restore(self, data: Mapping[str, Any]) -> None:
         for key, (restore_func, _) in self._ATTRIBUTES.items():
