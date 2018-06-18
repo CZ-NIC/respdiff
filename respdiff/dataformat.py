@@ -14,9 +14,30 @@ RestoreFunction = Optional[Callable[[Any], Any]]
 SaveFunction = Optional[Callable[[Any], Any]]
 
 
+class InvalidFileFormat(Exception):
+    pass
+
+
 class JSONDataObject:
     """Object class for (de)serialization into JSON-compatible dictionary."""
     _ATTRIBUTES = {}  # type: Mapping[str, Tuple[RestoreFunction, SaveFunction]]
+
+    def __init__(self, **kwargs):  # pylint: disable=unused-argument
+        pass
+
+    def export_json(self, filename: str) -> None:
+        json_data = json.dumps(self.save(), indent=2)
+        with open(filename, 'w') as f:
+            f.write(json_data)
+
+    @classmethod
+    def from_json(cls, filename: str):
+        try:
+            with open(filename) as f:
+                data = json.load(f)
+        except json.decoder.JSONDecodeError:
+            raise InvalidFileFormat()
+        return cls(data=data)
 
     def restore(self, data: Mapping[str, Any]) -> None:
         for key, (restore_func, _) in self._ATTRIBUTES.items():
@@ -136,6 +157,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
               }
             }
         """
+        super(Disagreements, self).__init__()
         self._fields = collections.defaultdict(
                 lambda: collections.defaultdict(set)
             )  # type: Dict[FieldLabel, Dict[DataMismatch, Set[QID]]]
@@ -219,6 +241,7 @@ class DisagreementsCounter(JSONDataObject):
     }
 
     def __init__(self, data: Mapping[str, int] = None) -> None:
+        super(DisagreementsCounter, self).__init__()
         self.count = 0
         if data is not None:
             self.restore(data)
@@ -310,6 +333,7 @@ class ReproCounter(JSONDataObject):
                 verified: int = 0,
                 data: Optional[Mapping[str, int]] = None
             ) -> None:
+        super(ReproCounter, self).__init__()
         self.retries = retries
         self.upstream_stable = upstream_stable
         self.verified = verified
@@ -330,6 +354,7 @@ class ReproCounter(JSONDataObject):
 
 class ReproData(collections.abc.Mapping, JSONDataObject):
     def __init__(self, data: Optional[Mapping[str, Any]] = None) -> None:
+        super(ReproData, self).__init__()
         self._counters = collections.defaultdict(ReproCounter)  # type: Dict[QID, ReproCounter]
         if data is not None:
             self.restore(data)
@@ -391,6 +416,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
                 reprodata: Optional[ReproData] = None,
                 data: Optional[Mapping[str, Any]] = None
             ) -> None:
+        super(DiffReport, self).__init__()
         self.start_time = start_time
         self.end_time = end_time
         self.total_queries = total_queries
@@ -401,17 +427,6 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         self.reprodata = reprodata
         if data is not None:
             self.restore(data)
-
-    def export_json(self, filename: str) -> None:
-        json_data = json.dumps(self.save(), indent=2)
-        with open(filename, 'w') as f:
-            f.write(json_data)
-
-    @staticmethod
-    def from_json(filename: str) -> 'DiffReport':
-        with open(filename) as f:
-            data = json.load(f)
-        return DiffReport(data=data)
 
     @property
     def duration(self) -> Optional[int]:
