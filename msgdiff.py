@@ -9,13 +9,10 @@ import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
 import sys
 
-import dns.exception
-import dns.message
-
 from respdiff import cli
 from respdiff.dataformat import (
     DiffReport, Disagreements, DisagreementsCounter, FieldLabel, QID)
-from respdiff.database import DNSRepliesFactory, key2qid, LMDB, MetaDatabase
+from respdiff.database import DNSRepliesFactory, DNSReply, key2qid, LMDB, MetaDatabase
 from respdiff.match import compare
 from respdiff.typing import ResolverID
 
@@ -26,14 +23,13 @@ lmdb = None
 def read_answers_lmdb(
             dnsreplies_factory: DNSRepliesFactory,
             qid: QID
-        ) -> Mapping[ResolverID, dns.message.Message]:
+        ) -> Mapping[ResolverID, DNSReply]:
     assert lmdb is not None, "LMDB wasn't initialized!"
     adb = lmdb.get_db(LMDB.ANSWERS)
     with lmdb.env.begin(adb) as txn:
         replies_blob = txn.get(qid)
     assert replies_blob
-    replies = dnsreplies_factory.parse(replies_blob)
-    return dnsreplies_factory.decode_parsed(replies)
+    return dnsreplies_factory.parse(replies_blob)
 
 
 def compare_lmdb_wrapper(

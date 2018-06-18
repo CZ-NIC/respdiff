@@ -1,17 +1,16 @@
 from abc import ABC
 from contextlib import contextmanager
-import logging
 import os
 import struct
 import time
 from typing import (  # noqa
     Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Sequence)
 
+import dns.exception
 import dns.message
 import lmdb
 
-from .dataformat import QID
-from .typing import ResolverID, QKey, WireFormat
+from .typing import ResolverID, QID, QKey, WireFormat
 
 
 BIN_FORMAT_VERSION = '2018-05-21'
@@ -137,6 +136,7 @@ class DNSReply:
     TIMEOUT_INT = 4294967295
     SIZEOF_INT = 4
     SIZEOF_SHORT = 2
+    WIREFORMAT_VALID = 'Valid'
 
     def __init__(self, wire: Optional[WireFormat], time_: float = 0) -> None:
         if wire is None:
@@ -197,6 +197,14 @@ class DNSReply:
 
         return reply, buff[offset:]
 
+    def parse_wire(
+                self
+            ) -> Tuple[Optional[dns.message.Message], Optional[str]]:
+        try:
+            return dns.message.from_wire(self.wire), self.WIREFORMAT_VALID
+        except dns.exception.FormError as exc:
+            return None, type(exc).__name__
+
 
 class DNSRepliesFactory:
     """Thread-safe factory to parse DNSReply objects from binary blob."""
@@ -226,22 +234,6 @@ class DNSRepliesFactory:
             else:
                 data.append(reply.binary)
         return b''.join(data)
-
-    @staticmethod
-    def decode_parsed(
-                replies: Mapping[ResolverID, DNSReply]
-            ) -> Mapping[ResolverID, dns.message.Message]:
-        answers = {}  # type: Dict[ResolverID, dns.message.Message]
-        for resolver, reply in replies.items():
-            if reply.timeout:
-                answers[resolver] = None
-                continue
-            try:
-                answers[resolver] = dns.message.from_wire(reply.wire)
-            except Exception as exc:
-                logging.warning('Failed to decode DNS message from wire format: %s', exc)
-                continue
-        return answers
 
 
 class Database(ABC):
