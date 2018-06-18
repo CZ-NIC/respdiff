@@ -3,32 +3,91 @@ import math
 import statistics
 from typing import Any, Dict, List, Mapping, Optional, Sequence  # noqa
 
+import numpy
+
 from .dataformat import Counter, JSONDataObject, Summary
 
 
 class Stats(JSONDataObject):
     _ATTRIBUTES = {
         'sequence': (None, None),
+        'change_cutoff': (None, None),
+        'cutoff_min_rel': (None, None),
     }
+
+    MAX_NUMBINS = 50  # maximum amount of bins in histogram
 
     def __init__(
                 self,
                 sequence: Sequence[float] = None,
+                change_cutoff: float = -0.3,  # to detect cutoff in histogram; value < 0
+                cutoff_min_rel: float = 0.9,  # relative point where to start looking for cutoff
                 data: Mapping[str, float] = None
             ) -> None:
         super(Stats, self).__init__()
-        self.sequence = sequence
+        self.sequence = sequence if sequence is not None else []
+        self.change_cutoff = change_cutoff
+        self.cutoff_min_rel = cutoff_min_rel
         if data is not None:
             self.restore(data)
 
     @property
-    def median(self):
+    def median(self) -> float:
         return statistics.median(self.sequence)
 
     @property
-    def mad(self):
+    def mad(self) -> float:
         mdev = [math.fabs(val - self.median) for val in self.sequence]
         return statistics.median(mdev)
+
+    @property
+    def min(self) -> float:
+        return min(self.sequence)
+
+    @property
+    def max(self) -> float:
+        return max(self.sequence)
+
+    @property
+    def cutoff(self) -> float:
+        """Detect uppper cutoff value in histogram to ignore outliers"""
+        # choose number of bins in histogram
+        numbins = max(self.sequence) - min(self.sequence) + 1  # separate bins for all values
+        if numbins > self.MAX_NUMBINS:
+            numbins = self.MAX_NUMBINS
+        hist, _ = numpy.histogram(
+            numpy.array(self.sequence), numbins)
+        hist_cumulative_rel = (numpy.cumsum(hist) / len(self.sequence)).tolist()
+
+        # traverse the histogram and find unique thresholds and calculate efficiency
+        # efficiency: how_much_of_the_distribution_is_covered / how_many_bins_are_needed
+        Threshold = collections.namedtuple('Threshold', ['threshold', 'efficiency'])
+        thresholds = []
+        last_thr = None
+        for i, thr in enumerate(hist_cumulative_rel):
+            if thr < self.cutoff_min_rel:
+                continue  # skip until start
+            if thr == last_thr:
+                continue  # skip non-unique
+            thresholds.append(Threshold(thr, thr / (i+1)))
+            last_thr = thr
+
+        # calculate change efficiency ratio and find cutoff point in change ratio
+        for i, _ in enumerate(thresholds):
+            if i == 0:
+                continue
+            curr = thresholds[i]
+            prev = thresholds[i-1]
+            eff_change = (curr.efficiency - prev.efficiency) / (curr.threshold - prev.threshold)
+            if eff_change < self.change_cutoff:
+                cutoff_threshold = prev.threshold
+                break
+        else:
+            cutoff_threshold = thresholds[-1].threshold
+
+        # find the cutoff value
+        icutoff = int(round(len(self.sequence) * cutoff_threshold)) - 1
+        return sorted(self.sequence)[icutoff]
 
 
 class MismatchStatistics(dict, JSONDataObject):
