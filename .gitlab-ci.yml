@@ -37,3 +37,10 @@ test:respdiff:
   script:
     - pip3 install -r requirements.txt
     - ./ci/respdiff-run.sh
+
+respdiff:special:
+  tags:
+    - respdiff
+  script:
+    - sleep 30
+    - echo "Hello, world!" > hello_word
