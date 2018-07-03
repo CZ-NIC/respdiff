@@ -10,7 +10,7 @@ for Knot Resolver CI testing.
 * ``knot-resolver/``: Knot Resolver compiled from specific git sha.
 
 These containers are also available in our
-`registry <https://gitlab.labs.nic.cz/knot/knot-resolver/container_registry>`__.
+`registry <https://gitlab.labs.nic.cz/knot/respdiff/container_registry>`__.
 
 ``knot-resolver`` container
 ---------------------------
