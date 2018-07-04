@@ -1,0 +1,38 @@
+version: '3.2'
+services:
+
+{%- for name, resolver in resolvers.items() %}
+  {{ name }}:
+    network_mode: host
+
+    {%- if resolver['type'] == 'knot-resolver' %}
+    build:
+      context: ./docker-knot-resolver
+      args:
+        GIT_SHA: {{ git_sha }}
+    image: knot-resolver:{{ git_sha }}
+    volumes:
+      - "./{{ name }}.conf:/etc/knot-resolver/kresd.conf:ro"
+      - "./root.keys:/etc/knot-resolver/root.keys:ro"
+      - type: tmpfs
+        target: /dev/shm
+    {%- endif -%}
+
+    {%- if resolver['type'] == 'bind' %}
+    image: registry.labs.nic.cz/knot/respdiff/bind:latest
+    volumes:
+      - "./{{ name }}.conf:/etc/bind9/named.conf:ro"
+      - "./rfc1912.zones:/etc/bind9/rfc1912.zones:ro"
+      - "./bind.keys:/etc/bind9/bind.keys:ro"
+    {%- endif -%}
+
+    {%- if resolver['type'] == 'unbound' %}
+    image: registry.labs.nic.cz/knot/respdiff/unbound:latest
+    volumes:
+      - "./{{ name }}.conf:/usr/local/etc/unbound/unbound.conf:ro"
+      - "./root.keys:/usr/local/etc/unbound/root.keys:ro"
+      - "./cert.pem:/usr/local/etc/unbound/cert.pem:ro"
+      - "./key.pem:/usr/local/etc/unbound/key.pem:ro"
+    {%- endif -%}
+
+{%- endfor -%}

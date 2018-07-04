@@ -1,0 +1,52 @@
+-- Refer to manual: https://knot-resolver.readthedocs.io/en/latest/daemon.html#configuration
+
+-- Configure interfaces
+net.listen('127.0.0.1', {{ port }})
+{% if listen_ipv6 -%}
+net.listen('::1', {{ port }})
+{%- endif %}
+{% if tls_port %}
+net.listen('127.0.0.1', {{ tls_port }}, {tls = true})
+{% if listen_ipv6 -%}
+net.listen('::1', {{ tls_port }}, {tls = true})
+{%- endif %}
+{% endif %}
+
+-- essential for TLS_FORWARD in Docker with lots of respdiff jobs
+net.tcp_pipeline(65535)
+
+{% if forward %}
+-- forwarding
+policy.add(policy.all(
+{% if 'tls' in forward and forward['tls'] %}
+	policy.TLS_FORWARD({
+		{"{{ forward['ip'] }}@{{ forward['port'] }}", insecure=true}})
+{% else %}
+	policy.FORWARD("{{ forward['ip'] }}@{{ forward['port'] }}")
+{% endif %}
+))
+{% endif %}
+
+-- Large cache size, so we don't need to flush often
+-- This can be larger than available RAM, least frequently accessed
+-- records will be paged out
+cache.size = 1000 * MB
+
+verbose(false)
+
+-- Load Useful modules
+modules = {
+	'workarounds < iterate',
+	'policy',   -- Block queries to local zones/bad sites
+	'view',     -- Views for certain clients
+	'stats',    -- Track internal statistics
+}
+
+last_count = 0
+function print_stats()
+	new_count = stats.get('answer.total')
+	diff_count = new_count - last_count
+	print('{{ name }}' .. diff_count)  --TODO
+	last_count = new_count
+end
+event.recurrent(1000, print_stats)
