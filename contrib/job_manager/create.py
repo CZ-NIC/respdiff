@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+import argparse
+import glob
+import logging
+import os
+import shutil
+import sys
+import traceback
+from typing import Any, Dict, List, Mapping
+
+import jinja2
+import yaml
+
+
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+TEST_CASE_DIR = os.path.join(DIR_PATH, 'test_cases')
+FILES_DIR = os.path.join(DIR_PATH, 'files')
+
+
+def create_dir(directory: str, force: bool = False, clean: bool = False) -> None:
+    if os.path.exists(directory):
+        if clean:
+            shutil.rmtree(directory)
+        elif force:
+            return
+        else:
+            raise RuntimeError(
+                'Directory "{}" already exists! Use -l label / -f / --clean to '
+                'resolve the issue.'.format(directory))
+    os.makedirs(directory)
+
+
+def copy_file(name: str, destdir: str, destname: str = ''):
+    if not destname:
+        destname = name
+    shutil.copy(
+        os.path.join(FILES_DIR, name),
+        os.path.join(destdir, destname))
+
+
+def create_file_from_template(
+            name: str,
+            data: Mapping[str, Any],
+            destdir: str,
+            destname: str = '',
+            chmod: int = 0o664
+        ) -> None:
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(FILES_DIR))
+    template = env.get_template(name)
+    rendered = template.render(**data)
+
+    if not destname:
+        destname = os.path.basename(name)[:-3]
+    dest = os.path.join(destdir, destname)
+    with open(dest, 'w') as fh:
+        fh.write(rendered)
+    os.chmod(dest, chmod)
+
+
+def load_test_case_config(test_case: str) -> Dict[str, Any]:
+    path = os.path.join(TEST_CASE_DIR, test_case + '.yaml')
+    with open(path, 'r') as f:
+        return yaml.load(f)
+
+
+def create_template_files(directory: str, config: Dict[str, Any]):
+    create_file_from_template('run_respdiff.sh.j2', config, directory, chmod=0o755)
+    create_file_from_template('restart-all.sh.j2', config, directory, chmod=0o755)
+    create_file_from_template('docker-compose.yaml.j2', config, directory)
+
+    for name, resolver in config['resolvers'].items():
+        resolver['name'] = name
+        if resolver['type'] == 'knot-resolver':
+            dockerfile_dir = os.path.join(directory, 'docker-knot-resolver')
+            if not os.path.exists(dockerfile_dir):
+                os.makedirs(dockerfile_dir)
+                copy_file('Dockerfile.knot-resolver', dockerfile_dir, 'Dockerfile')
+            create_file_from_template(
+                'kresd.conf.j2', resolver, directory, name + '.conf')
+            copy_file('root.keys', directory)
+        elif resolver['type'] == 'unbound':
+            create_file_from_template(
+                'unbound.conf.j2', resolver, directory, name + '.conf')
+            copy_file('cert.pem', directory)
+            copy_file('key.pem', directory)
+            copy_file('root.keys', directory)
+        elif resolver['type'] == 'bind':
+            create_file_from_template(
+                'named.conf.j2', resolver, directory, name + '.conf')
+            copy_file('rfc1912.zones', directory)
+            copy_file('bind.keys', directory)
+        else:
+            raise NotImplementedError(
+                "unknown resolver type: '{}'".format(resolver['type']))
+
+    # omit resolvers without respdiff section from respdiff.cfg
+    config['resolvers'] = {
+        name: res for name, res
+        in config['resolvers'].items()
+        if 'respdiff' in res}
+    create_file_from_template('respdiff.cfg.j2', config, directory)
+
+
+def get_test_case_list(nameglob: str = '') -> List[str]:
+    return [
+        os.path.splitext(os.path.basename(fname))[0]
+        for fname in glob.glob(os.path.join(TEST_CASE_DIR, '{}*.yaml'.format(nameglob)))]
+
+
+def create_jobs(args: argparse.Namespace) -> None:
+    test_cases = []  # type: List[str]
+    if args.t is not None:
+        test_cases.append(args.t)
+    else:
+        test_cases = get_test_case_list(args.all)
+    if not test_cases:
+        raise RuntimeError("No test cases found!")
+
+    git_sha = args.sha_or_tag[:8]
+    commit_dir = git_sha
+    if args.label is not None:
+        if ' ' in args.label:
+            raise RuntimeError('Label may not contain spaces.')
+        commit_dir += '-' + args.label
+
+    for test_case in test_cases:
+        config = load_test_case_config(test_case)
+        config['git_sha'] = git_sha
+
+        directory = os.path.join(args.jobs_dir, commit_dir, test_case)
+        create_dir(directory, force=args.force, clean=args.clean)
+        create_template_files(directory, config)
+
+        print(directory)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Prepare files for docker respdiff job")
+    parser.add_argument(
+        'sha_or_tag', type=str,
+        help="Knot Resolver git commit or tag to use (don't use branch!)")
+    parser.add_argument(
+        '-a', '--all', default='shortlist',
+        help="Create all test cases which start with expression (default: shortlist)")
+    parser.add_argument(
+        '-t', choices=get_test_case_list(),
+        help="Create only the specified test case")
+    parser.add_argument(
+        '-l', '--label',
+        help="Assign label for easier job identification and isolation")
+    parser.add_argument(
+        '-f', '--force', action='store_true',
+        help="Ignore if target directory exists")
+    parser.add_argument(
+        '--clean', action='store_true',
+        help="Remove target directory if it already exists (use with caution!)")
+    parser.add_argument(
+        '--jobs-dir', default='/var/tmp/respdiff-jobs',
+        help="Directory with job collections (default: /var/tmp/respdiff-jobs)")
+
+    args = parser.parse_args()
+    create_jobs(args)
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)8s  %(message)s', level=logging.DEBUG)
+    try:
+        main()
+    except RuntimeError as exc:
+        logging.debug(traceback.format_exc())
+        logging.error(str(exc))
+        sys.exit(1)
+    except Exception as exc:
+        logging.debug(traceback.format_exc())
+        logging.critical('Unhandled code exception: %s', str(exc))
+        sys.exit(2)
