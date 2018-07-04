@@ -1,0 +1,12 @@
+Executable      = run_respdiff.sh
+Error           = j$(Cluster).$(Process)_stderr
+Output          = j$(Cluster).$(Process)_stdout
+Log             = j$(Cluster).$(Process)_log
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = {{ input_files | join(', ') }}
+
+transfer_output_files = j$(Cluster).$(Process)_report.json, j$(Cluster).$(Process)_report.txt, j$(Cluster).$(Process)_histogram.svg
+
+arguments = $(Cluster) $(Process)
