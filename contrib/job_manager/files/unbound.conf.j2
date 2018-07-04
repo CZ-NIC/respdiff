@@ -1,0 +1,28 @@
+server:
+	num-threads: 1
+
+	interface: 127.0.0.1@{{ port }}
+{% if listen_ipv6 %}
+	interface: ::1@{{ port }}
+{%- endif %}
+{% if tls_port %}
+	interface: 127.0.0.1@{{ tls_port }}
+{% if listen_ipv6 %}
+	interface: ::1@{{ tls_port }}
+{%- endif %}
+	ssl-port: {{ tls_port }}
+	ssl-service-key: "/usr/local/etc/unbound/key.pem"
+	ssl-service-pem: "/usr/local/etc/unbound/cert.pem"
+{%- endif %}
+
+	so-reuseport: yes
+	module-config: "validator iterator"
+	trust-anchor-file: "/usr/local/etc/unbound/root.keys"
+	msg-cache-size: 400m
+	msg-cache-slabs: 1
+	rrset-cache-size: 400m
+	rrset-cache-slabs: 1
+	infra-cache-numhosts: 100000
+	val-log-level: 2
+	key-cache-size: 100m
+	neg-cache-size: 100m

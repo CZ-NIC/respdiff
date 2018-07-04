@@ -1,0 +1,20 @@
+#!/bin/bash
+set -o errexit -o nounset
+
+# How long to wait until resolvers bind to their port after restart
+# 50 = 5s
+MAX_RETRIES=50
+
+docker-compose kill &>/dev/null || :
+docker-compose up -d &>/dev/null
+
+{% for resolver in resolvers.values() -%}
+retries=0
+until $(nc -z 127.0.0.1 {{ resolver['port'] }}); do
+	retries=$((retries+1))
+	if (( $retries > $MAX_RETRIES )); then
+		exit 1
+	fi
+	sleep 0.1
+done
+{% endfor %}
