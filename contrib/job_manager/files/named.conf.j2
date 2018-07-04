@@ -1,0 +1,39 @@
+options {
+	listen-on port {{ port }} { 127.0.0.1; };
+{% if listen_ipv6 -%}
+	listen-on-v6 port {{ port }} { ::1; };
+{% else %}
+	listen-on-v6 {none;};
+{%- endif %}
+	directory 	"/dev/shm";
+	dump-file 	"/dev/shm/cache_dump.db";
+	statistics-file "/dev/shm/named_stats.txt";
+	memstatistics-file "/dev/shm/named_mem_stats.txt";
+	allow-query     { localhost; };
+	max-cache-size	10737418240;
+
+	resolver-query-timeout 4;
+
+	recursion yes;
+
+	dnssec-enable yes;
+	dnssec-validation yes;
+
+	empty-zones-enable yes;
+
+	managed-keys-directory "/dev/shm";
+
+	pid-file "/dev/shm/named.pid";
+	session-keyfile "/dev/shm/session.key";
+};
+
+{% if forward %}
+zone "." IN {
+	type forward;
+	forward only;
+	forwarders { {{ forward['ip'] }} port {{ forward['port'] }}; };
+};
+{% endif %}
+
+include "/etc/bind9/rfc1912.zones";
+include "/etc/bind9/bind.keys";
