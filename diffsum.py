@@ -57,6 +57,8 @@ def main():
     cli.add_arg_config(parser)
     cli.add_arg_datafile(parser)
     cli.add_arg_limit(parser)
+    parser.add_argument('--without-diffrepro', action='store_true',
+                        help='omit reproducibility data from summary')
 
     args = parser.parse_args()
     datafile = cli.get_datafile(args)
@@ -71,7 +73,9 @@ def main():
         sys.exit(1)
 
     report = DiffReport.from_json(datafile)
-    report.summary = Summary.from_report(report, field_weights)
+    report.summary = Summary.from_report(
+        report, field_weights,
+        reproducibility_threshold=(0 if args.without_diffrepro else 1))
 
     cli.print_global_stats(report)
     cli.print_differences_stats(report)
