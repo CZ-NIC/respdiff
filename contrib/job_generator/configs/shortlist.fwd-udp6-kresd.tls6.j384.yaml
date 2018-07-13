@@ -14,7 +14,7 @@ resolvers:
   kresd_fwd_target:
     type: knot-resolver
     port: 53722
-    tls_port: *kresd_fwd_target_port 57729
+    tls_port: &kresd_fwd_target_port 57729
     ipv6: true
 
   unbound:
@@ -41,7 +41,7 @@ resolvers:
 
   kresd:
     type: knot-resolver
-    port: *kresd_port 53721
+    port: &kresd_port 53721
     ipv6: true
     forward: *fwd_kresd
     respdiff:

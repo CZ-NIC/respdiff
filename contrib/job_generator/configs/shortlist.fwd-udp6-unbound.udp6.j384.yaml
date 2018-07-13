@@ -35,7 +35,7 @@ resolvers:
 
   kresd:
     type: knot-resolver
-    port: *kresd_port 53321
+    port: &kresd_port 53321
     ipv6: true
     forward: *fwd_unbound
     respdiff:
