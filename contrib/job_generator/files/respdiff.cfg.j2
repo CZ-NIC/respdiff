@@ -15,6 +15,7 @@ names = {{ resolvers | join(', ') }}
 # each symbolic name in [servers] section refers to config section
 # containing IP address and port of particular server
 {%- for resolver in resolvers.values() %}
+{%- if 'respdiff' in resolver %}
 [{{ resolver['name'] }}]
 ip = {{ resolver['respdiff']['ip'] }}
 port = {{ resolver['respdiff']['port'] }}
@@ -24,6 +25,7 @@ graph_color = {{ resolver['respdiff']['graph_color'] }}
 {%- endif %}
 {% if 'restart_script' in resolver['respdiff'] -%}
 restart_script = {{ resolver['respdiff']['restart_script'] }}
+{%- endif %}
 {%- endif %}
 {% endfor %}
 
