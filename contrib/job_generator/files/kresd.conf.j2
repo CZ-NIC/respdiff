@@ -12,6 +12,11 @@ net.listen('::1', {{ tls_port }}, {tls = true})
 {%- endif %}
 {% endif %}
 
+{% if forward %}
+-- forwarding
+policy.add(policy.all(policy.FORWARD("{{ forward['ip'] }}@{{ forward['port'] }}")))
+{% endif %}
+
 -- Large cache size, so we don't need to flush often
 -- This can be larger than available RAM, least frequently accessed
 -- records will be paged out
