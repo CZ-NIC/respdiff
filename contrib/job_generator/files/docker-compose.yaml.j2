@@ -1,4 +1,4 @@
-version: '3.1'
+version: '3.2'
 services:
 
 {%- for name, resolver in resolvers.items() %}
@@ -14,6 +14,8 @@ services:
     volumes:
       - "./{{ name }}.conf:/etc/knot-resolver/kresd.conf:ro"
       - "./root.keys:/etc/knot-resolver/root.keys:ro"
+      - type: tmpfs
+        target: /dev/shm
     {%- endif -%}
 
     {%- if resolver['type'] == 'bind' %}
