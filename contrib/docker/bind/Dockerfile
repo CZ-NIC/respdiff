@@ -12,4 +12,4 @@ WORKDIR /var/opt/bind9
 RUN ./configure --disable-backtrace --disable-symtable --with-libtool --enable-full-report --without-lmdb --without-zlib --without-gssapi --without-libxml2 --without-dlopen --disable-linux-caps
 RUN make
 
-CMD /var/opt/bind9/bin/named/named -c /etc/bind9/named.conf -g -d 1
+CMD /var/opt/bind9/bin/named/named -c /etc/bind9/named.conf -f
