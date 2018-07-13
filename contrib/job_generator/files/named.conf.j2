@@ -25,13 +25,13 @@ options {
 	session-keyfile "/dev/shm/session.key";
 };
 
-/*
+{% if forward %}
 zone "." IN {
 	type forward;
 	forward only;
-	forwarders { ::1 port 53535; };
+	forwarders { {{ forward['ip'] }} port {{ forward['port'] }}; };
 };
-*/
+{% endif %}
 
 include "/etc/bind9/rfc1912.zones";
 include "/etc/bind9/bind.keys";
