@@ -8,8 +8,9 @@ import jinja2
 import yaml
 
 
-CONFIG_DIR = 'configs'
-FILES_DIR = 'files'
+DIR_PATH = os.path.dirname(os.path.realpath(__file__))
+CONFIG_DIR = os.path.join(DIR_PATH, 'configs')
+FILES_DIR = os.path.join(DIR_PATH, 'files')
 
 
 def ensure_dir_exists(directory):
