@@ -1,0 +1,52 @@
+jobdir: /var/tmp/respdiff-jobs
+respdiff:
+  srcdir: /var/opt/respdiff
+  jobs: 384
+  target: kresd
+
+database:
+  url: https://gitlab.labs.nic.cz/knot/respdiff/uploads/69e90a46226984d08e096424dd81397d/shortlist.mdb
+  dest: data.mdb
+  remove_after: true
+
+resolvers:
+
+  kresd_fwd_target:
+    type: knot-resolver
+    port: 53722
+    tls_port: &kresd_fwd_target_port 53729
+    ipv6: true
+
+  unbound:
+    type: unbound
+    port: &unbound_port 53701
+    forward: &fwd_kresd
+      ip: '::1'
+      port: *kresd_fwd_target_port
+    respdiff:
+      ip: 127.0.0.1
+      port: *unbound_port
+      transport: udp
+      graph_color: '#218669'
+
+  bind:
+    type: bind
+    port: &bind_port 53711
+    forward: *fwd_kresd
+    respdiff:
+      ip: 127.0.0.1
+      port: *bind_port
+      transport: udp
+      graph_color: '#e2a000'
+
+  kresd:
+    type: knot-resolver
+    port: &kresd_port 53721
+    ipv6: true
+    forward: *fwd_kresd
+    respdiff:
+      ip: '::1'
+      port: *kresd_port
+      transport: udp
+      restart_script: ./restart-all.sh
+      graph_color: '#00a2e2'

@@ -11,15 +11,14 @@ database:
 
 resolvers:
 
-  kresd:
-    type: knot-resolver
-    port: &kresd_port 54021
+  unbound:
+    type: unbound
+    port: &unbound_port 54001
     respdiff:
       ip: 127.0.0.1
-      port: *kresd_port
-      transport: &respdiff_transport udp
-      restart_script: ./restart-all.sh
-      graph_color: '#00a2e2'
+      port: *unbound_port
+      transport: udp
+      graph_color: '#218669'
 
   bind:
     type: bind
@@ -27,14 +26,15 @@ resolvers:
     respdiff:
       ip: 127.0.0.1
       port: *bind_port
-      transport: *respdiff_transport
+      transport: udp
       graph_color: '#e2a000'
 
-  unbound:
-    type: unbound
-    port: &unbound_port 54001
+  kresd:
+    type: knot-resolver
+    port: &kresd_port 54021
     respdiff:
       ip: 127.0.0.1
-      port: *unbound_port
-      transport: *respdiff_transport
-      graph_color: '#218669'
+      port: *kresd_port
+      transport: udp
+      restart_script: ./restart-all.sh
+      graph_color: '#00a2e2'

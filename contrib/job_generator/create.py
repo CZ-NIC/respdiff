@@ -89,6 +89,9 @@ def create_job(job_config):
             raise NotImplementedError(
                 "unknown resolver type: '{}'".format(resolver['type']))
 
+    # omit resolvers without respdiff section from respdiff.cfg
+    job_config['resolvers'] = {
+        name: res for name, res in job_config['resolvers'].items() if 'respdiff' in res}
     input_files.append(create_file_from_template(
         'respdiff.cfg.j2', jobdir, job_config))
 
