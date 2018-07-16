@@ -1,4 +1,9 @@
 jobdir: /var/tmp/respdiff-jobs
+
+condor:
+  queue: 1
+  priority: 0
+
 respdiff:
   srcdir: /var/opt/respdiff
   jobs: 384
