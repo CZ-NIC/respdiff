@@ -149,7 +149,7 @@ def get_resolvers(
 def _check_timeout(replies: Mapping[ResolverID, DNSReply]) -> None:
     for resolver, reply in replies.items():
         timeouts = __worker_state.timeouts
-        if reply.wire is not None:
+        if not reply.timeout:
             timeouts[resolver] = 0
         else:
             timeouts[resolver] = timeouts.get(resolver, 0) + 1
