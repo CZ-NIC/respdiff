@@ -3,6 +3,7 @@ import argparse
 import glob
 import os
 import shutil
+import subprocess
 
 import jinja2
 import yaml
@@ -100,6 +101,8 @@ def create_job(job_config):
         'input_files': set(input_files),
         'batch_name': "{}-{}".format(job_config['git_sha'][:7], job_config['name'])})
 
+    return jobdir
+
 
 def get_job_list(db_name=''):
     return [
@@ -119,8 +122,13 @@ def main():
     parser.add_argument(
         '-j', '--job', choices=get_job_list(),
         help="Specific job configuration file")
+    parser.add_argument(
+        '-q', '--queue',
+        help="Submit as a condor job")
+    parser.add_argument(
+        '-p', '--priority',
+        help="Set condor job priority (higher = sooner exec)")
     args = parser.parse_args()
-    # TODO priority
 
     jobs = []
     if args.job is not None:
@@ -134,7 +142,18 @@ def main():
         job_config = load_job_config(job)
         job_config['name'] = os.path.basename(job)
         job_config['git_sha'] = args.sha_or_tag
-        create_job(job_config)
+        if args.queue is not None:
+            job_config['condor']['queue'] = args.queue
+        if args.priority is not None:
+            job_config['condor']['priority'] = args.priority
+        jobdir = create_job(job_config)
+        if job_config['condor']['queue']:
+            subprocess.check_call([
+                'condor_submit',
+                'priority={}'.format(job_config['condor']['priority']),
+                'submit.condor',
+                '-queue', str(job_config['condor']['queue'])],
+                cwd=jobdir)
 
 
 if __name__ == '__main__':
