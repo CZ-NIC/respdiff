@@ -96,7 +96,9 @@ def create_job(job_config):
         'respdiff.cfg.j2', jobdir, job_config))
 
     # create condor job file
-    create_file_from_template('submit.condor.j2', jobdir, {'input_files': set(input_files)})
+    create_file_from_template('submit.condor.j2', jobdir, {
+        'input_files': set(input_files),
+        'batch_name': "{}-{}".format(job_config['git_sha'][:7], job_config['name'])})
 
 
 def get_job_list():
