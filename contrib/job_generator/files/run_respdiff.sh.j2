@@ -12,6 +12,11 @@ touch ${JOBNAME}_histogram.svg
 mkdir -p docker-knot-resolver || :
 mv Dockerfile docker-knot-resolver/ || :
 
+# Check no other docker containers are running
+if [ -n "$(docker ps -q)" ]; then
+	exit 2
+fi
+
 # Ensure ports are empty, so we're not testing something else!
 MAX_RETRIES=60
 {% for resolver in resolvers.values() -%}
