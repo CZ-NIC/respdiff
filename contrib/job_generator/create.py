@@ -101,10 +101,10 @@ def create_job(job_config):
         'batch_name': "{}-{}".format(job_config['git_sha'][:7], job_config['name'])})
 
 
-def get_job_list():
+def get_job_list(db_name=''):
     return [
         os.path.splitext(os.path.basename(fname))[0]
-        for fname in glob.glob(os.path.join(CONFIG_DIR, '*.yaml'))]
+        for fname in glob.glob(os.path.join(CONFIG_DIR, '{}*.yaml'.format(db_name)))]
 
 
 def main():
@@ -114,16 +114,27 @@ def main():
         'sha_or_tag', type=str,
         help="Knot Resolver git commit or tag to use (don't use branch!)")
     parser.add_argument(
-        'job_config',  # TODO nargs='+',
-        choices=get_job_list(),
-        help="Job configuration file(s)")
+        '-a', '--all', default='shortlist',
+        help="Create all jobs for specified db (default: shortlist)")
+    parser.add_argument(
+        '-j', '--job', choices=get_job_list(),
+        help="Specific job configuration file")
     args = parser.parse_args()
     # TODO priority
 
-    job_config = load_job_config(args.job_config)
-    job_config['name'] = os.path.basename(args.job_config)
-    job_config['git_sha'] = args.sha_or_tag
-    create_job(job_config)
+    jobs = []
+    if args.job is not None:
+        jobs.append(args.job)
+    else:
+        jobs = get_job_list(args.all)
+    if not jobs:
+        raise RuntimeError("No job configs found!")
+
+    for job in jobs:
+        job_config = load_job_config(job)
+        job_config['name'] = os.path.basename(job)
+        job_config['git_sha'] = args.sha_or_tag
+        create_job(job_config)
 
 
 if __name__ == '__main__':
