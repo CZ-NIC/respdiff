@@ -46,7 +46,7 @@ done
 set -o errexit
 
 cleanup() {
-	docker-compose stop || :
+	docker-compose rm -fsv || :
 {%if database['remove_after'] %}
 	rm -rf ./*.mdb || :
 {% endif %}
