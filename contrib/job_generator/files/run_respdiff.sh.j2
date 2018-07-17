@@ -55,7 +55,7 @@ cleanup() {
 trap cleanup ERR EXIT
 
 # Get database
-wget -O {{ database['dest'] }} {{ database['url'] }}
+wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 time docker-compose up --no-start
