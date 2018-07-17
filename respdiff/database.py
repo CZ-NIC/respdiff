@@ -31,10 +31,10 @@ class LMDB:
     META = b'meta'
 
     ENV_DEFAULTS = {
-        'map_size': 10 * 1024**3,  # 10 G
-        'max_readers': 128,
+        'map_size': 20 * 1024**3,  # 10 G
+        'max_readers': 384,
         'max_dbs': 5,
-        'max_spare_txns': 64,
+        'max_spare_txns': 384,
     }  # type: Dict[str, Any]
 
     DB_OPEN_DEFAULTS = {
