@@ -16,18 +16,9 @@ database:
 
 resolvers:
 
-  kresd_fwd_target:
-    type: knot-resolver
-    port: 53722
-    tls_port: &kresd_fwd_target_port 53729
-    ipv6: true
-
   unbound:
     type: unbound
     port: &unbound_port 53701
-    forward: &fwd_kresd
-      ip: '::1'
-      port: *kresd_fwd_target_port
     respdiff:
       ip: 127.0.0.1
       port: *unbound_port
@@ -37,18 +28,30 @@ resolvers:
   bind:
     type: bind
     port: &bind_port 53711
-    forward: *fwd_kresd
+    forward: &fwd_unbound
+      ip: 127.0.0.1
+      port: *unbound_port
     respdiff:
       ip: 127.0.0.1
       port: *bind_port
       transport: udp
       graph_color: '#e2a000'
 
+  kresd_fwd_target:
+    type: knot-resolver
+    port: 53722
+    tls_port: &kresd_fwd_target_port 53729
+    forward: *fwd_unbound
+    ipv6: true
+
   kresd:
     type: knot-resolver
     port: &kresd_port 53721
     ipv6: true
-    forward: *fwd_kresd
+    forward:
+      ip: '::1'
+      port: *kresd_fwd_target_port
+      tls: true
     respdiff:
       ip: '::1'
       port: *kresd_port

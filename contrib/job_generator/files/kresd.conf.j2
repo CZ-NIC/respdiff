@@ -14,7 +14,14 @@ net.listen('::1', {{ tls_port }}, {tls = true})
 
 {% if forward %}
 -- forwarding
-policy.add(policy.all(policy.FORWARD("{{ forward['ip'] }}@{{ forward['port'] }}")))
+policy.add(policy.all(
+{% if 'tls' in forward and forward['tls'] %}
+	policy.TLS_FORWARD({
+		{"{{ forward['ip'] }}@{{ forward['port'] }}", insecure=true}})
+{% else %}
+	policy.FORWARD("{{ forward['ip'] }}@{{ forward['port'] }}")
+{% endif %}
+))
 {% endif %}
 
 -- Large cache size, so we don't need to flush often
