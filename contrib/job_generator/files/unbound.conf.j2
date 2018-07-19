@@ -2,18 +2,18 @@ server:
 	num-threads: 1
 
 	interface: 127.0.0.1@{{ port }}
-{% if ipv6 -%}
+{% if ipv6 %}
 	interface: ::1@{{ port }}
 {%- endif %}
 {% if tls_port %}
 	interface: 127.0.0.1@{{ tls_port }}
-{% if ipv6 -%}
+{% if ipv6 %}
 	interface: ::1@{{ tls_port }}
 {%- endif %}
 	ssl-port: {{ tls_port }}
 	ssl-service-key: "/usr/local/etc/unbound/key.pem"
 	ssl-service-pem: "/usr/local/etc/unbound/cert.pem"
-{%- endif -%}
+{%- endif %}
 
 	so-reuseport: yes
 	cache-min-ttl: 4  # shorter than test timeout
