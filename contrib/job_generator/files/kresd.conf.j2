@@ -12,6 +12,9 @@ net.listen('::1', {{ tls_port }}, {tls = true})
 {%- endif %}
 {% endif %}
 
+-- essential for TLS_FORWARD in Docker with lots of respdiff jobs
+net.tcp_pipeline(65535)
+
 {% if forward %}
 -- forwarding
 policy.add(policy.all(
