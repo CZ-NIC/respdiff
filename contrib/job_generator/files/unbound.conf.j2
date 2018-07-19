@@ -19,11 +19,11 @@ server:
 	cache-min-ttl: 4  # shorter than test timeout
 	module-config: "validator iterator"  # TODO
 	trust-anchor-file: "/usr/local/etc/unbound/root.keys"
-	msg-cache-size: 80m
+	msg-cache-size: 400m
 	msg-cache-slabs: 1
-	rrset-cache-size: 80m
+	rrset-cache-size: 400m
 	rrset-cache-slabs: 1
 	infra-cache-numhosts: 100000
 	val-log-level: 2
-	key-cache-size: 40m
-	neg-cache-size: 80m
+	key-cache-size: 100m
+	neg-cache-size: 100m
