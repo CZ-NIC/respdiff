@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import glob
+import logging
 import os
 import shutil
 import subprocess
@@ -17,6 +18,9 @@ FILES_DIR = os.path.join(DIR_PATH, 'files')
 def ensure_dir_exists(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
+    else:
+        logging.warning(
+            "%s already exists and may contain old job data.", directory)
 
 
 def copy_file(name, destdir):
@@ -111,6 +115,8 @@ def get_job_list(nameglob=''):
 
 
 def main():
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)8s  %(message)s', level=logging.DEBUG)
     parser = argparse.ArgumentParser(
         description="Prepare a Knot Resolver CI testing job for respdiff")
     parser.add_argument(
