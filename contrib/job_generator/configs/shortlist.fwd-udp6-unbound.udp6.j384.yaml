@@ -19,7 +19,7 @@ resolvers:
   unbound:
     type: unbound
     port: &unbound_port 53301
-    ipv6: true
+    listen_ipv6: true
     respdiff:
       ip: 127.0.0.1
       port: *unbound_port
@@ -41,7 +41,7 @@ resolvers:
   kresd:
     type: knot-resolver
     port: &kresd_port 53321
-    ipv6: true
+    listen_ipv6: true
     forward: *fwd_unbound
     respdiff:
       ip: '::1'

@@ -1,7 +1,9 @@
 options {
 	listen-on port {{ port }} { 127.0.0.1; };
-{% if ipv6 -%}
+{% if listen_ipv6 -%}
 	listen-on-v6 port {{ port }} { ::1; };
+{% else %}
+	listen-on-v6 {none;};
 {%- endif %}
 	directory 	"/dev/shm";
 	dump-file 	"/dev/shm/cache_dump.db";

@@ -42,12 +42,12 @@ resolvers:
     port: 53722
     tls_port: &kresd_fwd_target_port 53729
     forward: *fwd_unbound
-    ipv6: true
+    listen_ipv6: true
 
   kresd:
     type: knot-resolver
     port: &kresd_port 53721
-    ipv6: true
+    listen_ipv6: true
     forward:
       ip: '::1'
       port: *kresd_fwd_target_port

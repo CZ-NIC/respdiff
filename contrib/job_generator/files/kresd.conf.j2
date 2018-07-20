@@ -2,12 +2,12 @@
 
 -- Configure interfaces
 net.listen('127.0.0.1', {{ port }})
-{% if ipv6 -%}
+{% if listen_ipv6 -%}
 net.listen('::1', {{ port }})
 {%- endif %}
 {% if tls_port %}
 net.listen('127.0.0.1', {{ tls_port }}, {tls = true})
-{% if ipv6 -%}
+{% if listen_ipv6 -%}
 net.listen('::1', {{ tls_port }}, {tls = true})
 {%- endif %}
 {% endif %}
