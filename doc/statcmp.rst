@@ -61,4 +61,36 @@ When multiple reports are given for comparison, a line is drawn for each sample.
 Utility scripts
 ---------------
 
-TODO
+The utility scripts found in ``contrib/job_manager/`` are primarily used for
+easily creating statistics files from jobs created with job_manager. They assume
+the a directory structure of ``commit/test_case`` as follows:
+
+.. code::
+
+   .
+   ├── 0af97ea7
+   │   ├── shortlist.fwd-tls6-kresd.udp6.j128
+   │   ├── shortlist.fwd-udp6-kresd.udp6.j384
+   │   ├── shortlist.fwd-udp6-unbound.tcp6.j384
+   │   └── ...
+   ├ ...
+   └── v2.4.1
+       ├── shortlist.fwd-tls6-kresd.udp6.j128
+       ├── shortlist.fwd-udp6-kresd.udp6.j384
+       ├── shortlist.fwd-udp6-unbound.tcp6.j384
+       └── ...
+
+* ``make_stats.sh`` can be used to generate statistics (and their graphs) for
+   all test cases in a given directory
+
+   .. code::
+      make_stats.sh v2.4.1
+
+* ``plot_ref.sh`` can afterwards be used to compare all reports for all test
+   cases against the matching test cases for a given version/commit
+
+   .. code::
+      plot_ref.sh 0af97ea7 v2.4.1
+
+Output stats and comparison images of these scripts can be found in the target
+directories. Scripts assume the respdiff toolchain is installed in ``/var/opt/respdiff``.
