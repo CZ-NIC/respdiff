@@ -5,7 +5,7 @@ import collections.abc
 import json
 from typing import (  # noqa
     Any, Callable, Dict, Hashable, ItemsView, Iterator, KeysView, Mapping,
-    Optional, Set, Sequence, Tuple, Type, Union)
+    Optional, Set, Sequence, Tuple, Union)
 
 from .match import DataMismatch
 from .typing import FieldLabel, QID

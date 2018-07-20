@@ -14,10 +14,10 @@ Installation
    $ cd respdiff
    $ pip3 install -r requirements.txt
 
-Respdiff toolchain requires Python 3 (Python 3.4+ should work at the moment,
-newer is better). There are also some Python package dependencies that are
-listed in ``requirements.txt``. If you'd prefer to use your distribution
-packages, please install them manually instead of using ``pip3``.
+Respdiff toolchain requires **Python 3.5.2+**. There are also some Python package
+dependencies that are listed in ``requirements.txt``. If you'd prefer to use
+your distribution packages, please install them manually instead of using
+``pip3``.
 
 Usage
 -----
