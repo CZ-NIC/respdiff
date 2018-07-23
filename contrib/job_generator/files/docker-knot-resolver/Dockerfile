@@ -1,1 +1,0 @@
-../../../docker/knot-resolver/Dockerfile
