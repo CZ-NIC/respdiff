@@ -1,9 +1,3 @@
-jobdir: /var/tmp/respdiff-jobs
-
-condor:
-  queue: 1
-  priority: 0
-
 respdiff:
   srcdir: /var/opt/respdiff
   jobs: 384
@@ -16,10 +10,17 @@ database:
 
 resolvers:
 
+  kresd_fwd_target:
+    type: knot-resolver
+    port: &kresd_fwd_target_port 53622
+    listen_ipv6: true
+
   unbound:
     type: unbound
-    port: &unbound_port 53301
-    listen_ipv6: true
+    port: &unbound_port 53601
+    forward: &fwd_kresd
+      ip: '::1'
+      port: *kresd_fwd_target_port
     respdiff:
       ip: 127.0.0.1
       port: *unbound_port
@@ -28,10 +29,8 @@ resolvers:
 
   bind:
     type: bind
-    port: &bind_port 53311
-    forward: &fwd_unbound
-      ip: '::1'
-      port: *unbound_port
+    port: &bind_port 53611
+    forward: *fwd_kresd
     respdiff:
       ip: 127.0.0.1
       port: *bind_port
@@ -40,9 +39,9 @@ resolvers:
 
   kresd:
     type: knot-resolver
-    port: &kresd_port 53321
+    port: &kresd_port 53621
     listen_ipv6: true
-    forward: *fwd_unbound
+    forward: *fwd_kresd
     respdiff:
       ip: '::1'
       port: *kresd_port

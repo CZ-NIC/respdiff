@@ -1,24 +1,18 @@
-jobdir: /var/tmp/respdiff-jobs
-
-condor:
-  queue: 0
-  priority: 0
-
 respdiff:
   srcdir: /var/opt/respdiff
-  jobs: 128
+  jobs: 384
   target: kresd
 
 database:
-  url: https://gitlab.labs.nic.cz/knot/respdiff/uploads/0349b0aab9aca7605be363ea99635944/top10k.mdb
+  url: https://gitlab.labs.nic.cz/knot/respdiff/uploads/69e90a46226984d08e096424dd81397d/shortlist.mdb
   dest: data.mdb
-  remove_after: false
+  remove_after: true
 
 resolvers:
 
   unbound:
     type: unbound
-    port: &unbound_port 54001
+    port: &unbound_port 53101
     respdiff:
       ip: 127.0.0.1
       port: *unbound_port
@@ -27,7 +21,7 @@ resolvers:
 
   bind:
     type: bind
-    port: &bind_port 54011
+    port: &bind_port 53111
     respdiff:
       ip: 127.0.0.1
       port: *bind_port
@@ -36,9 +30,10 @@ resolvers:
 
   kresd:
     type: knot-resolver
-    port: &kresd_port 54021
+    port: &kresd_port 53121
+    listen_ipv6: true
     respdiff:
-      ip: 127.0.0.1
+      ip: '::1'
       port: *kresd_port
       transport: udp
       restart_script: ./restart-all.sh
