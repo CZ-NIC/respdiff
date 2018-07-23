@@ -103,7 +103,7 @@ def create_job(job_config):
     # create condor job file
     create_file_from_template('submit.condor.j2', jobdir, {
         'input_files': set(input_files),
-        'batch_name': "{}-{}".format(job_config['git_sha'][:7], job_config['name'])})
+        'batch_name': "{}-{}".format(job_config['git_sha'][:8], job_config['name'])})
 
     return jobdir
 
