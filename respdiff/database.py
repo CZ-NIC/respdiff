@@ -32,7 +32,7 @@ class LMDB:
 
     ENV_DEFAULTS = {
         'map_size': 10 * 1024**3,  # 10 G
-        'max_readers': 128,
+        'max_readers': 384,
         'max_dbs': 5,
         'max_spare_txns': 64,
     }  # type: Dict[str, Any]
