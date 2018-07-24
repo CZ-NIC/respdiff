@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import collections
 import contextlib
 import glob
 import logging
@@ -18,7 +19,7 @@ def get_all_files(directory: str) -> List[str]:
     return files
 
 
-def submit_condor_job(txn, priority: int):
+def submit_condor_job(txn, priority: int) -> int:
     directory = os.getcwd()
     input_files = get_all_files(directory)
 
@@ -49,7 +50,7 @@ def submit_condor_job(txn, priority: int):
             'j$(Cluster).$(Process)_report.txt',
             'j$(Cluster).$(Process)_histogram.svg']),
         })
-    submit.queue(txn)
+    return submit.queue(txn)
 
 
 @contextlib.contextmanager
@@ -78,7 +79,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    job_ids = []
+    job_ids = collections.defaultdict(list)
     schedd = Schedd()
 
     with schedd.transaction() as txn:
@@ -86,9 +87,13 @@ def main() -> None:
         for _ in range(args.count):
             for directory in args.job_dir:
                 with pushd(directory):
-                    job_ids.append(submit_condor_job(txn, args.priority))
+                    job_ids[directory].append(submit_condor_job(txn, args.priority))
 
-    logging.info("HTCondor jobs successfully submitted!")
+    for directory, jobs in job_ids:
+        logging.debug("%s job ids: %s", directory, ', '.join(job_ids))
+
+    job_count = sum(len(jobs) for jobs in job_ids.values())
+    logging.info("{} jobs successfully submitted!", job_count)
 
     if args.wait:
         raise NotImplementedError("Waiting for jobs not implemented yet!")
