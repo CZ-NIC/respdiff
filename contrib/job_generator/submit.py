@@ -90,10 +90,10 @@ def main() -> None:
                     job_ids[directory].append(submit_condor_job(txn, args.priority))
 
     for directory, jobs in job_ids.items():
-        logging.debug("%s job ids: %s", directory, ', '.join(job_ids))
+        logging.debug("%s job ids: %s", directory, ', '.join(jobs))
 
     job_count = sum(len(jobs) for jobs in job_ids.values())
-    logging.info("{} jobs successfully submitted!", job_count)
+    logging.info("%d jobs successfully submitted!", job_count)
 
     if args.wait:
         raise NotImplementedError("Waiting for jobs not implemented yet!")
