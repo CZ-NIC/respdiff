@@ -83,7 +83,7 @@ def main() -> None:
 
     with schedd.transaction() as txn:
         # submit jobs one-by-one to ensure round-robin job execution (instead of seq)
-        for _ in enumerate(args.count):
+        for _ in range(args.count):
             for directory in args.job_dir:
                 with pushd(directory):
                     job_ids.append(submit_condor_job(txn, args.priority))
