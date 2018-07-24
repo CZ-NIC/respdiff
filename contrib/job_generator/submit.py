@@ -34,7 +34,7 @@ def submit_condor_job(txn, priority: int):
     batch_name = commit_dir + '_' + test_case
 
     submit = Submit({
-        'priority': priority,
+        'priority': str(priority),
         'executable': 'run_respdiff.sh',
         'arguments': '$(Cluster) $(Process)',
         'error': 'j$(Cluster).$(Process)_stderr',
