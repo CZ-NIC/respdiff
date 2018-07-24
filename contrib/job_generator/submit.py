@@ -68,13 +68,15 @@ def pushd(new_dir):
 
 
 def condor_wait_for(schedd, job_ids: Sequence[int]) -> None:
+    logging.info(
+        'WAITING for jobs to complete. This can be safely interrupted with Ctl+C...')
     while True:
-        remaining, running, last_pos = condor_check_status(schedd, job_ids)
+        remaining, running, worst_pos = condor_check_status(schedd, job_ids)
         if not remaining:
             break
         logging.info(
-            "  remaning: %2d (running: %2d)     last queue position: %2d",
-            remaining, running, last_pos)
+            "  remaning: %2d (running: %2d)     worst queue position: %2d",
+            remaining, running, worst_pos + 1)
         time.sleep(WAIT_POLLING_PERIOD)
     logging.info("All jobs done!")
 
@@ -83,7 +85,7 @@ def condor_check_status(schedd, job_ids: Sequence[int]) -> Tuple[int, int, int]:
     all_jobs = schedd.query(True, ['JobPrio', 'ClusterId', 'JobStatus'])
     all_jobs = sorted(all_jobs, key=lambda x: (-x['JobPrio'], x['ClusterId']))
 
-    last_pos = 0
+    worst_pos = 0
     running = 0
     remaining = 0
 
@@ -92,9 +94,9 @@ def condor_check_status(schedd, job_ids: Sequence[int]) -> Tuple[int, int, int]:
             remaining += 1
             if int(job['JobStatus']) == JOB_STATUS_RUNNING:
                 running += 1
-            last_pos = i
+            worst_pos = i
 
-    return remaining, running, last_pos
+    return remaining, running, worst_pos
 
 
 def main() -> None:
@@ -132,7 +134,10 @@ def main() -> None:
     logging.info("%d job(s) successfully submitted!", job_count)
 
     if args.wait:
-        condor_wait_for(schedd, list(itertools.chain(*job_ids.values())))
+        try:
+            condor_wait_for(schedd, list(itertools.chain(*job_ids.values())))
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':
