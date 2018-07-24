@@ -98,8 +98,10 @@ def condor_wait_for(schedd, job_ids: Sequence[int]) -> None:
 
 
 def condor_check_status(schedd, job_ids: Sequence[int]) -> Tuple[int, int, int]:
-    all_jobs = schedd.query(True, ['JobPrio', 'ClusterId', 'JobStatus'])
-    all_jobs = sorted(all_jobs, key=lambda x: (-x['JobPrio'], x['ClusterId']))
+    all_jobs = schedd.query(True, ['JobPrio', 'ClusterId', 'ProcId', 'JobStatus'])
+    all_jobs = sorted(
+        all_jobs,
+        key=lambda x: (-x['JobPrio'], x['ClusterId'], x['ProcId']))
 
     worst_pos = 0
     running = 0
