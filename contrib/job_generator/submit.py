@@ -89,7 +89,7 @@ def main() -> None:
                 with pushd(directory):
                     job_ids[directory].append(submit_condor_job(txn, args.priority))
 
-    for directory, jobs in job_ids:
+    for directory, jobs in job_ids.items():
         logging.debug("%s job ids: %s", directory, ', '.join(job_ids))
 
     job_count = sum(len(jobs) for jobs in job_ids.values())
