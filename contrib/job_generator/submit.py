@@ -3,12 +3,18 @@ import argparse
 import collections
 import contextlib
 import glob
+import itertools
 import logging
 import os
 import sys
+import time
 import traceback
-from typing import Dict, List  # noqa
+from typing import Dict, List, Sequence, Tuple  # noqa
 import warnings
+
+
+WAIT_POLLING_PERIOD = 30
+JOB_STATUS_RUNNING = 2
 
 
 def get_all_files(directory: str) -> List[str]:
@@ -19,7 +25,7 @@ def get_all_files(directory: str) -> List[str]:
     return files
 
 
-def submit_condor_job(txn, priority: int) -> int:
+def condor_submit(txn, priority: int) -> int:
     directory = os.getcwd()
     input_files = get_all_files(directory)
 
@@ -61,6 +67,36 @@ def pushd(new_dir):
     os.chdir(previous_dir)
 
 
+def condor_wait_for(schedd, job_ids: Sequence[int]) -> None:
+    while True:
+        remaining, running, last_pos = condor_check_status(schedd, job_ids)
+        if not remaining:
+            break
+        logging.info(
+            "  remaning: %2d (running: %2d)     last queue position: %2d",
+            remaining, running, last_pos)
+        time.sleep(WAIT_POLLING_PERIOD)
+    logging.info("All jobs done!")
+
+
+def condor_check_status(schedd, job_ids: Sequence[int]) -> Tuple[int, int, int]:
+    all_jobs = schedd.query(True, ['JobPrio', 'ClusterId', 'JobStatus'])
+    all_jobs = sorted(all_jobs, key=lambda x: (-x['JobPrio'], x['ClusterId']))
+
+    last_pos = 0
+    running = 0
+    remaining = 0
+
+    for i, job in enumerate(all_jobs):
+        if int(job['ClusterId']) in job_ids:
+            remaining += 1
+            if int(job['JobStatus']) == JOB_STATUS_RUNNING:
+                running += 1
+            last_pos = i
+
+    return remaining, running, last_pos
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Submit prepared jobs to HTCondor cluster")
@@ -87,7 +123,7 @@ def main() -> None:
         for _ in range(args.count):
             for directory in args.job_dir:
                 with pushd(directory):
-                    job_ids[directory].append(submit_condor_job(txn, args.priority))
+                    job_ids[directory].append(condor_submit(txn, args.priority))
 
     for directory, jobs in job_ids.items():
         logging.info("%s JOB ID(s): %s", directory, ', '.join(str(j) for j in jobs))
@@ -96,7 +132,7 @@ def main() -> None:
     logging.info("%d job(s) successfully submitted!", job_count)
 
     if args.wait:
-        raise NotImplementedError("Waiting for jobs not implemented yet!")
+        condor_wait_for(schedd, list(itertools.chain(*job_ids.values())))
 
 
 if __name__ == '__main__':
