@@ -70,14 +70,30 @@ def pushd(new_dir):
 def condor_wait_for(schedd, job_ids: Sequence[int]) -> None:
     logging.info(
         'WAITING for jobs to complete. This can be safely interrupted with Ctl+C...')
+
+    prev_remaining = None
+    prev_running = None
+    prev_worst_pos = None
+
     while True:
         remaining, running, worst_pos = condor_check_status(schedd, job_ids)
         if not remaining:
             break
-        logging.info(
-            "  remaning: %2d (running: %2d)     worst queue position: %2d",
-            remaining, running, worst_pos + 1)
+
+        # log only status changes
+        if (remaining != prev_remaining or
+                running != prev_running or
+                worst_pos != prev_worst_pos):
+            logging.info(
+                "  remaning: %2d (running: %2d)     worst queue position: %2d",
+                remaining, running, worst_pos + 1)
+
+        prev_remaining = remaining
+        prev_running = running
+        prev_worst_pos = worst_pos
+
         time.sleep(WAIT_POLLING_PERIOD)
+
     logging.info("All jobs done!")
 
 
