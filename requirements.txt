@@ -1,7 +1,6 @@
 configparser
 dnspython>=1.15.0
 dpkt
-jinja2
 lmdb>=0.92
 matplotlib
 numpy
