@@ -10,6 +10,7 @@ services:
       context: ./docker-knot-resolver
       args:
         GIT_SHA: {{ git_sha }}
+        SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY}
     image: knot-resolver:{{ git_sha }}
     volumes:
       - "./{{ name }}.conf:/etc/knot-resolver/kresd.conf:ro"
