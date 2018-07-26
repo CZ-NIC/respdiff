@@ -60,6 +60,12 @@ trap cleanup ERR EXIT
 # Get database
 wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
 
+# Prepare ssh key for knot-resolver-security
+set +o xtrace
+SSH_PRIVATE_KEY=$(cat </home/respdiff/.ssh/knot_resolver_security.id_rsa || :)
+export SSH_PRIVATE_KEY
+set -o xtrace
+
 # Attempt to build containers (to have stdout/err logs in case of failure)
 time docker-compose up --no-start
 # Start and wait for resolvers to be available
