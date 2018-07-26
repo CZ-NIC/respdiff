@@ -4,8 +4,8 @@ set -o xtrace
 JOBNAME=j$1.$2
 
 # HACK (condor): ensure files for transfer exist to avoid held jobs
-touch ${JOBNAME}_report.json
-touch ${JOBNAME}_report.txt
+touch ${JOBNAME}_report{,.diffrepro}.json
+touch ${JOBNAME}_report{,.diffrepro}.txt
 touch ${JOBNAME}_histogram.svg
 
 # HACK (condor): Create proper dir structure
@@ -76,5 +76,7 @@ time "{{ respdiff['srcdir'] }}/orchestrator.py" .
 docker-compose stop  # give lingering connections time to close
 time "{{ respdiff['srcdir'] }}/msgdiff.py" -d ${JOBNAME}_report.json .
 time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.json .
-time "{{ respdiff['srcdir'] }}/diffsum.py" -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
+time "{{ respdiff['srcdir'] }}/diffsum.py" --without-diffrepro -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
+cp ${JOBNAME}_report{,.diffrepro}.json
+time "/var/opt/respdiff/diffsum.py" -d ${JOBNAME}_report.diffrepro.json . > ${JOBNAME}_report.diffrepro.txt
 time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.svg .
