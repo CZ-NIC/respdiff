@@ -78,7 +78,11 @@ def module_init(args: Namespace) -> None:
 def worker_init() -> None:
     __worker_state.timeouts = {}
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    worker_reinit()
+    try:
+        worker_reinit()
+    except RuntimeError as e:
+        # silence exception to avoid looping error during multiprocessing pool init
+        __worker_state.exception = e
 
 
 def worker_reinit() -> None:
@@ -100,8 +104,12 @@ def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBl
     """DNS query performed by orchestrator"""
     qkey, qwire = args
 
-    selector = __worker_state.selector
-    sockets = __worker_state.sockets
+    try:
+        selector = __worker_state.selector
+        sockets = __worker_state.sockets
+    except AttributeError:
+        # handle improper initialization
+        raise __worker_state.exception
 
     # optional artificial delay for testing
     if __time_delay_max > 0:
@@ -183,7 +191,12 @@ def sock_init() -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFl
         sock = socket.socket(af, socktype, 0)
         if transport == 'tls':
             sock = ssl.wrap_socket(sock)
-        sock.connect(destination)
+        try:
+            sock.connect(destination)
+        except ConnectionRefusedError:
+            raise RuntimeError(
+                "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
+                    dest=destination))
         sock.setblocking(False)
 
         sockets.append((name, sock, isstream))
