@@ -6,6 +6,7 @@ import glob
 import itertools
 import logging
 import os
+import signal
 import sys
 import time
 import traceback
@@ -72,6 +73,11 @@ def condor_wait_for(schedd, job_ids: Sequence[int]) -> None:
     prev_remaining = None
     prev_running = None
     prev_worst_pos = None
+
+    def remove_jobs(signum, frame):  # pylint: disable=unused-argument
+        logging.info('Job removal requested')
+
+    signal.signal(signal.SIGTERM, remove_jobs)
 
     while True:
         remaining, running, worst_pos = condor_check_status(schedd, job_ids)
