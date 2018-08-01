@@ -7,6 +7,7 @@ JOBNAME=j$1.$2
 touch ${JOBNAME}_report{,.diffrepro}.json
 touch ${JOBNAME}_report{,.diffrepro}.txt
 touch ${JOBNAME}_histogram.svg
+touch ${JOBNAME}_kresd.log
 
 # HACK (condor): Create proper dir structure
 mkdir -p docker-knot-resolver || :
@@ -49,6 +50,7 @@ done
 set -o errexit
 
 cleanup() {
+	mv {,${JOBNAME}_}kresd.log
 	docker-compose rm -fsv || :
 {%if database['remove_after'] %}
 	rm -rf ./*.mdb || :
