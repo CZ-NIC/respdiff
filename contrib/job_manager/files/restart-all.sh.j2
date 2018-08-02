@@ -6,7 +6,7 @@ set -o errexit -o nounset
 MAX_RETRIES=50
 
 docker-compose kill &>/dev/null || :
-docker-compose up -d &>/dev/null
+docker-compose --no-ansi up >>kresd.log 2>/dev/null &
 
 {% for resolver in resolvers.values() -%}
 retries=0
