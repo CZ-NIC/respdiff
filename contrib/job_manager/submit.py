@@ -51,6 +51,7 @@ def condor_submit(txn, priority: int) -> int:
         'when_to_transfer_output': 'ON_EXIT',
         'transfer_input_files': ', '.join(input_files),
         'transfer_output_files': ', '.join([
+            'j$(Cluster).$(Process)_kresd.log.gz',
             'j$(Cluster).$(Process)_report.json',
             'j$(Cluster).$(Process)_report.diffrepro.json',
             'j$(Cluster).$(Process)_report.txt',
