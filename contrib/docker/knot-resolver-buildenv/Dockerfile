@@ -1,5 +1,6 @@
 FROM ubuntu:latest
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+ARG KNOT_BRANCH=master
 
 RUN apt-get update -qq
 RUN apt-get upgrade -y -qqq
@@ -7,7 +8,7 @@ RUN apt-get upgrade -y -qqq
 # Install Knot DNS from sources
 RUN apt-get -y -qqq install git-core make gcc libtool autoconf pkg-config \
 	liburcu-dev liblmdb-dev libgnutls28-dev libjansson-dev libedit-dev libidn11-dev
-RUN git clone -b 2.6 --depth=1 https://gitlab.labs.nic.cz/knot/knot-dns.git /tmp/knot
+RUN git clone -b $KNOT_BRANCH --depth=1 https://gitlab.labs.nic.cz/knot/knot-dns.git /tmp/knot
 WORKDIR /tmp/knot
 RUN autoreconf -if
 RUN ./configure --disable-static --disable-fastparser --disable-documentation

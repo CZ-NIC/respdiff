@@ -132,6 +132,7 @@ def create_jobs(args: argparse.Namespace) -> None:
     for test_case in test_cases:
         config = load_test_case_config(test_case)
         config['git_sha'] = git_sha
+        config['knot_branch'] = args.knot_branch
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
         prepare_dir(directory, clean=args.clean)
@@ -163,6 +164,9 @@ def main() -> None:
     parser.add_argument(
         '--jobs-dir', default='/var/tmp/respdiff-jobs',
         help="Directory with job collections (default: /var/tmp/respdiff-jobs)")
+    parser.add_argument(
+        '--knot-branch', type=str, default='2.7',
+        help="Build knot-resolver against selected Knot DNS branch")
 
     args = parser.parse_args()
     create_jobs(args)

@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
-ARG GIT_TAG=v9_12_1
+ARG GIT_TAG=v9_13_2
 
 RUN apt-get update -qq
 RUN apt-get upgrade -y -qqq
