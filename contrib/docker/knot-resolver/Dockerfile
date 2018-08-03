@@ -1,8 +1,9 @@
-# first build stage, it will not persist in the final image
-FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv as intermediate
-
 ARG SSH_PRIVATE_KEY
 ARG GIT_SHA
+ARG KNOT_BRANCH=2.7
+
+# first build stage, it will not persist in the final image
+FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH as intermediate
 
 RUN mkdir /root/.ssh/
 RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa

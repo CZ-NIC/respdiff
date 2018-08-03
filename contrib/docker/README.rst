@@ -30,3 +30,16 @@ To build the container locally, with the desired git version:
 **Only use commit sha or tags.** Using branch names may lead to unexpected behaviour,
 as the container cache with outdated code might be used, despite any updates to the
 branch itself.
+
+For compiling with different Knot DNS versions, use ``--build_arg KNOT_BRANCH=x.y``.
+
+Registry Maintance - new builds
+-------------------------------
+
+.. code-block:: console
+
+   $ export KNOT_BRANCH=2.7
+   $ docker build -t registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH --build-arg KNOT_BRANCH=$KNOT_BRANCH knot-resolver-buildenv
+
+   $ docker login registry.labs.nic.cz
+   $ docker push registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH

@@ -67,6 +67,7 @@ export SSH_PRIVATE_KEY
 set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
+export KNOT_BRANCH={{ knot_branch }}
 time docker-compose up --no-start
 # Start and wait for resolvers to be available
 ./restart-all.sh
