@@ -168,7 +168,7 @@ def _check_timeout(replies: Mapping[ResolverID, DNSReply]) -> None:
                         resolver, __max_timeouts))
 
 
-def sock_init() -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]]:
+def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]]:
     sockets = []
     selector = selectors.DefaultSelector()
     for name, ipaddr, transport, port in __resolvers:
@@ -188,15 +188,29 @@ def sock_init() -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFl
             isstream = False
         else:
             raise NotImplementedError('transport: {}'.format(transport))
-        sock = socket.socket(af, socktype, 0)
-        if transport == 'tls':
-            sock = ssl.wrap_socket(sock)
-        try:
-            sock.connect(destination)
-        except ConnectionRefusedError:
-            raise RuntimeError(
-                "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
-                    dest=destination))
+
+        # attempt to connect to socket
+        attempt = 1
+        while attempt <= retry:
+            sock = socket.socket(af, socktype, 0)
+            if transport == 'tls':
+                sock = ssl.wrap_socket(sock)
+            try:
+                sock.connect(destination)
+            except ConnectionRefusedError:  # TCP socket is closed
+                raise RuntimeError(
+                    "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
+                        dest=destination))
+            except OSError:
+                # often happens during TLS handshake shortly after resolver startup
+                time.sleep(attempt)
+                attempt += 1
+                if attempt > retry:
+                    raise RuntimeError(
+                        "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
+                            dest=destination))
+            else:
+                break
         sock.setblocking(False)
 
         sockets.append((name, sock, isstream))
