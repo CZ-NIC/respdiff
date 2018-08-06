@@ -20,7 +20,8 @@ JOB_STATUS_RUNNING = 2
 def get_all_files(directory: str) -> List[str]:
     files = []
     for filename in glob.iglob('{}/**'.format(directory), recursive=True):
-        if os.path.isfile(filename):
+        # omit job artifacts (begins with j*)
+        if os.path.isfile(filename) and not os.path.basename(filename).startswith('j'):
             files.append(os.path.relpath(filename, directory))
     return files
 
