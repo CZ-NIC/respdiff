@@ -1,0 +1,40 @@
+respdiff:
+  srcdir: /var/opt/respdiff
+  jobs: 128
+  target: kresd
+
+database:
+  url: https://gitlab.labs.nic.cz/knot/respdiff/uploads/0349b0aab9aca7605be363ea99635944/top10k.mdb
+  dest: data.mdb
+  remove_after: false
+
+resolvers:
+
+  unbound:
+    type: unbound
+    port: &unbound_port 54501
+    respdiff:
+      ip: 127.0.0.1
+      port: *unbound_port
+      transport: udp
+      graph_color: '#218669'
+
+  bind:
+    type: bind
+    port: &bind_port 54511
+    respdiff:
+      ip: 127.0.0.1
+      port: *bind_port
+      transport: udp
+      graph_color: '#e2a000'
+
+  kresd:
+    type: knot-resolver
+    port: 54521
+    tls_port: &kresd_tls_port 54528
+    respdiff:
+      ip: 127.0.0.1
+      port: *kresd_tls_port
+      transport: tls
+      restart_script: ./restart-all.sh
+      graph_color: '#00a2e2'
