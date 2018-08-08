@@ -58,6 +58,7 @@ Respdiff is conceptually chain of independent tools:
 6. `histogram <doc/histogram.rst>`__: plot graph of answer latencies
 7. `sumcmp <doc/sumcmp.rst>`__: compare a new diffsum report to a reference one
 8. `sumstat <doc/sumstat.rst>`__: generate statistics from multiple diffsum reports
+9. `statcmp <doc/statcmp.rst>`__: plot and compare statistics and reports
 
 
 Changelog
