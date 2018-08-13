@@ -4,6 +4,7 @@ import statistics
 from typing import Any, Dict, List, Mapping, Optional, Sequence  # noqa
 
 import numpy
+import scipy.stats
 
 from .dataformat import Counter, JSONDataObject, Summary
 
@@ -48,6 +49,10 @@ class Stats(JSONDataObject):
     def max(self) -> float:
         return max(self.sequence)
 
+    def get_percentile_rank(self, sample: float) -> float:
+        return scipy.stats.percentileofscore(self.sequence, sample, kind='weak')
+
+    # TODO: this is a very magical detection of the upper boundary
     def calculate_upper_boundary(
                 self,
                 change_cutoff: float = -0.3,  # to detect cutoff in histogram; value < 0

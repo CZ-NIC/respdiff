@@ -5,3 +5,4 @@ lmdb>=0.92
 matplotlib
 numpy
 tabulate
+scipy
