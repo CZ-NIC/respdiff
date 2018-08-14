@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import sys
 from typing import Optional, Sequence
 
@@ -35,12 +36,12 @@ SAMPLE_COLORS = {
 
 
 class AxisMarker:
-    def __init__(self, position, width=0.7, color=COLOR_BG):
+    def __init__(self, position: float, width: float = 0.7, color: str = COLOR_BG) -> None:
         self.position = position
         self.width = width
         self.color = color
 
-    def draw(self, ax):
+    def draw(self, ax: matplotlib.axes.Axes):
         xmin = (1 - self.width) / 2
         xmax = 1 - xmin
         ax.axhline(self.position, color=self.color, xmin=xmin, xmax=xmax)
@@ -97,6 +98,55 @@ def _axes_iter(axes, width: int):
             return
 
 
+def eval_and_plot_single(
+            ax: matplotlib.axes.Axes,
+            stats: Stats,
+            label: str,
+            samples: Sequence[float]
+        ) -> bool:
+    markers = []
+    below_min = False
+    above_thr = False
+    for sample in samples:
+        result = stats.evaluate_sample(sample)
+        markers.append(AxisMarker(sample, color=SAMPLE_COLORS[result]))
+        if result in (Stats.SamplePosition.ABOVE_MAX,
+                      Stats.SamplePosition.ABOVE_UPPER_BOUNDARY):
+            above_thr = True
+            logging.error(
+                '  %s: threshold exceeded! sample: %d / %4.2f%% vs threshold: %d / %4.2f%%',
+                label, sample, stats.get_percentile_rank(sample),
+                stats.upper_boundary, stats.get_percentile_rank(stats.upper_boundary))
+        elif result == Stats.SamplePosition.BELOW_MIN:
+            below_min = True
+            logging.info(
+                '  %s: new minimum found! new: %d vs prev: %d',
+                label, sample, stats.min)
+        else:
+            logging.info(
+                '  %s: ok! sample: %d / %4.2f%% vs threshold: %d / %4.2f%%',
+                label, sample, stats.get_percentile_rank(sample),
+                stats.upper_boundary, stats.get_percentile_rank(stats.upper_boundary))
+
+    # add min/med/max markers
+    markers.append(AxisMarker(stats.min, 0.5, COLOR_BG))
+    markers.append(AxisMarker(stats.median, 0.5, COLOR_BG))
+    markers.append(AxisMarker(stats.max, 0.5, COLOR_BG))
+    markers.append(AxisMarker(stats.upper_boundary, 0.9, COLOR_BOUNDARY))
+
+    # select label color
+    if above_thr:
+        color = COLOR_BAD
+    elif below_min:
+        color = COLOR_GOOD
+    else:
+        color = COLOR_LABEL
+
+    plot_violin(ax, stats.sequence, markers, label, color)
+
+    return not above_thr
+
+
 def plot_overview(
             sumstats: SummaryStatistics,
             fields: Sequence[FieldLabel],
@@ -108,41 +158,6 @@ def plot_overview(
     they are drawn in the graphs and also evaluated. If any sample in any field exceeds
     the upper boundary, the function return False. True is returned otherwise.
     """
-    def eval_and_plot(
-                stats: Stats,
-                label: str,
-                samples: Sequence[float]
-            ) -> bool:
-        markers = []
-        below_min = False
-        above_thr = False
-        for sample in samples:
-            result = stats.evaluate_sample(sample)
-            markers.append(AxisMarker(sample, SAMPLE_COLORS[result]))
-            if result in (Stats.SamplePosition.ABOVE_MAX,
-                          Stats.SamplePosition.ABOVE_UPPER_BOUNDARY):
-                above_thr = True
-            elif result == Stats.SamplePosition.BELOW_MIN:
-                below_min = True
-
-        # add min/med/max markers
-        markers.append(AxisMarker(stats.min, 0.5, COLOR_BG))
-        markers.append(AxisMarker(stats.median, 0.5, COLOR_BG))
-        markers.append(AxisMarker(stats.max, 0.5, COLOR_BG))
-        markers.append(AxisMarker(stats.upper_boundary, 0.9, COLOR_BOUNDARY))
-
-        # select label color
-        if above_thr:
-            color = COLOR_BAD
-        elif below_min:
-            color = COLOR_GOOD
-        else:
-            color = COLOR_LABEL
-
-        plot_violin(next(ax_it), stats.sequence, markers, label, color)
-
-        return not above_thr
-
     if summaries is None:
         summaries = []
 
@@ -160,23 +175,27 @@ def plot_overview(
     # target disagreements
     assert sumstats.target_disagreements is not None
     samples = [len(summary) for summary in summaries]
-    passed &= eval_and_plot(sumstats.target_disagreements, 'target_disagreements', samples)
+    passed &= eval_and_plot_single(
+        next(ax_it), sumstats.target_disagreements, 'target_disagreements', samples)
 
     # upstream unstable
     assert sumstats.upstream_unstable is not None
     samples = [summary.upstream_unstable for summary in summaries]
-    passed &= eval_and_plot(sumstats.upstream_unstable, 'upstream_unstable', samples)
+    passed &= eval_and_plot_single(
+        next(ax_it), sumstats.upstream_unstable, 'upstream_unstable', samples)
 
     # not 100% reproducible
     assert sumstats.not_reproducible is not None
     samples = [summary.not_reproducible for summary in summaries]
-    passed &= eval_and_plot(sumstats.not_reproducible, 'not_reproducible', samples)
+    passed &= eval_and_plot_single(
+        next(ax_it), sumstats.not_reproducible, 'not_reproducible', samples)
 
     # fields
     assert sumstats.fields is not None
     fcs = [summary.get_field_counters() for summary in summaries]
     for field in fields:
-        passed &= eval_and_plot(
+        passed &= eval_and_plot_single(
+            next(ax_it),
             sumstats.fields[field].total,
             field,
             [len(list(fc[field].elements())) for fc in fcs])
