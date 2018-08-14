@@ -2,7 +2,7 @@
 
 import argparse
 import logging
-import multiprocessing.pool as pool
+from multiprocessing import pool
 import sys
 
 from respdiff import cli, sendrecv

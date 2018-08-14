@@ -3,7 +3,7 @@
 import argparse
 from functools import partial
 import logging
-import multiprocessing.pool as pool
+from multiprocessing import pool
 import os
 import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
