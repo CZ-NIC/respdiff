@@ -1,4 +1,5 @@
 import collections
+from enum import Enum
 import math
 import statistics
 from typing import Any, Dict, List, Mapping, Optional, Sequence  # noqa
@@ -16,6 +17,12 @@ class Stats(JSONDataObject):
     }
 
     MAX_NUMBINS = 50  # maximum amount of bins in histogram
+
+    class SamplePosition(Enum):
+        BELOW_MIN = 1
+        ABOVE_UPPER_BOUNDARY = 2
+        ABOVE_MAX = 3
+        WITHIN_BOUNDARIES = 4
 
     def __init__(
                 self,
@@ -51,6 +58,15 @@ class Stats(JSONDataObject):
 
     def get_percentile_rank(self, sample: float) -> float:
         return scipy.stats.percentileofscore(self.sequence, sample, kind='weak')
+
+    def evaluate_sample(self, sample: float) -> 'Stats.SamplePosition':
+        if sample < self.min:
+            return Stats.SamplePosition.BELOW_MIN
+        elif sample > self.max:
+            return Stats.SamplePosition.ABOVE_MAX
+        elif sample > self.upper_boundary:
+            return Stats.SamplePosition.ABOVE_UPPER_BOUNDARY
+        return Stats.SamplePosition.WITHIN_BOUNDARIES
 
     # TODO: this is a very magical detection of the upper boundary
     def calculate_upper_boundary(
