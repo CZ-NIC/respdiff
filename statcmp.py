@@ -12,7 +12,7 @@ from respdiff.typing import FieldLabel
 # pylint: disable=wrong-import-order,wrong-import-position
 import matplotlib
 import matplotlib.axes
-import matplotlib.ticker as ticker
+import matplotlib.ticker
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa
 
@@ -26,45 +26,46 @@ COLOR_LABEL = 'black'
 
 VIOLIN_FIGSIZE = (3, 6)
 
+SAMPLE_COLORS = {
+    Stats.SamplePosition.ABOVE_MAX: COLOR_BAD,
+    Stats.SamplePosition.ABOVE_UPPER_BOUNDARY: COLOR_BAD,
+    Stats.SamplePosition.WITHIN_BOUNDARIES: COLOR_OK,
+    Stats.SamplePosition.BELOW_MIN: COLOR_GOOD,
+}
 
-def violin_plot(
-            ax: matplotlib.axes.Axes,
-            stats: Stats,
-            label: str,
-            samples: Optional[Sequence[float]] = None
-        ) -> bool:
-    def draw_hline(y, color, width=0.7):
-        xmin = (1 - width) / 2
+
+class AxisMarker:
+    def __init__(self, position, width=0.7, color=COLOR_BG):
+        self.position = position
+        self.width = width
+        self.color = color
+
+    def draw(self, ax):
+        xmin = (1 - self.width) / 2
         xmax = 1 - xmin
-        ax.axhline(y, color=color, xmin=xmin, xmax=xmax)
+        ax.axhline(self.position, color=self.color, xmin=xmin, xmax=xmax)
 
-    below_min = False
-    above_max = False
 
-    if samples is not None:
-        below_min = any(sample < stats.min for sample in samples)
-        above_max = any(sample > stats.max for sample in samples)
-
-        # draw line representing sample(s)
-        for sample in samples:
-            if sample < stats.min:
-                color = COLOR_GOOD
-                below_min = True
-            elif sample <= stats.upper_boundary:
-                color = COLOR_OK
-            else:
-                color = COLOR_BAD
-                above_max = True
-            draw_hline(sample, color)
-
-    # draw colored title
-    if above_max:
-        color = COLOR_BAD
-    elif below_min:
-        color = COLOR_GOOD
-    else:
-        color = COLOR_LABEL
+def plot_violin(
+            ax: matplotlib.axes.Axes,
+            violin_data: Sequence[float],
+            markers: Sequence[AxisMarker],
+            label: str,
+            color: str = COLOR_LABEL
+        ) -> None:
     ax.set_title(label, fontdict={'fontsize': 14}, color=color)
+
+    # plot violin graph
+    violin_parts = ax.violinplot(violin_data, bw_method=0.07,
+                                 showmedians=False, showextrema=False)
+    # set violin background color
+    for pc in violin_parts['bodies']:
+        pc.set_facecolor(COLOR_BG)
+        pc.set_edgecolor(COLOR_BG)
+
+    # draw axis markers
+    for marker in markers:
+        marker.draw(ax)
 
     # turn off axis spines
     for sp in ['right', 'top', 'bottom']:
@@ -72,29 +73,16 @@ def violin_plot(
     # move the left ax spine to center
     ax.spines['left'].set_position(('data', 1))
 
-    # plot graph
-    violin_parts = ax.violinplot(stats.sequence, bw_method=0.07,
-                                 showmedians=False, showextrema=False)
-    for pc in violin_parts['bodies']:
-        pc.set_facecolor(COLOR_BG)
-        pc.set_edgecolor(COLOR_BG)
-    draw_hline(stats.min, COLOR_BG, 0.5)
-    draw_hline(stats.median, COLOR_BG, 0.5)
-    draw_hline(stats.max, COLOR_BG, 0.5)
-    draw_hline(stats.upper_boundary, COLOR_BOUNDARY, 0.9)
-
     # customize axis ticks
-    ax.xaxis.set_major_locator(ticker.NullLocator())
-    ax.xaxis.set_minor_locator(ticker.NullLocator())
-    if max(stats.sequence) == 0:
-        ax.yaxis.set_major_locator(ticker.FixedLocator([0]))
+    ax.xaxis.set_major_locator(matplotlib.ticker.NullLocator())
+    ax.xaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+    if max(violin_data) == 0:  # fix tick at 0 when there's no data
+        ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator([0]))
     else:
-        ax.yaxis.set_major_locator(ticker.MaxNLocator(
+        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(
             nbins='auto', steps=[1, 2, 4, 5, 10], integer=True))
-    ax.yaxis.set_minor_locator(ticker.NullLocator())
+    ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
     ax.tick_params(labelsize=14)
-
-    return not above_max
 
 
 def _axes_iter(axes, width: int):
@@ -109,14 +97,54 @@ def _axes_iter(axes, width: int):
             return
 
 
-def overview_plot(
+def plot_overview(
             sumstats: SummaryStatistics,
             fields: Sequence[FieldLabel],
-            samples: Optional[Sequence[Summary]] = None,
+            summaries: Optional[Sequence[Summary]] = None,
             label: str = 'fields_overview'
         ) -> bool:
-    if samples is None:
-        samples = []
+    """
+    Plot an overview of all fields using violing graphs. If any summaries are provided,
+    they are drawn in the graphs and also evaluated. If any sample in any field exceeds
+    the upper boundary, the function return False. True is returned otherwise.
+    """
+    def eval_and_plot(
+                stats: Stats,
+                label: str,
+                samples: Sequence[float]
+            ) -> bool:
+        markers = []
+        below_min = False
+        above_thr = False
+        for sample in samples:
+            result = stats.evaluate_sample(sample)
+            markers.append(AxisMarker(sample, SAMPLE_COLORS[result]))
+            if result in (Stats.SamplePosition.ABOVE_MAX,
+                          Stats.SamplePosition.ABOVE_UPPER_BOUNDARY):
+                above_thr = True
+            elif result == Stats.SamplePosition.BELOW_MIN:
+                below_min = True
+
+        # add min/med/max markers
+        markers.append(AxisMarker(stats.min, 0.5, COLOR_BG))
+        markers.append(AxisMarker(stats.median, 0.5, COLOR_BG))
+        markers.append(AxisMarker(stats.max, 0.5, COLOR_BG))
+        markers.append(AxisMarker(stats.upper_boundary, 0.9, COLOR_BOUNDARY))
+
+        # select label color
+        if above_thr:
+            color = COLOR_BAD
+        elif below_min:
+            color = COLOR_GOOD
+        else:
+            color = COLOR_LABEL
+
+        plot_violin(next(ax_it), stats.sequence, markers, label, color)
+
+        return not above_thr
+
+    if summaries is None:
+        summaries = []
 
     passed = True
     OVERVIEW_X_FIG = 7
@@ -131,34 +159,24 @@ def overview_plot(
 
     # target disagreements
     assert sumstats.target_disagreements is not None
-    passed &= violin_plot(
-        next(ax_it),
-        sumstats.target_disagreements,
-        'target_disagreements',
-        [len(summary) for summary in samples])
+    samples = [len(summary) for summary in summaries]
+    passed &= eval_and_plot(sumstats.target_disagreements, 'target_disagreements', samples)
 
     # upstream unstable
     assert sumstats.upstream_unstable is not None
-    passed &= violin_plot(
-        next(ax_it),
-        sumstats.upstream_unstable,
-        'upstream_unstable',
-        [summary.upstream_unstable for summary in samples])
+    samples = [summary.upstream_unstable for summary in summaries]
+    passed &= eval_and_plot(sumstats.upstream_unstable, 'upstream_unstable', samples)
 
     # not 100% reproducible
     assert sumstats.not_reproducible is not None
-    passed &= violin_plot(
-        next(ax_it),
-        sumstats.not_reproducible,
-        'not_reproducible',
-        [summary.not_reproducible for summary in samples])
+    samples = [summary.not_reproducible for summary in summaries]
+    passed &= eval_and_plot(sumstats.not_reproducible, 'not_reproducible', samples)
 
     # fields
     assert sumstats.fields is not None
-    fcs = [summary.get_field_counters() for summary in samples]
+    fcs = [summary.get_field_counters() for summary in summaries]
     for field in fields:
-        passed &= violin_plot(
-            next(ax_it),
+        passed &= eval_and_plot(
             sumstats.fields[field].total,
             field,
             [len(list(fc[field].elements())) for fc in fcs])
@@ -201,7 +219,7 @@ def main():
     sumstats = args.stats
     field_weights = args.cfg['report']['field_weights']
 
-    passed = overview_plot(sumstats, field_weights, summaries, args.label)
+    passed = plot_overview(sumstats, field_weights, summaries, args.label)
 
     if not passed:
         sys.exit(3)
