@@ -24,7 +24,7 @@ RUN \
 
 
 # actual image
-FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv
+FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 
 COPY --from=intermediate /var/opt/knot-resolver /var/opt/knot-resolver

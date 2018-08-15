@@ -136,7 +136,7 @@ def match_part(  # pylint: disable=inconsistent-return-statements
         return compare_val(dns.rcode.to_text(exp_msg.rcode()), dns.rcode.to_text(got_msg.rcode()))
     elif criteria == 'question':
         return compare_rrs(exp_msg.question, got_msg.question)
-    elif criteria == 'answer' or criteria == 'ttl':
+    elif criteria in ('answer', 'ttl'):
         return compare_rrs(exp_msg.answer, got_msg.answer)
     elif criteria == 'answertypes':
         return compare_rrs_types(exp_msg.answer, got_msg.answer, compare_rrsigs=False)

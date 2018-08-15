@@ -14,6 +14,7 @@ disable=
     broad-except,
     bad-continuation,
     global-statement,
+    no-else-return,
 
 
 [SIMILARITIES]
