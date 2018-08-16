@@ -8,9 +8,17 @@ import numpy
 import scipy.stats
 
 from .dataformat import Counter, JSONDataObject, Summary
+from .cfg import ALL_FIELDS
 
 
 class Stats(JSONDataObject):
+    """
+    Represents statistical data for a single parameter (field/mismatch/...)
+
+    It contains the entire sequence of the original data, e.g. number of
+    total mismatches. This allows further statistical processing which also
+    takes place here.
+    """
     _ATTRIBUTES = {
         'sequence': (None, None),
         'upper_boundary': (None, None),
@@ -19,6 +27,7 @@ class Stats(JSONDataObject):
     MAX_NUMBINS = 50  # maximum amount of bins in histogram
 
     class SamplePosition(Enum):
+        """Position of a single sample against the rest of the distribution."""
         BELOW_MIN = 1
         ABOVE_UPPER_BOUNDARY = 2
         ABOVE_MAX = 3
@@ -30,6 +39,10 @@ class Stats(JSONDataObject):
                 upper_boundary: Optional[float] = None,
                 data: Mapping[str, float] = None
             ) -> None:
+        """
+        sequence should contain the entire data set of values of this parameter.
+        If no custom upper_boundary is provided, it is calculated automagically.
+        """
         super(Stats, self).__init__()
         self.sequence = sequence if sequence is not None else []
         if data is not None:
@@ -163,11 +176,6 @@ class MismatchStatistics(dict, JSONDataObject):
         for mismatch_key, stats_data in self.items():
             data[mismatch_key] = stats_data.save()
         return data
-
-
-ALL_FIELDS = [
-    'timeout', 'malformed', 'opcode', 'qcase', 'qtype', 'rcode', 'flags', 'answertypes',
-    'answerrrsigs', 'answer', 'authority', 'additional', 'edns', 'nsid']
 
 
 class FieldStatistics(dict, JSONDataObject):
