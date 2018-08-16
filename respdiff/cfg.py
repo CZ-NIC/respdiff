@@ -12,9 +12,8 @@ import dns.inet
 
 
 ALL_FIELDS = [
-    'timeout', 'malformed', 'opcode', 'qcase', 'qname', 'qtype', 'question', 'rcode',
-    'flags', 'answertypes', 'answerrrsigs', 'answer', 'authority', 'additional',
-    'edns', 'nsid']
+    'timeout', 'malformed', 'opcode', 'question', 'rcode', 'flags', 'answertypes',
+    'answerrrsigs', 'answer', 'authority', 'additional', 'edns', 'nsid']
 
 
 def ipaddr_check(addr):

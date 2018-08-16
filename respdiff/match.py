@@ -73,7 +73,7 @@ def compare_val(exp_val: MismatchValue, got_val: MismatchValue):
     return True
 
 
-def compare_rrs(expected: RRset, got: RRset):
+def compare_rrs(expected: Sequence[RRset], got: Sequence[RRset]):
     """ Compare lists of RR sets, throw exception if different. """
     for rr in expected:
         if rr not in got:
@@ -81,12 +81,15 @@ def compare_rrs(expected: RRset, got: RRset):
     for rr in got:
         if rr not in expected:
             raise DataMismatch(expected, got)
-    if len(expected) != len(got):
+    if len(expected) != len(got):  # detect duplicates
         raise DataMismatch(expected, got)
     return True
 
 
-def compare_rrs_types(exp_val: RRset, got_val: RRset, compare_rrsigs: bool):
+def compare_rrs_types(
+            exp_val: Sequence[RRset],
+            got_val: Sequence[RRset],
+            compare_rrsigs: bool):
     """sets of RR types in both sections must match"""
     def rr_ordering_key(rrset):
         return rrset.covers if compare_rrsigs else rrset.rdtype
@@ -120,22 +123,14 @@ def match_part(  # pylint: disable=inconsistent-return-statements
     """ Compare scripted reply to given message using single criteria. """
     if criteria == 'opcode':
         return compare_val(exp_msg.opcode(), got_msg.opcode())
-    elif criteria == 'qtype':
-        if not exp_msg.question:
-            return True
-        return compare_val(exp_msg.question[0].rdtype, got_msg.question[0].rdtype)
-    elif criteria == 'qname':
-        if not exp_msg.question:
-            return True
-        return compare_val(exp_msg.question[0].name, got_msg.question[0].name)
-    elif criteria == 'qcase':
-        return compare_val(got_msg.question[0].name.labels, exp_msg.question[0].name.labels)
     elif criteria == 'flags':
         return compare_val(dns.flags.to_text(exp_msg.flags), dns.flags.to_text(got_msg.flags))
     elif criteria == 'rcode':
         return compare_val(dns.rcode.to_text(exp_msg.rcode()), dns.rcode.to_text(got_msg.rcode()))
     elif criteria == 'question':
-        return compare_rrs(exp_msg.question, got_msg.question)
+        question_match = compare_rrs(exp_msg.question, got_msg.question)
+        case_match = compare_val(got_msg.question[0].name.labels, exp_msg.question[0].name.labels)
+        return question_match and case_match
     elif criteria in ('answer', 'ttl'):
         return compare_rrs(exp_msg.answer, got_msg.answer)
     elif criteria == 'answertypes':
