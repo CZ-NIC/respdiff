@@ -194,6 +194,9 @@ def plot_overview(
     assert sumstats.fields is not None
     fcs = [summary.get_field_counters() for summary in summaries]
     for field in fields:
+        if field not in sumstats.fields:
+            logging.warning('Field "{}" missing in statistics, omitting...'.format(field))
+            continue
         passed &= eval_and_plot_single(
             next(ax_it),
             sumstats.fields[field].total,

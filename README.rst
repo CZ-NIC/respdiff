@@ -67,4 +67,5 @@ Changelog
 - 2018-08-16: all fields must have assigned weight in ``respdiff.cfg`` (section report).
   Missing fields ``qname`` and ``question`` were added to ``field_weights`` in
   default config.
+- 2018-08-16: new dependency ``scipy`` added to ``requirements.txt``
 - 2018-06-01: reorganized tools and created a new git repo with cleaned-up history
