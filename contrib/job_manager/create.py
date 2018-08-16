@@ -76,6 +76,7 @@ def create_template_files(directory: str, config: Dict[str, Any]):
 
     for name, resolver in config['resolvers'].items():
         resolver['name'] = name
+        resolver['verbose'] = config['verbose']
         if resolver['type'] == 'knot-resolver':
             dockerfile_dir = os.path.join(directory, 'docker-knot-resolver')
             if not os.path.exists(dockerfile_dir):
@@ -133,6 +134,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config = load_test_case_config(test_case)
         config['git_sha'] = git_sha
         config['knot_branch'] = args.knot_branch
+        config['verbose'] = args.verbose
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
         prepare_dir(directory, clean=args.clean)
@@ -167,6 +169,9 @@ def main() -> None:
     parser.add_argument(
         '--knot-branch', type=str, default='2.7',
         help="Build knot-resolver against selected Knot DNS branch")
+    parser.add_argument(
+        '-v', '--verbose', action='store_true',
+        help="Capture verbose logs from kresd")
 
     args = parser.parse_args()
     create_jobs(args)
