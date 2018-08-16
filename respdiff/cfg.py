@@ -12,9 +12,9 @@ import dns.inet
 
 
 ALL_FIELDS = [
-    'timeout', 'malformed', 'opcode', 'qcase', 'qname', 'qtype', 'question', 'rcode',
-    'flags', 'answertypes', 'answerrrsigs', 'answer', 'authority', 'additional',
-    'edns', 'nsid']
+    'timeout', 'malformed', 'opcode', 'question', 'rcode', 'flags', 'answertypes',
+    'answerrrsigs', 'answer', 'authority', 'additional', 'edns', 'nsid']
+ALL_FIELDS_SET = set(ALL_FIELDS)
 
 
 def ipaddr_check(addr):
@@ -127,21 +127,17 @@ def cfg2dict_check_diff(cdict):
 
 def cfg2dict_check_fields(cdict):
     """Check if all fields are known and that all have a weight assigned"""
-    def get_unknown_fields(fields):
-        return [field for field in fields if field not in ALL_FIELDS]
-
-    unknown_criteria = get_unknown_fields(cdict['diff']['criteria'])
+    unknown_criteria = set(cdict['diff']['criteria']) - ALL_FIELDS_SET
     if unknown_criteria:
         raise ValueError('[diff] criteria: unknown fields: {}'.format(
             ', '.join(['"{}"'.format(field) for field in unknown_criteria])))
 
-    unknown_field_weights = get_unknown_fields(cdict['report']['field_weights'])
+    unknown_field_weights = set(cdict['report']['field_weights']) - ALL_FIELDS_SET
     if unknown_field_weights:
         raise ValueError('[report] field_weights: unknown fields: {}'.format(
             ', '.join(['"{}"'.format(field) for field in unknown_field_weights])))
 
-    missing_field_weights = [
-        field for field in ALL_FIELDS if field not in cdict['report']['field_weights']]
+    missing_field_weights = ALL_FIELDS_SET - set(cdict['report']['field_weights'])
     if missing_field_weights:
         raise ValueError('[report] field_weights: missing fields: {}'.format(
             ', '.join(['"{}"'.format(field) for field in missing_field_weights])))
