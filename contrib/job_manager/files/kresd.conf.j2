@@ -32,7 +32,7 @@ policy.add(policy.all(
 -- records will be paged out
 cache.size = 1000 * MB
 
-verbose(false)
+verbose({{ 'true' if verbose else 'false' }})
 
 -- Load Useful modules
 modules = {

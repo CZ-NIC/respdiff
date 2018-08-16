@@ -7,6 +7,8 @@ JOBNAME=j$1.$2
 touch ${JOBNAME}_report{,.diffrepro}.json
 touch ${JOBNAME}_report{,.diffrepro}.txt
 touch ${JOBNAME}_histogram.svg
+mkdir logs
+tar -cJf ${JOBNAME}_logs.tar.xz -T /dev/null  # empty tar by default
 
 # HACK (condor): Create proper dir structure
 mkdir -p docker-knot-resolver || :
@@ -50,6 +52,7 @@ set -o errexit
 
 cleanup() {
 	docker-compose rm -fsv || :
+    tar -cJf ${JOBNAME}_logs.tar.xz logs &>/dev/null || :
 {%if database['remove_after'] %}
 	rm -rf ./*.mdb || :
 {% endif %}
