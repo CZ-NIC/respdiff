@@ -62,4 +62,7 @@ Respdiff is conceptually chain of independent tools:
 Changelog
 ---------
 
+- 2018-08-21: ``qname``, ``qcase`` and ``qtype`` field comparisons were removed.
+  ``question`` comparison now performs all these check in a case sensitive manner.
+  Remove these checks from ``criteria`` and ``field_weights`` in ``respdiff.cfg``.
 - 2018-06-01: reorganized tools and created a new git repo with cleaned-up history
