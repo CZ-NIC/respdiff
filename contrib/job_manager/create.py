@@ -109,9 +109,12 @@ def create_template_files(directory: str, config: Dict[str, Any]):
 
 
 def get_test_case_list(nameglob: str = '') -> List[str]:
-    return [
+    # test cases end with '*.jXXX' implying a number of jobs (less -> longer runtime)
+    # return them in ascending order, so more time consuming test cases run first
+    return sorted([
         os.path.splitext(os.path.basename(fname))[0]
-        for fname in glob.glob(os.path.join(TEST_CASE_DIR, '{}*.yaml'.format(nameglob)))]
+        for fname in glob.glob(os.path.join(TEST_CASE_DIR, '{}*.yaml'.format(nameglob)))],
+        key=lambda x: x.split('.')[-1])  # sort by job count
 
 
 def create_jobs(args: argparse.Namespace) -> None:
