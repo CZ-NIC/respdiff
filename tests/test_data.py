@@ -290,11 +290,11 @@ def test_disagreements():
 
     # initialize from data (JSON)
     dis_data = json.loads(QUERY_DIFF_JSON)
-    dis_loaded = Disagreements(data=dis_data)
+    dis_loaded = Disagreements(_restore_dict=dis_data)
     assert dis_loaded == dis
 
     # save and restore data
-    dis_restored = Disagreements(data=dis.save())
+    dis_restored = Disagreements(_restore_dict=dis.save())
     assert dis_restored == dis
 
 
@@ -302,13 +302,13 @@ def test_disagreements_counter():
     dc = DisagreementsCounter()
     assert dc.count == 0
     dc.count = 4
-    dc_restored = DisagreementsCounter(data=dc.save())
+    dc_restored = DisagreementsCounter(_restore_dict=dc.save())
     assert dc_restored.count == 4
     assert len(dc_restored) == 4
 
 
 def test_diff_report():
-    report = DiffReport(data=json.loads(DIFF_REPORT_JSON))
+    report = DiffReport(_restore_dict=json.loads(DIFF_REPORT_JSON))
     assert report.start_time == 1
     assert report.end_time == 2
     assert report.duration == 1
@@ -317,7 +317,7 @@ def test_diff_report():
     assert len(report.other_disagreements) == 150
     assert len(report.target_disagreements) == 4
 
-    report_restored = DiffReport(data=report.save())
+    report_restored = DiffReport(_restore_dict=report.save())
     for attrib in report.__dict__:
         assert getattr(report, attrib) == getattr(report_restored, attrib)
 
@@ -325,7 +325,7 @@ def test_diff_report():
     partial_data = report.save()
     del partial_data['other_disagreements']
     del partial_data['target_disagreements']
-    partial_report = DiffReport(data=partial_data)
+    partial_report = DiffReport(_restore_dict=partial_data)
     assert partial_report.other_disagreements is None
     assert partial_report.target_disagreements is None
     for key, value in partial_data.items():
@@ -334,7 +334,7 @@ def test_diff_report():
 
 def test_summary():
     field_weights = ['timeout', 'answertypes', 'aswerrrsigs']
-    report = DiffReport(data=json.loads(DIFF_REPORT_JSON))
+    report = DiffReport(_restore_dict=json.loads(DIFF_REPORT_JSON))
 
     # no reprodata -- no queries are missing
     summary = Summary.from_report(report, field_weights)
@@ -349,7 +349,7 @@ def test_summary():
     assert mismatch_count == len(summary)
 
     # filter not reproducible
-    report.reprodata = ReproData(data=json.loads(REPRODATA_JSON))
+    report.reprodata = ReproData(_restore_dict=json.loads(REPRODATA_JSON))
     summary = Summary.from_report(report, field_weights)
     assert len(summary) == 2
     assert summary.upstream_unstable == (150 + 1)
@@ -357,7 +357,7 @@ def test_summary():
     assert summary.not_reproducible == 1
 
     # JSON export/import
-    restored_summary = Summary(data=summary.save())
+    restored_summary = Summary(_restore_dict=summary.save())
     assert len(summary) == 2
     assert restored_summary.upstream_unstable == summary.upstream_unstable
     assert restored_summary.usable_answers == summary.usable_answers
@@ -384,7 +384,7 @@ def test_repro_counter():
     assert rc.upstream_stable == 2
     assert rc.verified == 1
 
-    rc = ReproCounter(data={'retries': 4})
+    rc = ReproCounter(_restore_dict={'retries': 4})
     assert rc.retries == 4
     assert rc.upstream_stable == 0
     assert rc.verified == 0
@@ -416,7 +416,7 @@ def test_repro_data():
 
     assert ReproData().save() is None
 
-    rd2 = ReproData(data=data)
+    rd2 = ReproData(_restore_dict=data)
     assert len(rd2) == 1
     assert str(new_qid2) in rd2
     assert rd2[new_qid2].retries == 2

@@ -26,36 +26,36 @@ class JSONDataObject:
         self.fileorigin = ''
 
     def export_json(self, filename: str) -> None:
-        json_data = json.dumps(self.save(), indent=2)
+        json_string = json.dumps(self.save(), indent=2)
         with open(filename, 'w') as f:
-            f.write(json_data)
+            f.write(json_string)
 
     @classmethod
     def from_json(cls, filename: str):
         try:
             with open(filename) as f:
-                data = json.load(f)
+                restore_dict = json.load(f)
         except json.decoder.JSONDecodeError:
             raise InvalidFileFormat("Couldn't parse JSON file: {}".format(filename))
-        inst = cls(data=data)
+        inst = cls(_restore_dict=restore_dict)
         inst.fileorigin = filename
         return inst
 
-    def restore(self, data: Mapping[str, Any]) -> None:
+    def restore(self, restore_dict: Mapping[str, Any]) -> None:
         for key, (restore_func, _) in self._ATTRIBUTES.items():
-            self._restore_attr(data, key, restore_func)
+            self._restore_attr(restore_dict, key, restore_func)
 
     def save(self) -> Optional[Dict[str, Any]]:
-        data = {}
+        restore_dict = {}
         for key, (_, save_func) in self._ATTRIBUTES.items():
-            data[key] = self._save_attr(key, save_func)
-        if not data:
+            restore_dict[key] = self._save_attr(key, save_func)
+        if not restore_dict:
             return None
-        return data
+        return restore_dict
 
     def _restore_attr(
                 self,
-                data: Mapping[str, Any],
+                restore_dict: Mapping[str, Any],
                 key: str,
                 restore_func: RestoreFunction = None
             ) -> None:
@@ -64,7 +64,7 @@ class JSONDataObject:
         If it's missing or None, don't call restore_func() and leave attribute's value default.
         """
         try:
-            value = data[key]
+            value = restore_dict[key]
         except KeyError:
             pass
         else:
@@ -143,10 +143,10 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
 
     def __init__(
                 self,
-                data: Optional[Mapping[str, Any]] = None,
+                _restore_dict: Optional[Mapping[str, Any]] = None,
             ) -> None:
         """
-        `data` is used to restore from JSON, minimal format:
+        `_restore_dict` is used to restore from JSON, minimal format:
             "fields": {
               "<field_label>": {
                 "mismatches": [
@@ -163,12 +163,12 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
         self._fields = collections.defaultdict(
                 lambda: collections.defaultdict(set)
             )  # type: Dict[FieldLabel, Dict[DataMismatch, Set[QID]]]
-        if data is not None:
-            self.restore(data)
+        if _restore_dict is not None:
+            self.restore(_restore_dict)
 
-    def restore(self, data: Mapping[str, Any]) -> None:
-        super(Disagreements, self).restore(data)
-        for field_label, field_data in data['fields'].items():
+    def restore(self, restore_dict: Mapping[str, Any]) -> None:
+        super(Disagreements, self).restore(restore_dict)
+        for field_label, field_data in restore_dict['fields'].items():
             for mismatch_data in field_data['mismatches']:
                 mismatch = DataMismatch(
                     mismatch_data['exp_val'],
@@ -190,12 +190,12 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
                 'count': len(mismatches),
                 'mismatches': mismatches,
             }
-        data = super(Disagreements, self).save() or {}
-        data.update({
+        restore_dict = super(Disagreements, self).save() or {}
+        restore_dict.update({
             'count': self.count,
             'fields': fields,
         })
-        return data
+        return restore_dict
 
     def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
         self._fields[field][mismatch].add(qid)
@@ -242,11 +242,11 @@ class DisagreementsCounter(JSONDataObject):
         'count': (None, None)
     }
 
-    def __init__(self, data: Mapping[str, int] = None) -> None:
+    def __init__(self, _restore_dict: Mapping[str, int] = None) -> None:
         super(DisagreementsCounter, self).__init__()
         self.count = 0
-        if data is not None:
-            self.restore(data)
+        if _restore_dict is not None:
+            self.restore(_restore_dict)
 
     def __len__(self):
         return self.count
@@ -265,12 +265,12 @@ class Summary(Disagreements):
 
     def __init__(
                 self,
-                data: Optional[Mapping[FieldLabel, Mapping[str, Any]]] = None
+                _restore_dict: Optional[Mapping[FieldLabel, Mapping[str, Any]]] = None
             ) -> None:
         self.usable_answers = 0
         self.upstream_unstable = 0
         self.not_reproducible = 0
-        super(Summary, self).__init__(data=data)
+        super(Summary, self).__init__(_restore_dict=_restore_dict)
 
     def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
         if qid in self.keys():
@@ -333,14 +333,14 @@ class ReproCounter(JSONDataObject):
                 retries: int = 0,
                 upstream_stable: int = 0,
                 verified: int = 0,
-                data: Optional[Mapping[str, int]] = None
+                _restore_dict: Optional[Mapping[str, int]] = None
             ) -> None:
         super(ReproCounter, self).__init__()
         self.retries = retries
         self.upstream_stable = upstream_stable
         self.verified = verified
-        if data is not None:
-            self.restore(data)
+        if _restore_dict is not None:
+            self.restore(_restore_dict)
 
     def save(self) -> Optional[Dict[str, int]]:
         if not self.retries:
@@ -355,26 +355,26 @@ class ReproCounter(JSONDataObject):
 
 
 class ReproData(collections.abc.Mapping, JSONDataObject):
-    def __init__(self, data: Optional[Mapping[str, Any]] = None) -> None:
+    def __init__(self, _restore_dict: Optional[Mapping[str, Any]] = None) -> None:
         super(ReproData, self).__init__()
         self._counters = collections.defaultdict(ReproCounter)  # type: Dict[QID, ReproCounter]
-        if data is not None:
-            self.restore(data)
+        if _restore_dict is not None:
+            self.restore(_restore_dict)
 
-    def restore(self, data: Mapping[str, Any]) -> None:
-        super(ReproData, self).restore(data)
-        for qid, counter_data in data.items():
-            self._counters[int(qid)] = ReproCounter(data=counter_data)
+    def restore(self, restore_dict: Mapping[str, Any]) -> None:
+        super(ReproData, self).restore(restore_dict)
+        for qid, counter_data in restore_dict.items():
+            self._counters[int(qid)] = ReproCounter(_restore_dict=counter_data)
 
     def save(self) -> Optional[Dict[str, Any]]:
-        data = super(ReproData, self).save() or {}
+        restore_dict = super(ReproData, self).save() or {}
         for qid, counter in self._counters.items():
             counter_data = counter.save()
             if counter_data is not None:
-                data[str(qid)] = counter_data
-        if not data:
+                restore_dict[str(qid)] = counter_data
+        if not restore_dict:
             return None
-        return data
+        return restore_dict
 
     def __len__(self) -> int:
         return len(self._counters)
@@ -393,16 +393,16 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         'total_queries': (None, None),
         'total_answers': (None, None),
         'other_disagreements': (
-            lambda x: DisagreementsCounter(data=x),
+            lambda x: DisagreementsCounter(_restore_dict=x),
             lambda x: x.save()),
         'target_disagreements': (
-            lambda x: Disagreements(data=x),
+            lambda x: Disagreements(_restore_dict=x),
             lambda x: x.save()),
         'summary': (
-            lambda x: Summary(data=x),
+            lambda x: Summary(_restore_dict=x),
             lambda x: x.save()),
         'reprodata': (
-            lambda x: ReproData(data=x),
+            lambda x: ReproData(_restore_dict=x),
             lambda x: x.save()),
     }
 
@@ -416,7 +416,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
                 target_disagreements: Optional[Disagreements] = None,
                 summary: Optional[Summary] = None,
                 reprodata: Optional[ReproData] = None,
-                data: Optional[Mapping[str, Any]] = None
+                _restore_dict: Optional[Mapping[str, Any]] = None
             ) -> None:
         super(DiffReport, self).__init__()
         self.start_time = start_time
@@ -427,8 +427,8 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         self.target_disagreements = target_disagreements
         self.summary = summary
         self.reprodata = reprodata
-        if data is not None:
-            self.restore(data)
+        if _restore_dict is not None:
+            self.restore(_restore_dict)
 
     @property
     def duration(self) -> Optional[int]:

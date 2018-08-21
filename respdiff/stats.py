@@ -39,7 +39,7 @@ class Stats(JSONDataObject):
                 self,
                 samples: Sequence[float] = None,
                 threshold: Optional[float] = None,
-                data: Mapping[str, float] = None
+                _restore_dict: Optional[Mapping[str, float]] = None
             ) -> None:
         """
         samples contain the entire data set of reference values of this parameter.
@@ -47,12 +47,13 @@ class Stats(JSONDataObject):
         """
         super(Stats, self).__init__()
         self.samples = samples if samples is not None else []
-        if data is not None:
-            self.restore(data)
         if threshold is None:
-            self.threshold = self.calculate_threshold()
+            if self.samples:
+                self.threshold = self.calculate_threshold()
         else:
             self.threshold = threshold
+        if _restore_dict is not None:
+            self.restore(_restore_dict)
 
     @property
     def median(self) -> float:
@@ -141,7 +142,7 @@ class MismatchStatistics(dict, JSONDataObject):
 
     _ATTRIBUTES = {
         'total': (
-            lambda x: Stats(data=x),
+            lambda x: Stats(_restore_dict=x),
             lambda x: x.save()),
     }
 
@@ -149,7 +150,7 @@ class MismatchStatistics(dict, JSONDataObject):
                 self,
                 mismatch_counters_list: Optional[Sequence[Counter]] = None,
                 sample_size: Optional[int] = None,
-                data: Optional[Mapping[str, Any]] = None
+                _restore_dict: Optional[Mapping[str, Any]] = None
             ) -> None:
         super(MismatchStatistics, self).__init__()
         self.total = None
@@ -172,21 +173,21 @@ class MismatchStatistics(dict, JSONDataObject):
             del samples['total']
             for mismatch_key, stats_seq in samples.items():
                 self[mismatch_key] = Stats(stats_seq)
-        elif data is not None:
-            self.restore(data)
+        elif _restore_dict is not None:
+            self.restore(_restore_dict)
 
-    def restore(self, data: Mapping[str, Any]) -> None:
-        super(MismatchStatistics, self).restore(data)
-        for mismatch_key, stats_data in data.items():
+    def restore(self, restore_dict: Mapping[str, Any]) -> None:
+        super(MismatchStatistics, self).restore(restore_dict)
+        for mismatch_key, stats_data in restore_dict.items():
             if mismatch_key in self._ATTRIBUTES:
                 continue  # attributes are already loaded
-            self[mismatch_key] = Stats(data=stats_data)
+            self[mismatch_key] = Stats(_restore_dict=stats_data)
 
     def save(self) -> Dict[str, Any]:
-        data = super(MismatchStatistics, self).save() or {}
+        restore_dict = super(MismatchStatistics, self).save() or {}
         for mismatch_key, stats_data in self.items():
-            data[mismatch_key] = stats_data.save()
-        return data
+            restore_dict[mismatch_key] = stats_data.save()
+        return restore_dict
 
 
 class FieldStatistics(dict, JSONDataObject):
@@ -201,7 +202,7 @@ class FieldStatistics(dict, JSONDataObject):
     def __init__(
                 self,
                 summaries_list: Optional[Sequence[Summary]] = None,
-                data: Optional[Mapping[str, Any]] = None
+                _restore_dict: Optional[Mapping[str, Any]] = None
             ) -> None:
         super(FieldStatistics, self).__init__()
         if summaries_list is not None:
@@ -210,45 +211,45 @@ class FieldStatistics(dict, JSONDataObject):
                 mismatch_counters_list = [fc[field] for fc in field_counters_list]
                 self[field] = MismatchStatistics(
                     mismatch_counters_list, len(summaries_list))
-        elif data is not None:
-            self.restore(data)
+        elif _restore_dict is not None:
+            self.restore(_restore_dict)
 
-    def restore(self, data: Mapping[str, Any]) -> None:
-        super(FieldStatistics, self).restore(data)
-        for field, field_data in data.items():
-            self[field] = MismatchStatistics(data=field_data)
+    def restore(self, restore_dict: Mapping[str, Any]) -> None:
+        super(FieldStatistics, self).restore(restore_dict)
+        for field, field_data in restore_dict.items():
+            self[field] = MismatchStatistics(_restore_dict=field_data)
 
     def save(self) -> Dict[str, Any]:
-        data = super(FieldStatistics, self).save() or {}
+        restore_dict = super(FieldStatistics, self).save() or {}
         for field, mismatch_stats in self.items():
-            data[field] = mismatch_stats.save()
-        return data
+            restore_dict[field] = mismatch_stats.save()
+        return restore_dict
 
 
 class SummaryStatistics(JSONDataObject):
     _ATTRIBUTES = {
         'sample_size': (None, None),
         'upstream_unstable': (
-            lambda x: Stats(data=x),
+            lambda x: Stats(_restore_dict=x),
             lambda x: x.save()),
         'usable_answers': (
-            lambda x: Stats(data=x),
+            lambda x: Stats(_restore_dict=x),
             lambda x: x.save()),
         'not_reproducible': (
-            lambda x: Stats(data=x),
+            lambda x: Stats(_restore_dict=x),
             lambda x: x.save()),
         'target_disagreements': (
-            lambda x: Stats(data=x),
+            lambda x: Stats(_restore_dict=x),
             lambda x: x.save()),
         'fields': (
-            lambda x: FieldStatistics(data=x),
+            lambda x: FieldStatistics(_restore_dict=x),
             lambda x: x.save()),
     }
 
     def __init__(
                 self,
                 summaries: Sequence[Summary] = None,
-                data: Mapping[str, Any] = None
+                _restore_dict: Mapping[str, Any] = None
             ) -> None:
         super(SummaryStatistics, self).__init__()
         self.sample_size = None
@@ -264,5 +265,5 @@ class SummaryStatistics(JSONDataObject):
             self.not_reproducible = Stats([s.not_reproducible for s in summaries])
             self.target_disagreements = Stats([len(s) for s in summaries])
             self.fields = FieldStatistics(summaries)
-        elif data is not None:
-            self.restore(data)
+        elif _restore_dict is not None:
+            self.restore(_restore_dict)
