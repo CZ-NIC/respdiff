@@ -142,7 +142,7 @@ def eval_and_plot_single(
     else:
         color = COLOR_LABEL
 
-    plot_violin(ax, stats.sequence, markers, label, color)
+    plot_violin(ax, stats.samples, markers, label, color)
 
     return not above_thr
 
@@ -210,7 +210,7 @@ def plot_overview(
     # display sample size
     fig.text(
         0.95, 0.95,
-        'stat sample size: {}'.format(len(sumstats.target_disagreements.sequence)),
+        'stat sample size: {}'.format(len(sumstats.target_disagreements.samples)),
         fontsize=18, color=COLOR_BG, ha='right', va='bottom', alpha=0.7)
 
     # save image

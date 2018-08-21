@@ -13,14 +13,16 @@ from .cfg import ALL_FIELDS
 
 class Stats(JSONDataObject):
     """
-    Represents statistical data for a single parameter (field/mismatch/...)
+    Represents statistical (reference) data for a single parameter.
 
-    It contains the entire sequence of the original data, e.g. number of
+    It contains all the samples from the reference data, e.g. number of
     total mismatches. This allows further statistical processing which also
-    takes place here.
+    takes place in this class.
+
+    Example: samples = [1540, 1613, 1489]
     """
     _ATTRIBUTES = {
-        'sequence': (None, None),
+        'samples': (None, None),
         'threshold': (None, None),
     }
 
@@ -35,16 +37,16 @@ class Stats(JSONDataObject):
 
     def __init__(
                 self,
-                sequence: Sequence[float] = None,
+                samples: Sequence[float] = None,
                 threshold: Optional[float] = None,
                 data: Mapping[str, float] = None
             ) -> None:
         """
-        sequence should contain the entire data set of values of this parameter.
+        samples contain the entire data set of reference values of this parameter.
         If no custom threshold is provided, it is calculated automagically.
         """
         super(Stats, self).__init__()
-        self.sequence = sequence if sequence is not None else []
+        self.samples = samples if samples is not None else []
         if data is not None:
             self.restore(data)
         if threshold is None:
@@ -54,23 +56,23 @@ class Stats(JSONDataObject):
 
     @property
     def median(self) -> float:
-        return statistics.median(self.sequence)
+        return statistics.median(self.samples)
 
     @property
     def mad(self) -> float:
-        mdev = [math.fabs(val - self.median) for val in self.sequence]
+        mdev = [math.fabs(val - self.median) for val in self.samples]
         return statistics.median(mdev)
 
     @property
     def min(self) -> float:
-        return min(self.sequence)
+        return min(self.samples)
 
     @property
     def max(self) -> float:
-        return max(self.sequence)
+        return max(self.samples)
 
     def get_percentile_rank(self, sample: float) -> float:
-        return scipy.stats.percentileofscore(self.sequence, sample, kind='weak')
+        return scipy.stats.percentileofscore(self.samples, sample, kind='weak')
 
     def evaluate_sample(self, sample: float) -> 'Stats.SamplePosition':
         if sample < self.min:
@@ -89,12 +91,12 @@ class Stats(JSONDataObject):
             ) -> float:
         """Detect uppper cutoff value in histogram to ignore outliers"""
         # choose number of bins in histogram
-        numbins = max(self.sequence) - min(self.sequence) + 1  # separate bins for all values
+        numbins = max(self.samples) - min(self.samples) + 1  # separate bins for all values
         if numbins > self.MAX_NUMBINS:
             numbins = self.MAX_NUMBINS
         hist, _ = numpy.histogram(
-            numpy.array(self.sequence), numbins)
-        hist_cumulative_rel = (numpy.cumsum(hist) / len(self.sequence)).tolist()
+            numpy.array(self.samples), numbins)
+        hist_cumulative_rel = (numpy.cumsum(hist) / len(self.samples)).tolist()
 
         # traverse the histogram and find unique thresholds and calculate efficiency
         # efficiency: how_much_of_the_distribution_is_covered / how_many_bins_are_needed
@@ -123,11 +125,20 @@ class Stats(JSONDataObject):
             cutoff_threshold = thresholds[-1].threshold
 
         # find the cutoff value
-        icutoff = int(round(len(self.sequence) * cutoff_threshold)) - 1
-        return sorted(self.sequence)[icutoff]
+        icutoff = int(round(len(self.samples) * cutoff_threshold)) - 1
+        return sorted(self.samples)[icutoff]
 
 
 class MismatchStatistics(dict, JSONDataObject):
+    """Contains statistics for all mismatches in a single field.
+
+    Example:
+        mismatch_stats = MismatchStatistics(...)  # stats for a single field
+        mismatch_stats.total -> Stats  # combined stats for this field
+        mismatch_stats[DataMismatch('A', 'AAAA')] -> Stats  # stats for specific mismatch
+        mismatch_stats[DataMismatch('PTR', 'MX')] -> Stats
+    """
+
     _ATTRIBUTES = {
         'total': (
             lambda x: Stats(data=x),
@@ -179,6 +190,14 @@ class MismatchStatistics(dict, JSONDataObject):
 
 
 class FieldStatistics(dict, JSONDataObject):
+    """Contains statistics for all fields.
+
+    Example:
+        field_statistics = FieldStatistics(...)  # stats for all fields
+        field_statistics['rcode'] -> MismatchStatistics  # stats for single field
+        field_statistics['opcode'] -> MismatchStatistics
+    """
+
     def __init__(
                 self,
                 summaries_list: Optional[Sequence[Summary]] = None,
