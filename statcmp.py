@@ -21,17 +21,17 @@ import matplotlib.pyplot as plt  # noqa
 COLOR_OK = 'tab:blue'
 COLOR_GOOD = 'tab:green'
 COLOR_BAD = 'xkcd:bright red'
-COLOR_BOUNDARY = 'tab:orange'
+COLOR_THRESHOLD = 'tab:orange'
 COLOR_BG = 'tab:gray'
 COLOR_LABEL = 'black'
 
 VIOLIN_FIGSIZE = (3, 6)
 
 SAMPLE_COLORS = {
-    Stats.SamplePosition.ABOVE_MAX: COLOR_BAD,
-    Stats.SamplePosition.ABOVE_UPPER_BOUNDARY: COLOR_BAD,
-    Stats.SamplePosition.WITHIN_BOUNDARIES: COLOR_OK,
-    Stats.SamplePosition.BELOW_MIN: COLOR_GOOD,
+    Stats.SamplePosition.ABOVE_REF: COLOR_BAD,
+    Stats.SamplePosition.ABOVE_THRESHOLD: COLOR_BAD,
+    Stats.SamplePosition.NORMAL: COLOR_OK,
+    Stats.SamplePosition.BELOW_REF: COLOR_GOOD,
 }
 
 
@@ -110,14 +110,14 @@ def eval_and_plot_single(
     for sample in samples:
         result = stats.evaluate_sample(sample)
         markers.append(AxisMarker(sample, color=SAMPLE_COLORS[result]))
-        if result in (Stats.SamplePosition.ABOVE_MAX,
-                      Stats.SamplePosition.ABOVE_UPPER_BOUNDARY):
+        if result in (Stats.SamplePosition.ABOVE_REF,
+                      Stats.SamplePosition.ABOVE_THRESHOLD):
             above_thr = True
             logging.error(
                 '  %s: threshold exceeded! sample: %d / %4.2f%% vs threshold: %d / %4.2f%%',
                 label, sample, stats.get_percentile_rank(sample),
-                stats.upper_boundary, stats.get_percentile_rank(stats.upper_boundary))
-        elif result == Stats.SamplePosition.BELOW_MIN:
+                stats.threshold, stats.get_percentile_rank(stats.threshold))
+        elif result == Stats.SamplePosition.BELOW_REF:
             below_min = True
             logging.info(
                 '  %s: new minimum found! new: %d vs prev: %d',
@@ -126,13 +126,13 @@ def eval_and_plot_single(
             logging.info(
                 '  %s: ok! sample: %d / %4.2f%% vs threshold: %d / %4.2f%%',
                 label, sample, stats.get_percentile_rank(sample),
-                stats.upper_boundary, stats.get_percentile_rank(stats.upper_boundary))
+                stats.threshold, stats.get_percentile_rank(stats.threshold))
 
     # add min/med/max markers
     markers.append(AxisMarker(stats.min, 0.5, COLOR_BG))
     markers.append(AxisMarker(stats.median, 0.5, COLOR_BG))
     markers.append(AxisMarker(stats.max, 0.5, COLOR_BG))
-    markers.append(AxisMarker(stats.upper_boundary, 0.9, COLOR_BOUNDARY))
+    markers.append(AxisMarker(stats.threshold, 0.9, COLOR_THRESHOLD))
 
     # select label color
     if above_thr:
@@ -156,7 +156,7 @@ def plot_overview(
     """
     Plot an overview of all fields using violing graphs. If any summaries are provided,
     they are drawn in the graphs and also evaluated. If any sample in any field exceeds
-    the upper boundary, the function return False. True is returned otherwise.
+    the threshold, the function return False. True is returned otherwise.
     """
     if summaries is None:
         summaries = []
@@ -227,7 +227,7 @@ def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(
         description=("Plot and compare reports against statistical data. "
-                     "Returns non-zero exit code if any upper threshold is exceeded."))
+                     "Returns non-zero exit code if any threshold is exceeded."))
 
     cli.add_arg_stats(parser)
     cli.add_arg_report(parser)

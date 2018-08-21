@@ -21,36 +21,36 @@ class Stats(JSONDataObject):
     """
     _ATTRIBUTES = {
         'sequence': (None, None),
-        'upper_boundary': (None, None),
+        'threshold': (None, None),
     }
 
     MAX_NUMBINS = 50  # maximum amount of bins in histogram
 
     class SamplePosition(Enum):
         """Position of a single sample against the rest of the distribution."""
-        BELOW_MIN = 1
-        ABOVE_UPPER_BOUNDARY = 2
-        ABOVE_MAX = 3
-        WITHIN_BOUNDARIES = 4
+        ABOVE_REF = 1
+        ABOVE_THRESHOLD = 2
+        NORMAL = 3
+        BELOW_REF = 4
 
     def __init__(
                 self,
                 sequence: Sequence[float] = None,
-                upper_boundary: Optional[float] = None,
+                threshold: Optional[float] = None,
                 data: Mapping[str, float] = None
             ) -> None:
         """
         sequence should contain the entire data set of values of this parameter.
-        If no custom upper_boundary is provided, it is calculated automagically.
+        If no custom threshold is provided, it is calculated automagically.
         """
         super(Stats, self).__init__()
         self.sequence = sequence if sequence is not None else []
         if data is not None:
             self.restore(data)
-        if upper_boundary is None:
-            self.upper_boundary = self.calculate_upper_boundary()
+        if threshold is None:
+            self.threshold = self.calculate_threshold()
         else:
-            self.upper_boundary = upper_boundary
+            self.threshold = threshold
 
     @property
     def median(self) -> float:
@@ -74,15 +74,15 @@ class Stats(JSONDataObject):
 
     def evaluate_sample(self, sample: float) -> 'Stats.SamplePosition':
         if sample < self.min:
-            return Stats.SamplePosition.BELOW_MIN
+            return Stats.SamplePosition.BELOW_REF
         elif sample > self.max:
-            return Stats.SamplePosition.ABOVE_MAX
-        elif sample > self.upper_boundary:
-            return Stats.SamplePosition.ABOVE_UPPER_BOUNDARY
-        return Stats.SamplePosition.WITHIN_BOUNDARIES
+            return Stats.SamplePosition.ABOVE_REF
+        elif sample > self.threshold:
+            return Stats.SamplePosition.ABOVE_THRESHOLD
+        return Stats.SamplePosition.NORMAL
 
-    # TODO: this is a very magical detection of the upper boundary
-    def calculate_upper_boundary(
+    # TODO: this is a very magical detection of the threshold
+    def calculate_threshold(
                 self,
                 change_cutoff: float = -0.3,  # to detect cutoff in histogram; value < 0
                 minimum: float = 0.9,  # relative point where to start looking for cutoff
