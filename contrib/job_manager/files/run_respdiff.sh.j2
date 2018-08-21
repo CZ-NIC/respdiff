@@ -6,7 +6,7 @@ JOBNAME=j$1.$2
 # HACK (condor): ensure files for transfer exist to avoid held jobs
 touch ${JOBNAME}_report{,.diffrepro}.json
 touch ${JOBNAME}_report{,.diffrepro}.txt
-touch ${JOBNAME}_histogram.svg
+touch ${JOBNAME}_histogram.png
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
@@ -83,4 +83,4 @@ time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.json .
 time "{{ respdiff['srcdir'] }}/diffsum.py" --without-diffrepro -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
 cp ${JOBNAME}_report{,.diffrepro}.json
 time "{{ respdiff['srcdir'] }}/diffsum.py" -d ${JOBNAME}_report.diffrepro.json . > ${JOBNAME}_report.diffrepro.txt
-time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.svg .
+time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.png .

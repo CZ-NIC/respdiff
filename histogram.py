@@ -82,8 +82,8 @@ def main():
         description='Plot query response time histogram from answers stored '
                     'in LMDB')
     parser.add_argument('-o', '--output', type=str,
-                        default='histogram.svg',
-                        help='output image file (default: histogram.svg)')
+                        default='histogram.png',
+                        help='output image file (default: histogram.png)')
     parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
                         help='config file (default: respdiff.cfg)')
     parser.add_argument('envdir', type=str,

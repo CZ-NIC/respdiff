@@ -56,7 +56,7 @@ def condor_submit(txn, priority: int) -> int:
             'j$(Cluster).$(Process)_report.diffrepro.json',
             'j$(Cluster).$(Process)_report.txt',
             'j$(Cluster).$(Process)_report.diffrepro.txt',
-            'j$(Cluster).$(Process)_histogram.svg',
+            'j$(Cluster).$(Process)_histogram.png',
             'j$(Cluster).$(Process)_logs.tar.gz']),
         })
     return submit.queue(txn)
