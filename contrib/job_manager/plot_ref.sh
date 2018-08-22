@@ -10,19 +10,20 @@ pushd ${COMMIT_DIR}
 
 ID=$(basename $(readlink -f ${PWD}))
 REF_ID=$(basename $(readlink -f ${REF_COMMIT_DIR}))
+ERRORS=0
 
 for DIR in ${TEST_CASES}; do
     if [ -d "${DIR}" ]; then
         STATFILE=${REF_COMMIT_DIR}/${REF_ID}_${DIR}_stats.json
         if [ -r "${STATFILE}" ]; then
-            ${RESPDIFF_SRC}/statcmp.py -s "${STATFILE}" -c "${DIR}/respdiff.cfg" ${DIR}/*_report.json -l ${ID}_vs_${REF_ID}_${DIR}
+            ${RESPDIFF_SRC}/statcmp.py -s "${STATFILE}" -c "${DIR}/respdiff.cfg" ${DIR}/*_report.json -l ${ID}_vs_${REF_ID}_${DIR} || (( ERRORS++ ))
         else
             echo "${STATFILE} missing ... skipping"
         fi
 
         STATFILE=${REF_COMMIT_DIR}/${REF_ID}_${DIR}_stats.diffrepro.json
         if [ -r "${STATFILE}" ]; then
-            ${RESPDIFF_SRC}/statcmp.py -s "${STATFILE}" -c "${DIR}/respdiff.cfg" ${DIR}/*_report.diffrepro.json -l ${ID}_vs_${REF_ID}_${DIR}.diffrepro
+            ${RESPDIFF_SRC}/statcmp.py -s "${STATFILE}" -c "${DIR}/respdiff.cfg" ${DIR}/*_report.diffrepro.json -l ${ID}_vs_${REF_ID}_${DIR}.diffrepro || (( ERRORS++ ))
         else
             echo "${STATFILE} missing ... skipping"
         fi
@@ -30,3 +31,5 @@ for DIR in ${TEST_CASES}; do
 done
 
 popd
+
+test $ERRORS -eq 0
