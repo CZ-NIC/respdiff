@@ -6,7 +6,7 @@ RESPDIFF_SRC=/var/opt/respdiff
 COMMIT_DIR=${1:-.}
 pushd ${COMMIT_DIR}
 
-ID=$(basename ${PWD})
+ID=$(basename $(readlink -f ${PWD}))
 
 for DIR in *; do
     if [ -d "${DIR}" ]; then

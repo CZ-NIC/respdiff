@@ -217,7 +217,7 @@ def plot_overview(
     plt.tight_layout()
     plt.subplots_adjust(top=0.9)
     fig.suptitle(label, fontsize=22)
-    plt.savefig('{}.svg'.format(label))
+    plt.savefig('{}.png'.format(label))
     plt.close()
 
     return passed

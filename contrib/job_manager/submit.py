@@ -44,9 +44,9 @@ def condor_submit(txn, priority: int) -> int:
         'priority': str(priority),
         'executable': 'run_respdiff.sh',
         'arguments': '$(Cluster) $(Process)',
-        'error': 'j$(Cluster).$(Process)_stderr',
-        'output': 'j$(Cluster).$(Process)_stdout',
-        'log': 'j$(Cluster).$(Process)_log',
+        'error': 'j$(Cluster).$(Process)_stderr.txt',
+        'output': 'j$(Cluster).$(Process)_stdout.txt',
+        'log': 'j$(Cluster).$(Process)_log.txt',
         'jobbatchname': batch_name,
         'should_transfer_files': 'YES',
         'when_to_transfer_output': 'ON_EXIT',
@@ -56,7 +56,7 @@ def condor_submit(txn, priority: int) -> int:
             'j$(Cluster).$(Process)_report.diffrepro.json',
             'j$(Cluster).$(Process)_report.txt',
             'j$(Cluster).$(Process)_report.diffrepro.txt',
-            'j$(Cluster).$(Process)_histogram.svg',
+            'j$(Cluster).$(Process)_histogram.png',
             'j$(Cluster).$(Process)_logs.tar.gz']),
         })
     return submit.queue(txn)
