@@ -4,13 +4,14 @@ set -o nounset
 RESPDIFF_SRC=/var/opt/respdiff
 
 COMMIT_DIR=${1:-.}
-REF_COMMIT_DIR=${PWD}/${2}
+REF_COMMIT_DIR=${2:-../ref_current}
+TEST_CASES=${3:-*}
 pushd ${COMMIT_DIR}
 
 ID=$(basename $(readlink -f ${PWD}))
 REF_ID=$(basename $(readlink -f ${REF_COMMIT_DIR}))
 
-for DIR in *; do
+for DIR in ${TEST_CASES}; do
     if [ -d "${DIR}" ]; then
         STATFILE=${REF_COMMIT_DIR}/${REF_ID}_${DIR}_stats.json
         if [ -r "${STATFILE}" ]; then
