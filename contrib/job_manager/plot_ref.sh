@@ -7,8 +7,8 @@ COMMIT_DIR=${1:-.}
 REF_COMMIT_DIR=${PWD}/${2}
 pushd ${COMMIT_DIR}
 
-ID=$(basename ${PWD})
-REF_ID=$(basename ${REF_COMMIT_DIR})
+ID=$(basename $(readlink -f ${PWD}))
+REF_ID=$(basename $(readlink -f ${REF_COMMIT_DIR}))
 
 for DIR in *; do
     if [ -d "${DIR}" ]; then
