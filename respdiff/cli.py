@@ -3,13 +3,14 @@ from collections import Counter
 import logging
 import os
 import sys
-from typing import Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
+from typing import Callable, Dict, Mapping, Optional, Sequence, Tuple, Union  # noqa
 
 from tabulate import tabulate
 
 from .cfg import read_cfg
-from .dataformat import DiffReport, FieldLabel
+from .dataformat import DiffReport, FieldLabel, InvalidFileFormat, Summary
 from .match import DataMismatch
+from .stats import SummaryStatistics
 
 Number = Union[int, float]
 StatsTuple = Tuple[int, Optional[float]]
@@ -19,7 +20,33 @@ ChangeStatsTupleStr = Tuple[int, Optional[float], Optional[str], Optional[float]
 LOGGING_LEVEL = logging.DEBUG
 CONFIG_FILENAME = 'respdiff.cfg'
 REPORT_FILENAME = 'report.json'
+STATS_FILENAME = 'stats.json'
 DEFAULT_PRINT_QUERY_LIMIT = 10
+
+
+def read_stats(filename: str) -> SummaryStatistics:
+    try:
+        return SummaryStatistics.from_json(filename)
+    except (FileNotFoundError, InvalidFileFormat) as exc:
+        raise ValueError(exc)
+
+
+def read_report(filename: str) -> Optional[DiffReport]:
+    try:
+        return DiffReport.from_json(filename)
+    except (FileNotFoundError, InvalidFileFormat) as exc:
+        logging.warning('%s Omitting...', exc)
+        return None
+
+
+def load_summaries(reports: Sequence[DiffReport]) -> Sequence[Summary]:
+    summaries = []
+    for report in reports:
+        if report.summary is None:
+            logging.warning('Empty diffsum in "%s"! Omitting...', report.fileorigin)
+            continue
+        summaries.append(report.summary)
+    return summaries
 
 
 def setup_logging(level: int = LOGGING_LEVEL) -> None:
@@ -48,6 +75,23 @@ def add_arg_limit(parser: ArgumentParser) -> None:
                         default=DEFAULT_PRINT_QUERY_LIMIT,
                         help='number of displayed mismatches in fields (default: {}; '
                              'use 0 to display all)'.format(DEFAULT_PRINT_QUERY_LIMIT))
+
+
+def add_arg_stats(parser: ArgumentParser) -> None:
+    parser.add_argument('-s', '--stats', type=read_stats,
+                        default=STATS_FILENAME,
+                        help='statistics file (default: {})'.format(STATS_FILENAME))
+
+
+def add_arg_stats_filename(parser: ArgumentParser) -> None:
+    parser.add_argument('-s', '--stats', type=str,
+                        default=STATS_FILENAME, dest='stats_filename',
+                        help='statistics file (default: {})'.format(STATS_FILENAME))
+
+
+def add_arg_report(parser: ArgumentParser) -> None:
+    parser.add_argument('report', type=read_report, nargs='*',
+                        help='JSON report file(s)')
 
 
 def get_datafile(args: Namespace, key: str = 'datafile', check_exists: bool = True) -> str:

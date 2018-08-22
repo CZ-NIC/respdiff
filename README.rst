@@ -57,6 +57,8 @@ Respdiff is conceptually chain of independent tools:
    machine readable report
 6. `histogram <doc/histogram.rst>`__: plot graph of answer latencies
 7. `sumcmp <doc/sumcmp.rst>`__: compare a new diffsum report to a reference one
+8. `sumstat <doc/sumstat.rst>`__: generate statistics from multiple diffsum reports
+9. `statcmp <doc/statcmp.rst>`__: plot and compare statistics and reports
 
 
 Changelog
@@ -65,4 +67,5 @@ Changelog
 - 2018-08-21: ``qname``, ``qcase`` and ``qtype`` field comparisons were removed.
   ``question`` comparison now performs all these check in a case sensitive manner.
   Remove these checks from ``criteria`` and ``field_weights`` in ``respdiff.cfg``.
+- 2018-08-16: new dependency ``scipy`` added to ``requirements.txt``
 - 2018-06-01: reorganized tools and created a new git repo with cleaned-up history
