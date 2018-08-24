@@ -31,21 +31,35 @@ def read_stats(filename: str) -> SummaryStatistics:
         raise ValueError(exc)
 
 
-def read_report(filename: str) -> Optional[DiffReport]:
+def _handle_empty_report(exc: Exception, skip_empty: bool):
+    if skip_empty:
+        logging.debug('%s Omitting...', exc)
+    else:
+        logging.error(str(exc))
+        raise ValueError(exc)
+
+
+def read_report(filename: str, skip_empty: bool = False) -> Optional[DiffReport]:
     try:
         return DiffReport.from_json(filename)
     except (FileNotFoundError, InvalidFileFormat) as exc:
-        logging.warning('%s Omitting...', exc)
+        _handle_empty_report(exc, skip_empty)
         return None
 
 
-def load_summaries(reports: Sequence[DiffReport]) -> Sequence[Summary]:
+def load_summaries(
+            reports: Sequence[DiffReport],
+            skip_empty: bool = False
+        ) -> Sequence[Summary]:
+
     summaries = []
     for report in reports:
         if report.summary is None:
-            logging.warning('Empty diffsum in "%s"! Omitting...', report.fileorigin)
-            continue
-        summaries.append(report.summary)
+            _handle_empty_report(
+                ValueError('Empty diffsum in "{}"!'.format(report.fileorigin)),
+                skip_empty)
+        else:
+            summaries.append(report.summary)
     return summaries
 
 
@@ -91,6 +105,11 @@ def add_arg_stats_filename(parser: ArgumentParser) -> None:
 
 def add_arg_report(parser: ArgumentParser) -> None:
     parser.add_argument('report', type=read_report, nargs='*',
+                        help='JSON report file(s)')
+
+
+def add_arg_report_filename(parser: ArgumentParser) -> None:
+    parser.add_argument('report', type=str, nargs='*',
                         help='JSON report file(s)')
 
 
