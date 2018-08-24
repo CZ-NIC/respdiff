@@ -1,4 +1,4 @@
-version: '3.2'
+version: '3.4'
 services:
 
 {%- for name, resolver in resolvers.items() %}
@@ -8,6 +8,7 @@ services:
     {%- if resolver['type'] == 'knot-resolver' %}
     build:
       context: ./docker-knot-resolver
+      network: host
       args:
         GIT_SHA: {{ git_sha }}
         SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY}
