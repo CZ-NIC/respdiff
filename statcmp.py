@@ -236,10 +236,13 @@ def main():
                         help='Set plot label. It is also used for the filename.')
 
     args = parser.parse_args()
-    reports = [report for report in args.report if report is not None]
-    summaries = cli.load_summaries(reports)
     sumstats = args.stats
     field_weights = args.cfg['report']['field_weights']
+
+    try:
+        summaries = cli.load_summaries(args.report)
+    except ValueError:
+        sys.exit(1)
 
     passed = plot_overview(sumstats, field_weights, summaries, args.label)
 
