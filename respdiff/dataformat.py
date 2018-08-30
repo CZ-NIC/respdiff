@@ -239,20 +239,20 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
 
 class DisagreementsCounter(JSONDataObject):
     _ATTRIBUTES = {
-        'count': (None, None)
+        'queries': (set, list),
     }
 
     def __init__(self, _restore_dict: Mapping[str, int] = None) -> None:
         super(DisagreementsCounter, self).__init__()
-        self.count = 0
+        self.queries = set()  # type: Set[QID]
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
-    def __len__(self):
-        return self.count
+    def __len__(self) -> int:
+        return len(self.queries)
 
     def __eq__(self, other) -> bool:
-        return self.count == other.count
+        return self.queries == other.queries
 
 
 class Summary(Disagreements):

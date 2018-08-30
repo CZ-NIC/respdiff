@@ -64,6 +64,9 @@ Respdiff is conceptually chain of independent tools:
 Changelog
 ---------
 
+- 2018-08-30: JSON datafile format changed: ``other_disagreements`` now
+  includes a list of all affected queries. Older reports will incorrectly report
+  0 for this field. (Can be fixed by re-creating reports with ``msgdiff.py``).
 - 2018-08-21: ``qname``, ``qcase`` and ``qtype`` field comparisons were removed.
   ``question`` comparison now performs all these check in a case sensitive manner.
   Remove these checks from ``criteria`` and ``field_weights`` in ``respdiff.cfg``.

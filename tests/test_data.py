@@ -85,7 +85,7 @@ DIFF_REPORT_JSON = """
   "total_answers": 23100,
   "total_queries": 23122,
   "other_disagreements": {
-    "count": 150
+    "queries": [7, 8, 9]
   },
   "target_disagreements": {
     "count": 4,
@@ -300,11 +300,14 @@ def test_disagreements():
 
 def test_disagreements_counter():
     dc = DisagreementsCounter()
-    assert dc.count == 0
-    dc.count = 4
+    assert len(dc) == 0  # pylint: disable=len-as-condition
+    dc.queries.add(1)
+    dc.queries.add(1)
+    dc.queries.add(2)
+    assert len(dc) == 2
     dc_restored = DisagreementsCounter(_restore_dict=dc.save())
-    assert dc_restored.count == 4
-    assert len(dc_restored) == 4
+    assert len(dc_restored) == 2
+    assert dc_restored.queries == set([1, 2])
 
 
 def test_diff_report():
@@ -314,7 +317,8 @@ def test_diff_report():
     assert report.duration == 1
     assert report.total_queries == 23122
     assert report.total_answers == 23100
-    assert len(report.other_disagreements) == 150
+    assert len(report.other_disagreements) == 3
+    assert set([7, 8, 9]) == report.other_disagreements.queries
     assert len(report.target_disagreements) == 4
 
     report_restored = DiffReport(_restore_dict=report.save())
@@ -352,8 +356,8 @@ def test_summary():
     report.reprodata = ReproData(_restore_dict=json.loads(REPRODATA_JSON))
     summary = Summary.from_report(report, field_weights)
     assert len(summary) == 2
-    assert summary.upstream_unstable == (150 + 1)
-    assert summary.usable_answers == (23100 - 150 - 2)
+    assert summary.upstream_unstable == (3 + 1)
+    assert summary.usable_answers == (23100 - 3 - 2)
     assert summary.not_reproducible == 1
 
     # JSON export/import
