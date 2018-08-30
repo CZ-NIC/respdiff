@@ -239,20 +239,20 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
 
 class DisagreementsCounter(JSONDataObject):
     _ATTRIBUTES = {
-        'count': (None, None)
+        'queries': (set, list),
     }
 
     def __init__(self, _restore_dict: Mapping[str, int] = None) -> None:
         super(DisagreementsCounter, self).__init__()
-        self.count = 0
+        self.queries = set()  # type: Set[QID]
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
-    def __len__(self):
-        return self.count
+    def __len__(self) -> int:
+        return len(self.queries)
 
     def __eq__(self, other) -> bool:
-        return self.count == other.count
+        return self.queries == other.queries
 
 
 class Summary(Disagreements):
@@ -281,7 +281,8 @@ class Summary(Disagreements):
     def from_report(
                 report: 'DiffReport',
                 field_weights: Sequence[FieldLabel],
-                reproducibility_threshold: float = 1
+                reproducibility_threshold: float = 1,
+                without_diffrepro: bool = False
             ) -> 'Summary':
         """Get summary of disagreements above the specified reproduciblity threshold (0, 1]."""
         if (report.other_disagreements is None
@@ -293,7 +294,7 @@ class Summary(Disagreements):
         summary.upstream_unstable = len(report.other_disagreements)
 
         for qid, diff in report.target_disagreements.items():
-            if report.reprodata is not None:
+            if not without_diffrepro and report.reprodata is not None:
                 reprocounter = report.reprodata[qid]
                 if reprocounter.retries > 0:
                     if reprocounter.retries != reprocounter.upstream_stable:

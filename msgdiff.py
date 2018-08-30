@@ -62,7 +62,7 @@ def export_json(filename: str, report: DiffReport):
                 qid = key2qid(key)
                 others_agree, diff = pickle.loads(diffblob)
                 if not others_agree:
-                    report.other_disagreements.count += 1
+                    report.other_disagreements.queries.add(qid)
                 else:
                     for field, mismatch in diff.items():
                         report.target_disagreements.add_mismatch(field, mismatch, qid)
