@@ -75,7 +75,7 @@ def main():
     report = DiffReport.from_json(datafile)
     report.summary = Summary.from_report(
         report, field_weights,
-        reproducibility_threshold=(0 if args.without_diffrepro else 1))
+        without_diffrepro=args.without_diffrepro)
 
     cli.print_global_stats(report)
     cli.print_differences_stats(report)
