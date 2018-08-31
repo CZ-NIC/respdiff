@@ -26,15 +26,14 @@ def main():
         report = cli.read_report(filename, skip_empty=True)
         if report is not None:
             reports.append(report)
-    summaries = cli.load_summaries(reports, skip_empty=True)
 
-    if not summaries:
-        logging.critical('No summaries found in reports!')
+    try:
+        sumstats = SummaryStatistics(reports)
+    except ValueError as exc:
+        logging.critical(exc)
         sys.exit(1)
 
-    sumstats = SummaryStatistics(summaries)
-
-    logging.info('Total sample size: %d', len(summaries))
+    logging.info('Total sample size: %d', sumstats.sample_size)
     logging.info('Upper boundaries:')
     _log_threshold(sumstats.target_disagreements, 'target_disagreements')
     _log_threshold(sumstats.upstream_unstable, 'upstream_unstable')
