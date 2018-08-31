@@ -97,10 +97,10 @@ def add_arg_stats(parser: ArgumentParser) -> None:
                         help='statistics file (default: {})'.format(STATS_FILENAME))
 
 
-def add_arg_stats_filename(parser: ArgumentParser) -> None:
+def add_arg_stats_filename(parser: ArgumentParser, default=STATS_FILENAME) -> None:
     parser.add_argument('-s', '--stats', type=str,
-                        default=STATS_FILENAME, dest='stats_filename',
-                        help='statistics file (default: {})'.format(STATS_FILENAME))
+                        default=default, dest='stats_filename',
+                        help='statistics file (default: {})'.format(default))
 
 
 def add_arg_report(parser: ArgumentParser) -> None:
