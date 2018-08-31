@@ -79,8 +79,8 @@ time docker-compose up --no-start
 time "{{ respdiff['srcdir'] }}/orchestrator.py" .
 docker-compose stop  # give lingering connections time to close
 time "{{ respdiff['srcdir'] }}/msgdiff.py" -d ${JOBNAME}_report.json .
-time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.json .
-time "{{ respdiff['srcdir'] }}/diffsum.py" --without-diffrepro -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
 cp ${JOBNAME}_report{,.diffrepro}.json
+time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.diffrepro.json .
+time "{{ respdiff['srcdir'] }}/diffsum.py" --without-diffrepro -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
 time "{{ respdiff['srcdir'] }}/diffsum.py" -d ${JOBNAME}_report.diffrepro.json . > ${JOBNAME}_report.diffrepro.txt
 time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.png .
