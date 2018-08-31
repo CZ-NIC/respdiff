@@ -387,6 +387,9 @@ class ReproData(collections.abc.Mapping, JSONDataObject):
         yield from self._counters.keys()
 
 
+QueryData = collections.namedtuple('QueryData', 'total, others_disagree, target_disagrees')
+
+
 class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attributes
     _ATTRIBUTES = {
         'start_time': (None, None),
