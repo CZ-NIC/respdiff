@@ -1,5 +1,6 @@
 import collections
 from enum import Enum
+import logging
 import math
 import statistics
 from typing import Any, Dict, List, Mapping, Optional, Sequence  # noqa
@@ -7,8 +8,9 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence  # noqa
 import numpy
 import scipy.stats
 
-from .dataformat import Counter, JSONDataObject, Summary
 from .cfg import ALL_FIELDS
+from .dataformat import Counter, DiffReport, JSONDataObject, Summary
+from .qstats import QueryStatistics
 
 
 class Stats(JSONDataObject):
@@ -244,11 +246,14 @@ class SummaryStatistics(JSONDataObject):
         'fields': (
             lambda x: FieldStatistics(_restore_dict=x),
             lambda x: x.save()),
+        'queries': (
+            lambda x: QueryStatistics(_restore_dict=x),
+            lambda x: x.save()),
     }
 
     def __init__(
                 self,
-                summaries: Sequence[Summary] = None,
+                reports: Sequence[DiffReport] = None,
                 _restore_dict: Mapping[str, Any] = None
             ) -> None:
         super(SummaryStatistics, self).__init__()
@@ -258,12 +263,28 @@ class SummaryStatistics(JSONDataObject):
         self.not_reproducible = None
         self.target_disagreements = None
         self.fields = None
-        if summaries is not None:
+        self.queries = None
+        if reports is not None:
+            # use only reports with diffsum
+            usable_reports = []
+            for report in reports:
+                if report.summary is None:
+                    logging.warning('Empty diffsum in %s Omitting...', report.fileorigin)
+                else:
+                    usable_reports.append(report)
+
+            summaries = [
+                report.summary for report in reports if report.summary is not None]
+            assert len(summaries) == len(usable_reports)
+            if not summaries:
+                raise ValueError('No summaries found in reports!')
+
             self.sample_size = len(summaries)
             self.upstream_unstable = Stats([s.upstream_unstable for s in summaries])
             self.usable_answers = Stats([s.usable_answers for s in summaries])
             self.not_reproducible = Stats([s.not_reproducible for s in summaries])
             self.target_disagreements = Stats([len(s) for s in summaries])
             self.fields = FieldStatistics(summaries)
+            self.queries = QueryStatistics.from_reports(usable_reports)
         elif _restore_dict is not None:
             self.restore(_restore_dict)
