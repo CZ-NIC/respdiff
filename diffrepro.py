@@ -109,7 +109,7 @@ def main():
     cli.add_arg_envdir(parser)
     cli.add_arg_config(parser)
     cli.add_arg_datafile(parser)
-    parser.add_argument('-s', '--sequential', action='store_true', default=False,
+    parser.add_argument('--sequential', action='store_true', default=False,
                         help='send one query at a time (slower, but more reliable)')
 
     args = parser.parse_args()
