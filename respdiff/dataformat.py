@@ -391,6 +391,9 @@ class ReproData(collections.abc.Mapping, JSONDataObject):
         yield from self._counters.keys()
 
 
+QueryData = collections.namedtuple('QueryData', 'total, others_disagree, target_disagrees')
+
+
 class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attributes
     _ATTRIBUTES = {
         'start_time': (None, None),
@@ -440,3 +443,16 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         if self.end_time is None or self.start_time is None:
             return None
         return self.end_time - self.start_time
+
+    def get_query_data(self, qid: int) -> QueryData:
+        if self.other_disagreements is None or self.target_disagreements is None:
+            raise ValueError('missing data in report')
+        total = 1  # assume QID is part of dataset (no reasonable way to verify)
+        others_disagree = 1 if qid in self.other_disagreements.queries else 0
+        target_disagrees = 1 if qid in self.target_disagreements.keys() else 0
+        if self.reprodata is not None:
+            reprocounter = self.reprodata[qid]
+            total += reprocounter.retries
+            others_disagree += reprocounter.retries - reprocounter.upstream_stable
+            target_disagrees += reprocounter.verified + reprocounter.different_failure
+        return QueryData(total, others_disagree, target_disagrees)
