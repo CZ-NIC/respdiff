@@ -327,6 +327,7 @@ class ReproCounter(JSONDataObject):
         'retries': (None, None),
         'upstream_stable': (None, None),
         'verified': (None, None),
+        'different_failure': (None, None)
     }
 
     def __init__(
@@ -334,12 +335,14 @@ class ReproCounter(JSONDataObject):
                 retries: int = 0,
                 upstream_stable: int = 0,
                 verified: int = 0,
+                different_failure: int = 0,
                 _restore_dict: Optional[Mapping[str, int]] = None
             ) -> None:
         super(ReproCounter, self).__init__()
         self.retries = retries
         self.upstream_stable = upstream_stable
         self.verified = verified
+        self.different_failure = different_failure
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
@@ -352,7 +355,8 @@ class ReproCounter(JSONDataObject):
         return (
             self.retries == other.retries
             and self.upstream_stable == other.upstream_stable
-            and self.verified == other.verified)
+            and self.verified == other.verified
+            and self.different_failure == other.different_failure)
 
 
 class ReproData(collections.abc.Mapping, JSONDataObject):
