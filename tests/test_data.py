@@ -382,21 +382,25 @@ def test_repro_counter():
     assert rc.retries == 0
     assert rc.upstream_stable == 0
     assert rc.verified == 0
+    assert rc.different_failure == 0
 
-    rc = ReproCounter(retries=3, upstream_stable=2, verified=1)
-    assert rc.retries == 3
+    rc = ReproCounter(retries=4, upstream_stable=2, verified=1, different_failure=1)
+    assert rc.retries == 4
     assert rc.upstream_stable == 2
     assert rc.verified == 1
+    assert rc.different_failure == 1
 
     rc = ReproCounter(_restore_dict={'retries': 4})
     assert rc.retries == 4
     assert rc.upstream_stable == 0
     assert rc.verified == 0
+    assert rc.different_failure == 0
 
     data = rc.save()
     assert data['retries'] == 4
     assert data['upstream_stable'] == 0
     assert data['verified'] == 0
+    assert data['different_failure'] == 0
 
     assert ReproCounter().save() is None
 
