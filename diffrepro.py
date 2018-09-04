@@ -98,8 +98,11 @@ def process_answers(
     if others_agree:
         reprocounter.upstream_stable += 1
         assert mismatches is not None
-        if Diff(qid, mismatches) == report.target_disagreements[qid]:
+        new_diff = Diff(qid, mismatches)
+        if new_diff == report.target_disagreements[qid]:
             reprocounter.verified += 1
+        elif new_diff:
+            reprocounter.different_failure += 1
 
 
 def main():
