@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-import sys
 
 from respdiff import cli, repro, sendrecv
-from respdiff.database import DNSRepliesFactory, LMDB, MetaDatabase
+from respdiff.database import DNSRepliesFactory, LMDB
 from respdiff.dataformat import DiffReport, ReproData
 
 
@@ -37,12 +35,7 @@ def main():
 
     with LMDB(args.envdir, readonly=True) as lmdb:
         lmdb.open_db(LMDB.QUERIES)
-
-        try:
-            MetaDatabase(lmdb, servers, create=False)  # check version and servers
-        except NotImplementedError as exc:
-            logging.critical(exc)
-            sys.exit(1)
+        cli.check_metadb_servers_version(lmdb, servers)
 
         dstream = repro.query_stream_from_disagreements(lmdb, report)
         try:
