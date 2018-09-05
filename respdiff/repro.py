@@ -4,11 +4,12 @@ from multiprocessing import pool
 import random
 import subprocess
 from typing import (  # noqa
-    AbstractSet, Any, Iterator, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar)
+    AbstractSet, Any, Iterator, Iterable, Mapping, Optional, Set, Sequence, Tuple,
+    TypeVar, Union)
 
 from .database import (
     DNSRepliesFactory, DNSReply, key2qid, ResolverID, qid2key, QKey, WireFormat)
-from .dataformat import Diff, DiffReport, FieldLabel
+from .dataformat import Diff, DiffReport, FieldLabel, QID
 from .match import compare
 from .sendrecv import worker_perform_single_query
 from .query import get_query_iterator
@@ -99,6 +100,15 @@ def query_stream_from_disagreements(
         yield qid2key(qid), qwire
 
 
+def query_stream_from_qids(
+            lmdb,
+            qids: Set[QID]
+        ) -> Iterator[Tuple[QKey, WireFormat]]:
+    queries = get_query_iterator(lmdb, random.sample(qids, len(qids)))
+    for qid, qwire in queries:
+        yield qid2key(qid), qwire
+
+
 def reproduce_queries(
             query_stream: Iterator[Tuple[QKey, WireFormat]],
             report: DiffReport,
@@ -126,4 +136,4 @@ def reproduce_queries(
                 process_answers(qkey, replies, report, criteria, target)
 
             done += len(process_args)
-            logging.info('Processed {:4d} queries'.format(done))
+            logging.debug('Processed {:4d} queries'.format(done))

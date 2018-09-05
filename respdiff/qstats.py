@@ -65,15 +65,17 @@ class QueryStatistics(JSONDataObject):
         assert report.target_disagreements is not None
         candidates = {
             qid: report.get_query_data(qid) for qid in report.target_disagreements
-            if qid not in self.unknown}
+            if qid not in self.unknown and qid not in self.failing}
 
-        # filter upstream unstable
+        # filter upstream unstable and max atempts exceeded
         max_upstream_unstable = int(max_repro_attempts * UPSTREAM_UNSTABLE_THRESHOLD)
         candidates = {
             qid: query_data for qid, query_data in candidates.items()
-            if query_data.others_disagree <= max_upstream_unstable}
+            if (query_data.others_disagree <= max_upstream_unstable
+                and query_data.total < max_repro_attempts)}
 
         max_allowed_failures = int(max_repro_attempts * ALLOWED_FAIL_THRESHOLD)
+        max_allowed_failures = 1 if max_allowed_failures < 1 else max_allowed_failures
         verified_failures = {
             qid for qid, query_data in candidates.items()
             if query_data.target_disagrees > max_allowed_failures}
@@ -98,14 +100,16 @@ class QueryStatistics(JSONDataObject):
             qid: report.get_query_data(qid) for qid
             in self.failing - set(report.target_disagreements.keys())}
 
-        # filter upstream unstable
+        # filter upstream unstable and max attempts exceeded
         max_upstream_unstable = int(max_repro_attempts * UPSTREAM_UNSTABLE_THRESHOLD)
         candidates = {
             qid: query_data for qid, query_data in candidates.items()
-            if query_data.others_disagree <= max_upstream_unstable}
+            if (query_data.others_disagree <= max_upstream_unstable
+                and query_data.total < max_repro_attempts)}
 
         # filter failing
         max_allowed_failures = int(max_repro_attempts * ALLOWED_FAIL_THRESHOLD)
+        max_allowed_failures = 1 if max_allowed_failures < 1 else max_allowed_failures
         candidates = {
             qid: query_data for qid, query_data in candidates.items()
             if query_data.target_disagrees <= max_allowed_failures}
