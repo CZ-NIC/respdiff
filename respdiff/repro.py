@@ -4,11 +4,12 @@ from multiprocessing import pool
 import random
 import subprocess
 from typing import (  # noqa
-    AbstractSet, Any, Iterator, Iterable, Mapping, Optional, Sequence, Tuple, TypeVar)
+    AbstractSet, Any, Iterator, Iterable, Mapping, Optional, Set, Sequence, Tuple,
+    TypeVar, Union)
 
 from .database import (
     DNSRepliesFactory, DNSReply, key2qid, ResolverID, qid2key, QKey, WireFormat)
-from .dataformat import Diff, DiffReport, FieldLabel
+from .dataformat import Diff, DiffReport, FieldLabel, QID
 from .match import compare
 from .sendrecv import worker_perform_single_query
 from .query import get_query_iterator
@@ -96,6 +97,15 @@ def query_stream_from_disagreements(
         if skip_non_reproducible and reprocounter.retries != reprocounter.verified:
             logging.debug('Skipping QID %7d: not 100 %% reproducible', diff.qid)
             continue
+        yield qid2key(qid), qwire
+
+
+def query_stream_from_qids(
+            lmdb,
+            qids: Set[QID]
+        ) -> Iterator[Tuple[QKey, WireFormat]]:
+    queries = get_query_iterator(lmdb, random.sample(qids, len(qids)))
+    for qid, qwire in queries:
         yield qid2key(qid), qwire
 
 

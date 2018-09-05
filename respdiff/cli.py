@@ -130,7 +130,7 @@ def check_metadb_servers_version(lmdb, servers: Sequence[str]) -> None:
     try:
         MetaDatabase(lmdb, servers, create=False)  # check version and servers
     except NotImplementedError as exc:
-        logging.critical(exc)
+        logging.critical(str(exc))
         sys.exit(1)
 
 
