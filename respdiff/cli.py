@@ -8,6 +8,7 @@ from typing import Callable, Dict, Mapping, Optional, Sequence, Tuple, Union  # 
 from tabulate import tabulate
 
 from .cfg import read_cfg
+from .database import MetaDatabase
 from .dataformat import DiffReport, FieldLabel, InvalidFileFormat, Summary
 from .match import DataMismatch
 from .stats import SummaryStatistics
@@ -123,6 +124,14 @@ def get_datafile(args: Namespace, key: str = 'datafile', check_exists: bool = Tr
         sys.exit(1)
 
     return datafile
+
+
+def check_metadb_servers_version(lmdb, servers: Sequence[str]) -> None:
+    try:
+        MetaDatabase(lmdb, servers, create=False)  # check version and servers
+    except NotImplementedError as exc:
+        logging.critical(exc)
+        sys.exit(1)
 
 
 def format_stats_line(
