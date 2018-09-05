@@ -7,7 +7,6 @@ from multiprocessing import pool
 import os
 import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
-import sys
 
 from respdiff import cli
 from respdiff.dataformat import (
@@ -117,11 +116,7 @@ def main():
         # interaction when using multiple transaction / processes, open a separate
         # environment. Also, any dbs have to be opened before using MetaDatabase().
         report = prepare_report(lmdb_, servers)
-        try:
-            MetaDatabase(lmdb_, servers, create=False)  # check version and servers
-        except NotImplementedError as exc:
-            logging.critical(exc)
-            sys.exit(1)
+        cli.check_metadb_servers_version(lmdb_, servers)
 
     with LMDB(args.envdir, fast=True) as lmdb_:
         lmdb = lmdb_
