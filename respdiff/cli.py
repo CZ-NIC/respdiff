@@ -298,6 +298,7 @@ def print_global_stats(report: DiffReport, reference: DiffReport = None) -> None
 
 def print_differences_stats(report: DiffReport, reference: DiffReport = None) -> None:
     ref_summary = getattr(reference, 'summary', None)
+    ref_manual_ignore = getattr(ref_summary, 'manual_ignore', None)
     ref_upstream_unstable = getattr(ref_summary, 'upstream_unstable', None)
     ref_not_reproducible = getattr(ref_summary, 'not_reproducible', None)
     ref_target_disagrees = len(ref_summary) if ref_summary is not None else None
@@ -306,6 +307,10 @@ def print_differences_stats(report: DiffReport, reference: DiffReport = None) ->
         raise RuntimeError("Report doesn't containt necassary data!")
 
     print('== Differences statistics')
+    print(format_stats_line('manually ignored', *get_stats_data(
+        report.summary.manual_ignore, report.total_answers,
+        ref_manual_ignore),
+        additional='of answers (ignoring)'))
     print(format_stats_line('upstream unstable', *get_stats_data(
         report.summary.upstream_unstable, report.total_answers,
         ref_upstream_unstable),

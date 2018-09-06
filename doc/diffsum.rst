@@ -30,6 +30,9 @@ The report uses the following terms:
   between the answer from ``target`` server and the others server, and the
   other servers agree on the answer (there is no difference between them).
   These are the most interesting cases that are analysed further.
+- *manually ignored* is the number of queries which were ommitted from the
+  report by using `--without-ref-failing` or `--without-ref-unstable` along
+  with a reference statistics file
 
 The summary evaluates how many *target disagreements* there were in particular
 *fields* (or ``criteria``), and what did these mismatches look like. It produces
