@@ -282,18 +282,30 @@ class Summary(Disagreements):
                 report: 'DiffReport',
                 field_weights: Sequence[FieldLabel],
                 reproducibility_threshold: float = 1,
-                without_diffrepro: bool = False
+                without_diffrepro: bool = False,
+                ignore_qids: Optional[Set[QID]] = None
             ) -> 'Summary':
-        """Get summary of disagreements above the specified reproduciblity threshold (0, 1]."""
+        """
+        Get summary of disagreements above the specified reproduciblity
+        threshold [0, 1].
+
+        Optionally, provide a list of known unstable and/or failing QIDs which
+        will be ignored.
+        """
         if (report.other_disagreements is None
                 or report.target_disagreements is None
                 or report.total_answers is None):
             raise RuntimeError("Report has insufficient data to create Summary")
 
+        if ignore_qids is None:
+            ignore_qids = set()
+
         summary = Summary()
         summary.upstream_unstable = len(report.other_disagreements)
 
         for qid, diff in report.target_disagreements.items():
+            if qid in ignore_qids:
+                continue
             if not without_diffrepro and report.reprodata is not None:
                 reprocounter = report.reprodata[qid]
                 if reprocounter.retries > 0:
