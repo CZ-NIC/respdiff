@@ -34,6 +34,10 @@ def print_global_stats(report: DiffReport) -> None:
 
 def print_differences_stats(summary: Summary, total_answers: int) -> None:
     print('== Differences statistics')
+    if summary.manual_ignore:
+        print(GLOBAL_STATS_PCT_FORMAT.format(
+            'manually ignored', summary.manual_ignore,
+            summary.manual_ignore * 100.0 / total_answers, 'of answers (ignoring)'))
     print(GLOBAL_STATS_PCT_FORMAT.format(
         'upstream unstable', summary.upstream_unstable,
         summary.upstream_unstable * 100.0 / total_answers, 'of answers (ignoring)'))
