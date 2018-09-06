@@ -202,9 +202,10 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
                     "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
                         dest=destination))
             except OSError as exc:
-                if exc.errno != 0:
+                if exc.errno != 0 and not isinstance(exc, ConnectionResetError):
                     raise
                 # err=0 often happens during TLS handshake shortly after resolver startup
+                # ConnectionResetError tends to happen for diffrepro TLS connections
                 time.sleep(attempt)
                 attempt += 1
                 if attempt > retry:
