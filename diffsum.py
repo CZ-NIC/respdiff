@@ -14,44 +14,6 @@ from respdiff.query import (
     convert_queries, get_printable_queries_format, get_query_iterator)
 
 
-DEFAULT_LIMIT = 10
-GLOBAL_STATS_FORMAT = '{:21s}   {:>8}'
-GLOBAL_STATS_PCT_FORMAT = '{:21s}   {:8d}   {:5.2f} % {:s}'
-
-
-def print_global_stats(report: DiffReport) -> None:
-    if report.total_answers is None or report.total_queries is None:
-        raise RuntimeError("Report doesn't contain sufficient data to print statistics!")
-    print('== Global statistics')
-    if report.duration is not None:
-        print(GLOBAL_STATS_FORMAT.format('duration', '{:d} s'.format(report.duration)))
-    print(GLOBAL_STATS_FORMAT.format('queries', report.total_queries))
-    print(GLOBAL_STATS_PCT_FORMAT.format(
-        'answers', report.total_answers,
-        report.total_answers * 100.0 / report.total_queries, 'of queries'))
-    print('')
-
-
-def print_differences_stats(summary: Summary, total_answers: int) -> None:
-    print('== Differences statistics')
-    if summary.manual_ignore:
-        print(GLOBAL_STATS_PCT_FORMAT.format(
-            'manually ignored', summary.manual_ignore,
-            summary.manual_ignore * 100.0 / total_answers, 'of answers (ignoring)'))
-    print(GLOBAL_STATS_PCT_FORMAT.format(
-        'upstream unstable', summary.upstream_unstable,
-        summary.upstream_unstable * 100.0 / total_answers, 'of answers (ignoring)'))
-    if summary.not_reproducible:
-        print(GLOBAL_STATS_PCT_FORMAT.format(
-            'not 100% reproducible', summary.not_reproducible,
-            summary.not_reproducible * 100.0 / total_answers, 'of answers (ignoring)'))
-    print(GLOBAL_STATS_PCT_FORMAT.format(
-        'target disagrees', len(summary),
-        len(summary) * 100. / summary.usable_answers,
-        'of not ignored answers'))
-    print('')
-
-
 def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(
