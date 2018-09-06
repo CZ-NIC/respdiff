@@ -261,6 +261,7 @@ class Summary(Disagreements):
         'upstream_unstable': (None, None),
         'usable_answers': (None, None),
         'not_reproducible': (None, None),
+        'manual_ignore': (None, None),
     }
 
     def __init__(
@@ -270,6 +271,7 @@ class Summary(Disagreements):
         self.usable_answers = 0
         self.upstream_unstable = 0
         self.not_reproducible = 0
+        self.manual_ignore = 0
         super(Summary, self).__init__(_restore_dict=_restore_dict)
 
     def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
@@ -282,18 +284,31 @@ class Summary(Disagreements):
                 report: 'DiffReport',
                 field_weights: Sequence[FieldLabel],
                 reproducibility_threshold: float = 1,
-                without_diffrepro: bool = False
+                without_diffrepro: bool = False,
+                ignore_qids: Optional[Set[QID]] = None
             ) -> 'Summary':
-        """Get summary of disagreements above the specified reproduciblity threshold (0, 1]."""
+        """
+        Get summary of disagreements above the specified reproduciblity
+        threshold [0, 1].
+
+        Optionally, provide a list of known unstable and/or failing QIDs which
+        will be ignored.
+        """
         if (report.other_disagreements is None
                 or report.target_disagreements is None
                 or report.total_answers is None):
             raise RuntimeError("Report has insufficient data to create Summary")
 
+        if ignore_qids is None:
+            ignore_qids = set()
+
         summary = Summary()
         summary.upstream_unstable = len(report.other_disagreements)
 
         for qid, diff in report.target_disagreements.items():
+            if qid in ignore_qids:
+                summary.manual_ignore += 1
+                continue
             if not without_diffrepro and report.reprodata is not None:
                 reprocounter = report.reprodata[qid]
                 if reprocounter.retries > 0:
