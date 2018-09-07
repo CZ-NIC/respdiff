@@ -307,7 +307,7 @@ def test_disagreements_counter():
     assert len(dc) == 2
     dc_restored = DisagreementsCounter(_restore_dict=dc.save())
     assert len(dc_restored) == 2
-    assert dc_restored.queries == set([1, 2])
+    assert dc_restored.queries == {1, 2}
 
 
 def test_diff_report():
@@ -318,7 +318,7 @@ def test_diff_report():
     assert report.total_queries == 23122
     assert report.total_answers == 23100
     assert len(report.other_disagreements) == 3
-    assert set([7, 8, 9]) == report.other_disagreements.queries
+    assert {7, 8, 9} == report.other_disagreements.queries
     assert len(report.target_disagreements) == 4
 
     report_restored = DiffReport(_restore_dict=report.save())

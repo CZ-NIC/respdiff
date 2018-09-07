@@ -288,7 +288,7 @@ class MetaDatabase(Database):
                 servers: Sequence[ResolverID],
                 create: bool = False
             ) -> None:
-        super(MetaDatabase, self).__init__(lmdb_, create)
+        super().__init__(lmdb_, create)
         if create:
             self.write_servers(servers)
         else:

@@ -45,7 +45,7 @@ class Stats(JSONDataObject):
         samples contain the entire data set of reference values of this parameter.
         If no custom threshold is provided, it is calculated automagically.
         """
-        super(Stats, self).__init__()
+        super().__init__()
         self.samples = samples if samples is not None else []
         if threshold is None:
             if self.samples:
@@ -152,7 +152,7 @@ class MismatchStatistics(dict, JSONDataObject):
                 sample_size: Optional[int] = None,
                 _restore_dict: Optional[Mapping[str, Any]] = None
             ) -> None:
-        super(MismatchStatistics, self).__init__()
+        super().__init__()
         self.total = None
         if mismatch_counters_list is not None and sample_size is not None:
             samples = collections.defaultdict(list)  # type: Dict[str, List[int]]
@@ -177,14 +177,14 @@ class MismatchStatistics(dict, JSONDataObject):
             self.restore(_restore_dict)
 
     def restore(self, restore_dict: Mapping[str, Any]) -> None:
-        super(MismatchStatistics, self).restore(restore_dict)
+        super().restore(restore_dict)
         for mismatch_key, stats_data in restore_dict.items():
             if mismatch_key in self._ATTRIBUTES:
                 continue  # attributes are already loaded
             self[mismatch_key] = Stats(_restore_dict=stats_data)
 
     def save(self) -> Dict[str, Any]:
-        restore_dict = super(MismatchStatistics, self).save() or {}
+        restore_dict = super().save() or {}
         for mismatch_key, stats_data in self.items():
             restore_dict[mismatch_key] = stats_data.save()
         return restore_dict
@@ -204,7 +204,7 @@ class FieldStatistics(dict, JSONDataObject):
                 summaries_list: Optional[Sequence[Summary]] = None,
                 _restore_dict: Optional[Mapping[str, Any]] = None
             ) -> None:
-        super(FieldStatistics, self).__init__()
+        super().__init__()
         if summaries_list is not None:
             field_counters_list = [d.get_field_counters() for d in summaries_list]
             for field in ALL_FIELDS:
@@ -215,12 +215,12 @@ class FieldStatistics(dict, JSONDataObject):
             self.restore(_restore_dict)
 
     def restore(self, restore_dict: Mapping[str, Any]) -> None:
-        super(FieldStatistics, self).restore(restore_dict)
+        super().restore(restore_dict)
         for field, field_data in restore_dict.items():
             self[field] = MismatchStatistics(_restore_dict=field_data)
 
     def save(self) -> Dict[str, Any]:
-        restore_dict = super(FieldStatistics, self).save() or {}
+        restore_dict = super().save() or {}
         for field, mismatch_stats in self.items():
             restore_dict[field] = mismatch_stats.save()
         return restore_dict
@@ -251,7 +251,7 @@ class SummaryStatistics(JSONDataObject):
                 summaries: Sequence[Summary] = None,
                 _restore_dict: Mapping[str, Any] = None
             ) -> None:
-        super(SummaryStatistics, self).__init__()
+        super().__init__()
         self.sample_size = None
         self.upstream_unstable = None
         self.usable_answers = None

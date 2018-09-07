@@ -28,7 +28,7 @@ class DataMismatch(Exception):
         exp_val = convert_val_type(exp_val)
         got_val = convert_val_type(got_val)
 
-        super(DataMismatch, self).__init__(exp_val, got_val)
+        super().__init__(exp_val, got_val)
         if exp_val == got_val:
             raise RuntimeError("exp_val == got_val ({})".format(exp_val))
         self.exp_val = exp_val
