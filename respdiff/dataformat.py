@@ -93,7 +93,7 @@ class Diff(collections.abc.Mapping):
     __delitem__ = None
 
     def __init__(self, qid: QID, mismatches: Mapping[FieldLabel, DataMismatch]) -> None:
-        super(Diff, self).__init__()
+        super().__init__()
         self.qid = qid
         self._mismatches = mismatches
 
@@ -159,7 +159,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
               }
             }
         """
-        super(Disagreements, self).__init__()
+        super().__init__()
         self._fields = collections.defaultdict(
                 lambda: collections.defaultdict(set)
             )  # type: Dict[FieldLabel, Dict[DataMismatch, Set[QID]]]
@@ -167,7 +167,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
             self.restore(_restore_dict)
 
     def restore(self, restore_dict: Mapping[str, Any]) -> None:
-        super(Disagreements, self).restore(restore_dict)
+        super().restore(restore_dict)
         for field_label, field_data in restore_dict['fields'].items():
             for mismatch_data in field_data['mismatches']:
                 mismatch = DataMismatch(
@@ -190,7 +190,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
                 'count': len(mismatches),
                 'mismatches': mismatches,
             }
-        restore_dict = super(Disagreements, self).save() or {}
+        restore_dict = super().save() or {}
         restore_dict.update({
             'count': self.count,
             'fields': fields,
@@ -243,7 +243,7 @@ class DisagreementsCounter(JSONDataObject):
     }
 
     def __init__(self, _restore_dict: Mapping[str, int] = None) -> None:
-        super(DisagreementsCounter, self).__init__()
+        super().__init__()
         self.queries = set()  # type: Set[QID]
         if _restore_dict is not None:
             self.restore(_restore_dict)
@@ -270,7 +270,7 @@ class Summary(Disagreements):
         self.usable_answers = 0
         self.upstream_unstable = 0
         self.not_reproducible = 0
-        super(Summary, self).__init__(_restore_dict=_restore_dict)
+        super().__init__(_restore_dict=_restore_dict)
 
     def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
         if qid in self.keys():
@@ -336,7 +336,7 @@ class ReproCounter(JSONDataObject):
                 verified: int = 0,
                 _restore_dict: Optional[Mapping[str, int]] = None
             ) -> None:
-        super(ReproCounter, self).__init__()
+        super().__init__()
         self.retries = retries
         self.upstream_stable = upstream_stable
         self.verified = verified
@@ -346,7 +346,7 @@ class ReproCounter(JSONDataObject):
     def save(self) -> Optional[Dict[str, int]]:
         if not self.retries:
             return None
-        return super(ReproCounter, self).save()
+        return super().save()
 
     def __eq__(self, other) -> bool:
         return (
@@ -357,18 +357,18 @@ class ReproCounter(JSONDataObject):
 
 class ReproData(collections.abc.Mapping, JSONDataObject):
     def __init__(self, _restore_dict: Optional[Mapping[str, Any]] = None) -> None:
-        super(ReproData, self).__init__()
+        super().__init__()
         self._counters = collections.defaultdict(ReproCounter)  # type: Dict[QID, ReproCounter]
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
     def restore(self, restore_dict: Mapping[str, Any]) -> None:
-        super(ReproData, self).restore(restore_dict)
+        super().restore(restore_dict)
         for qid, counter_data in restore_dict.items():
             self._counters[int(qid)] = ReproCounter(_restore_dict=counter_data)
 
     def save(self) -> Optional[Dict[str, Any]]:
-        restore_dict = super(ReproData, self).save() or {}
+        restore_dict = super().save() or {}
         for qid, counter in self._counters.items():
             counter_data = counter.save()
             if counter_data is not None:
@@ -419,7 +419,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
                 reprodata: Optional[ReproData] = None,
                 _restore_dict: Optional[Mapping[str, Any]] = None
             ) -> None:
-        super(DiffReport, self).__init__()
+        super().__init__()
         self.start_time = start_time
         self.end_time = end_time
         self.total_queries = total_queries
