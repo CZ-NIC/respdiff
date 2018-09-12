@@ -25,7 +25,7 @@ MAX_RETRIES=60
 {% for resolver in resolvers.values() -%}
 retries=0
 {% if resolver['port'] %}
-while [ ! -z $(ss --all --no-header '( dport = :{{ resolver["port"] }} or sport = :{{ resolver["port"] }} )') ]; do
+while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["port"] }} or sport = :{{ resolver["port"] }} )')" ]; do
 	retries=$((retries+1))
 	if (( $retries > $MAX_RETRIES )); then
 		echo "ERROR: port {{ resolver['port'] }} not availble" >&2
@@ -36,7 +36,7 @@ done
 {% endif %}
 {% if resolver['tls_port'] %}
 retries=0
-while [ ! -z $(ss --all --no-header '( dport = :{{ resolver["tls_port"] }} or sport = :{{ resolver["tls_port"] }} )') ]; do
+while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["tls_port"] }} or sport = :{{ resolver["tls_port"] }} )')" ]; do
 	retries=$((retries+1))
 	if (( $retries > $MAX_RETRIES )); then
 		echo "ERROR: port {{ resolver['tls_port'] }} not availble" >&2
@@ -71,7 +71,7 @@ set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
-time docker-compose up --no-start
+time docker-compose up --no-start >&2
 # Start and wait for resolvers to be available
 ./restart-all.sh
 
