@@ -6,6 +6,7 @@ FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 # https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
 ARG SSH_PRIVATE_KEY
 ARG GIT_SHA
+ARG CFLAGS
 
 RUN mkdir /root/.ssh/
 RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
@@ -33,7 +34,7 @@ COPY --from=intermediate /var/opt/knot-resolver /var/opt/knot-resolver
 WORKDIR /var/opt/knot-resolver
 
 RUN mkdir .install
-RUN make PREFIX=/var/opt/knot-resolver/.install LDFLAGS="-Wl,-rpath=/var/opt/knot-resolver/.install/lib"
+RUN make PREFIX=/var/opt/knot-resolver/.install LDFLAGS="-Wl,-rpath=/var/opt/knot-resolver/.install/lib" CFLAGS="${CFLAGS}"
 RUN make install PREFIX=/var/opt/knot-resolver/.install
 
 RUN mkdir /log
