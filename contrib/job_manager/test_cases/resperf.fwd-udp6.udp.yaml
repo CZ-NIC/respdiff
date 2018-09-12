@@ -1,0 +1,15 @@
+resolvers:
+  kresd_fwd_target:
+    type: knot-resolver
+    port: &kresd_fwd_target_port 55102
+    listen_ipv6: true
+
+  kresd:
+    type: knot-resolver
+    port: &kresd_port 55101
+    forward:
+      ip: '::1'
+      port: *kresd_fwd_target_port
+
+resperf:
+  port: *kresd_port
