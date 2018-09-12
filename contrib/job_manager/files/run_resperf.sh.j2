@@ -14,21 +14,29 @@ tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 mkdir -p docker-knot-resolver || :
 mv Dockerfile docker-knot-resolver/ || :
 
+# HACK (condor): set PATH, otherwise docker-compose exec will fail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
     echo "ERROR: running docker containers detected" >&2
     exit 2
 fi
 
-
 # Exit if any cmd fails from now on.
 set -o errexit
 
 cleanup() {
-    docker-compose rm -fsv || :
+    docker-compose --no-ansi rm -fsv || :
     exit 0
 }
-trap cleanup ERR EXIT
+trap cleanup EXIT
+
+err_handle() {
+    echo '1' > ${JOBNAME}_exitcode
+    cleanup
+}
+trap err ERR
 
 # Prepare ssh key for knot-resolver-security
 set +o xtrace
@@ -38,7 +46,7 @@ set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
-time docker-compose up --no-start
+time docker-compose --no-ansi up --no-start
 
 # Run resperf test repeatedly
 for i in $(seq 3); do
@@ -74,8 +82,8 @@ for i in $(seq 3); do
 
     # Execute resperf
     docker-compose --no-ansi up -d
-    docker-compose exec resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
+    docker-compose --no-ansi exec resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
     docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt
-    docker-compose --no-ansi ps | grep Exit && (echo '1' > ${JOBNAME}_exitcode; false)
+    ! docker-compose --no-ansi ps | grep Exit
     docker-compose --no-ansi kill
 done
