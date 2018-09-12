@@ -16,47 +16,50 @@ mv Dockerfile docker-knot-resolver/ || :
 
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
-	echo "ERROR: running docker containers detected" >&2
-	exit 2
+    echo "ERROR: running docker containers detected" >&2
+    exit 2
 fi
 
 # Ensure ports are empty, so we're not testing something else!
+set +o xtrace
+echo "Waiting for ports..."
 MAX_RETRIES=60
 {% for resolver in resolvers.values() -%}
 retries=0
 {% if resolver['port'] %}
 while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["port"] }} or sport = :{{ resolver["port"] }} )')" ]; do
-	retries=$((retries+1))
-	if (( $retries > $MAX_RETRIES )); then
-		echo "ERROR: port {{ resolver['port'] }} not availble" >&2
-		exit 2
-	fi
-	sleep 1
+    retries=$((retries+1))
+    if (( $retries > $MAX_RETRIES )); then
+        echo "ERROR: port {{ resolver['port'] }} not availble" >&2
+        exit 2
+    fi
+    sleep 1
 done
 {% endif %}
 {% if resolver['tls_port'] %}
 retries=0
 while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["tls_port"] }} or sport = :{{ resolver["tls_port"] }} )')" ]; do
-	retries=$((retries+1))
-	if (( $retries > $MAX_RETRIES )); then
-		echo "ERROR: port {{ resolver['tls_port'] }} not availble" >&2
-		exit 2
-	fi
-	sleep 1
+    retries=$((retries+1))
+    if (( $retries > $MAX_RETRIES )); then
+        echo "ERROR: port {{ resolver['tls_port'] }} not availble" >&2
+        exit 2
+    fi
+    sleep 1
 done
 {% endif %}
 {% endfor %}
+set -o xtrace
 
 # Exit if any cmd fails from now on.
 set -o errexit
 
 cleanup() {
-	docker-compose rm -fsv || :
-	tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
+    docker-compose rm -fsv || :
+    tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
 {%if database['remove_after'] %}
-	rm -rf ./*.mdb || :
+    rm -rf ./*.mdb || :
 {% endif %}
-	exit 0
+    exit 0
 }
 trap cleanup ERR EXIT
 
