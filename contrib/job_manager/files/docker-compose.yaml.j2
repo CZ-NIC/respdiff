@@ -13,7 +13,7 @@ services:
         GIT_SHA: {{ git_sha }}
         SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY}
         KNOT_BRANCH: ${KNOT_BRANCH}
-	CFLAGS: {{ '-ggdb3 -O0 -fsanitize=address -fno-omit-frame-pointer' if asan else '' }}
+        CFLAGS: {{ '-ggdb3 -O0 -fsanitize=address -fno-omit-frame-pointer' if asan else "''" }}
     image: knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }}
     volumes:
       - "./{{ name }}.conf:/etc/knot-resolver/kresd.conf:ro"
@@ -43,3 +43,9 @@ services:
     {%- endif -%}
 
 {%- endfor -%}
+
+{%- if resperf %}
+  resperf:
+    network_mode: host
+    image: registry.labs.nic.cz/knot/respdiff/resperf:latest
+{%- endif -%}
