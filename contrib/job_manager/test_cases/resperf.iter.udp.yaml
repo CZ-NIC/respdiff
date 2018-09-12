@@ -1,0 +1,7 @@
+resolvers:
+  kresd:
+    type: knot-resolver
+    port: &kresd_port 55201
+
+resperf:
+  port: *kresd_port
