@@ -69,11 +69,7 @@ def load_test_case_config(test_case: str) -> Dict[str, Any]:
         return yaml.load(f)
 
 
-def create_template_files(directory: str, config: Dict[str, Any]):
-    create_file_from_template('run_respdiff.sh.j2', config, directory, executable=True)
-    create_file_from_template('restart-all.sh.j2', config, directory, executable=True)
-    create_file_from_template('docker-compose.yaml.j2', config, directory)
-
+def create_resolver_configs(directory: str, config: Dict[str, Any]):
     for name, resolver in config['resolvers'].items():
         resolver['name'] = name
         resolver['verbose'] = config['verbose']
@@ -100,12 +96,32 @@ def create_template_files(directory: str, config: Dict[str, Any]):
             raise NotImplementedError(
                 "unknown resolver type: '{}'".format(resolver['type']))
 
+
+def create_resperf_files(directory: str, config: Dict[str, Any]):
+    create_file_from_template('run_resperf.sh.j2', config, directory, executable=True)
+    create_file_from_template('docker-compose.yaml.j2', config, directory)
+    create_resolver_configs(directory, config)
+
+
+def create_respdiff_files(directory: str, config: Dict[str, Any]):
+    create_file_from_template('run_respdiff.sh.j2', config, directory, executable=True)
+    create_file_from_template('restart-all.sh.j2', config, directory, executable=True)
+    create_file_from_template('docker-compose.yaml.j2', config, directory)
+    create_resolver_configs(directory, config)
+
     # omit resolvers without respdiff section from respdiff.cfg
     config['resolvers'] = {
         name: res for name, res
         in config['resolvers'].items()
         if 'respdiff' in res}
     create_file_from_template('respdiff.cfg.j2', config, directory)
+
+
+def create_template_files(directory: str, config: Dict[str, Any]):
+    if 'respdiff' in config:
+        create_respdiff_files(directory, config)
+    elif 'resperf' in config:
+        create_resperf_files(directory, config)
 
 
 def get_test_case_list(nameglob: str = '') -> List[str]:
