@@ -4,6 +4,9 @@ set -o xtrace
 JOBNAME=j$1.$2
 
 # HACK (condor): ensure files for transfer exist to avoid held jobs
+touch ${JOBNAME}_kresd.docker.txt
+touch ${JOBNAME}_resperf.txt
+echo '0' > ${JOBNAME}_exitcode
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
@@ -13,51 +16,66 @@ mv Dockerfile docker-knot-resolver/ || :
 
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
-	echo "ERROR: running docker containers detected" >&2
-	exit 2
+    echo "ERROR: running docker containers detected" >&2
+    exit 2
 fi
 
-# Ensure ports are empty, so we're not testing something else!
-MAX_RETRIES=60
-{% for resolver in resolvers.values() -%}
-retries=0
-{% if resolver['port'] %}
-while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["port"] }} or sport = :{{ resolver["port"] }} )')" ]; do
-	retries=$((retries+1))
-	if (( $retries > $MAX_RETRIES )); then
-		echo "ERROR: port {{ resolver['port'] }} not availble" >&2
-		exit 2
-	fi
-	sleep 1
-done
-{% endif %}
-{% if resolver['tls_port'] %}
-retries=0
-while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["tls_port"] }} or sport = :{{ resolver["tls_port"] }} )')" ]; do
-	retries=$((retries+1))
-	if (( $retries > $MAX_RETRIES )); then
-		echo "ERROR: port {{ resolver['tls_port'] }} not availble" >&2
-		exit 2
-	fi
-	sleep 1
-done
-{% endif %}
-{% endfor %}
 
 # Exit if any cmd fails from now on.
 set -o errexit
 
 cleanup() {
-	docker-compose rm -fsv || :
-	exit 0
+    docker-compose rm -fsv || :
+    exit 0
 }
 trap cleanup ERR EXIT
+
+# Prepare ssh key for knot-resolver-security
+set +o xtrace
+SSH_PRIVATE_KEY=$(cat </home/respdiff/.ssh/knot_resolver_security.id_rsa || :)
+export SSH_PRIVATE_KEY
+set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
 time docker-compose up --no-start
 
 # Run resperf test repeatedly
-time docker-compose up --abort-on-container-exit
-time docker-compose up --abort-on-container-exit
-time docker-compose up --abort-on-container-exit
+for i in $(seq 3); do
+    set +o xtrace
+    echo "Waiting for ports..."
+    # Ensure ports are empty, so we're not testing something else!
+    MAX_RETRIES=30  # x5s
+    {% for resolver in resolvers.values() -%}
+    retries=0
+    {% if resolver['port'] %}
+    while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["port"] }} or sport = :{{ resolver["port"] }} )')" ]; do
+        retries=$((retries+1))
+        if (( $retries > $MAX_RETRIES )); then
+            echo "ERROR: port {{ resolver['port'] }} not availble" >&2
+            exit 2
+        fi
+        sleep 5
+    done
+    {% endif %}
+    {% if resolver['tls_port'] %}
+    retries=0
+    while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["tls_port"] }} or sport = :{{ resolver["tls_port"] }} )')" ]; do
+        retries=$((retries+1))
+        if (( $retries > $MAX_RETRIES )); then
+            echo "ERROR: port {{ resolver['tls_port'] }} not availble" >&2
+            exit 2
+        fi
+        sleep 5
+    done
+    {% endif %}
+    {% endfor %}
+    set -o xtrace
+
+    # Execute resperf
+    docker-compose --no-ansi up -d
+    docker-compose exec resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
+    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt
+    docker-compose --no-ansi ps | grep Exit && (echo '1' > ${JOBNAME}_exitcode; false)
+    docker-compose --no-ansi kill
+done
