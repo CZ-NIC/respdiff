@@ -138,6 +138,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['git_sha'] = git_sha
         config['knot_branch'] = args.knot_branch
         config['verbose'] = args.verbose
+        config['asan'] = args.asan
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
         prepare_dir(directory, clean=args.clean)
@@ -175,6 +176,9 @@ def main() -> None:
     parser.add_argument(
         '-v', '--verbose', action='store_true',
         help="Capture verbose logs from kresd")
+    parser.add_argument(
+        '--asan', action='store_true',
+        help="Build with Address Sanitizer")
 
     args = parser.parse_args()
     create_jobs(args)
