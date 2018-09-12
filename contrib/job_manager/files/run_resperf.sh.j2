@@ -34,9 +34,8 @@ trap cleanup EXIT
 
 err_handle() {
     echo '1' > ${JOBNAME}_exitcode
-    cleanup
 }
-trap err ERR
+trap err_handle ERR
 
 # Prepare ssh key for knot-resolver-security
 set +o xtrace
