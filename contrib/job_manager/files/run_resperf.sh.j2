@@ -1,0 +1,63 @@
+#!/bin/bash
+set -o xtrace
+
+JOBNAME=j$1.$2
+
+# HACK (condor): ensure files for transfer exist to avoid held jobs
+mkdir logs
+tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
+
+# HACK (condor): Create proper dir structure
+mkdir -p docker-knot-resolver || :
+mv Dockerfile docker-knot-resolver/ || :
+
+# Check no other docker containers are running
+if [ -n "$(docker ps -q)" ]; then
+	echo "ERROR: running docker containers detected" >&2
+	exit 2
+fi
+
+# Ensure ports are empty, so we're not testing something else!
+MAX_RETRIES=60
+{% for resolver in resolvers.values() -%}
+retries=0
+{% if resolver['port'] %}
+while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["port"] }} or sport = :{{ resolver["port"] }} )')" ]; do
+	retries=$((retries+1))
+	if (( $retries > $MAX_RETRIES )); then
+		echo "ERROR: port {{ resolver['port'] }} not availble" >&2
+		exit 2
+	fi
+	sleep 1
+done
+{% endif %}
+{% if resolver['tls_port'] %}
+retries=0
+while [ ! -z "$(ss --all --no-header '( dport = :{{ resolver["tls_port"] }} or sport = :{{ resolver["tls_port"] }} )')" ]; do
+	retries=$((retries+1))
+	if (( $retries > $MAX_RETRIES )); then
+		echo "ERROR: port {{ resolver['tls_port'] }} not availble" >&2
+		exit 2
+	fi
+	sleep 1
+done
+{% endif %}
+{% endfor %}
+
+# Exit if any cmd fails from now on.
+set -o errexit
+
+cleanup() {
+	docker-compose rm -fsv || :
+	exit 0
+}
+trap cleanup ERR EXIT
+
+# Attempt to build containers (to have stdout/err logs in case of failure)
+export KNOT_BRANCH={{ knot_branch }}
+time docker-compose up --no-start
+
+# Run resperf test repeatedly
+time docker-compose up --abort-on-container-exit
+time docker-compose up --abort-on-container-exit
+time docker-compose up --abort-on-container-exit
