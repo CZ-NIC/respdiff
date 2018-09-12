@@ -7,7 +7,9 @@ resolvers:
   kresd:
     type: knot-resolver
     port: &kresd_port 55101
-    forward: *fwd_kresd
+    forward:
+      ip: '::1'
+      port: *kresd_fwd_target_port
 
 resperf:
   port: *kresd_port
