@@ -6,7 +6,6 @@ FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 # https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
 ARG SSH_PRIVATE_KEY
 ARG GIT_SHA
-ARG CFLAGS
 
 RUN mkdir /root/.ssh/
 RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
@@ -29,6 +28,7 @@ RUN \
 # actual image
 FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+ARG CFLAGS
 
 COPY --from=intermediate /var/opt/knot-resolver /var/opt/knot-resolver
 WORKDIR /var/opt/knot-resolver
