@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 
-CMD ["/bin/bash"]
+CMD ["tail", "-f", "/dev/null"]
 
 RUN apt-get update
 RUN apt-get install -y -qqq git wget build-essential bind9utils libbind-dev libssl-dev libkrb5-dev libcap-dev libxml2-dev libjson-c-dev libgeoip-dev
