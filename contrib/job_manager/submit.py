@@ -30,10 +30,26 @@ def condor_submit(txn, priority: int) -> int:
     directory = os.getcwd()
     input_files = get_all_files(directory)
 
-    if 'run_respdiff.sh' not in input_files:
+    if 'run_respdiff.sh' in input_files:
+        executable = 'run_respdiff.sh'
+        output_files = [
+            'j$(Cluster).$(Process)_report.json',
+            'j$(Cluster).$(Process)_report.diffrepro.json',
+            'j$(Cluster).$(Process)_report.txt',
+            'j$(Cluster).$(Process)_report.diffrepro.txt',
+            'j$(Cluster).$(Process)_histogram.png',
+            'j$(Cluster).$(Process)_logs.tar.gz']
+    elif 'run_resperf.sh' in input_files:
+        executable = 'run_resperf.sh'
+        output_files = [
+            'j$(Cluster).$(Process)_exitcode',
+            'j$(Cluster).$(Process)_kresd.docker.txt',
+            'j$(Cluster).$(Process)_resperf.txt',
+            'j$(Cluster).$(Process)_logs.tar.gz']
+    else:
         raise RuntimeError(
-            "The provided directory doesn't look like a respdiff job. "
-            "{}/run_respdiff.sh is missing!".format(directory))
+            "The provided directory doesn't look like a respdiff/resperf job. "
+            "{}/run_*.sh is missing!".format(directory))
 
     # create batch name from dir structure
     commit_dir_path, test_case = os.path.split(directory)
@@ -42,7 +58,7 @@ def condor_submit(txn, priority: int) -> int:
 
     submit = Submit({
         'priority': str(priority),
-        'executable': 'run_respdiff.sh',
+        'executable': executable,
         'arguments': '$(Cluster) $(Process)',
         'error': 'j$(Cluster).$(Process)_stderr.txt',
         'output': 'j$(Cluster).$(Process)_stdout.txt',
@@ -51,13 +67,7 @@ def condor_submit(txn, priority: int) -> int:
         'should_transfer_files': 'YES',
         'when_to_transfer_output': 'ON_EXIT',
         'transfer_input_files': ', '.join(input_files),
-        'transfer_output_files': ', '.join([
-            'j$(Cluster).$(Process)_report.json',
-            'j$(Cluster).$(Process)_report.diffrepro.json',
-            'j$(Cluster).$(Process)_report.txt',
-            'j$(Cluster).$(Process)_report.diffrepro.txt',
-            'j$(Cluster).$(Process)_histogram.png',
-            'j$(Cluster).$(Process)_logs.tar.gz']),
+        'transfer_output_files': ', '.join(output_files),
         })
     return submit.queue(txn)
 
