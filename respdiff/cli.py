@@ -65,6 +65,9 @@ def load_summaries(
 
 def setup_logging(level: int = LOGGING_LEVEL) -> None:
     logging.basicConfig(format='%(asctime)s %(levelname)8s  %(message)s', level=level)
+    logger = logging.getLogger('matplotlib')
+    # set WARNING for Matplotlib
+    logger.setLevel(logging.WARNING)
 
 
 def add_arg_config(parser: ArgumentParser) -> None:
