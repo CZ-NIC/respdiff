@@ -244,6 +244,7 @@ def main():
     except ValueError:
         sys.exit(1)
 
+    logging.info('Start Comparison: %s', args.label)
     passed = plot_overview(sumstats, field_weights, summaries, args.label)
 
     if not passed:
