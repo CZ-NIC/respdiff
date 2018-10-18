@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, Namespace
+import contextlib
 from collections import Counter
 import logging
 import os
@@ -112,8 +113,8 @@ def add_arg_report(parser: ArgumentParser) -> None:
                         help='JSON report file(s)')
 
 
-def add_arg_report_filename(parser: ArgumentParser) -> None:
-    parser.add_argument('report', type=str, nargs='*',
+def add_arg_report_filename(parser: ArgumentParser, nargs='*') -> None:
+    parser.add_argument('report', type=str, nargs=nargs,
                         help='JSON report file(s)')
 
 
@@ -144,6 +145,20 @@ def check_metadb_servers_version(lmdb, servers: Sequence[str]) -> None:
     except NotImplementedError as exc:
         logging.critical(str(exc))
         sys.exit(1)
+
+
+@contextlib.contextmanager
+def smart_open(filename=None):
+    if filename and filename != '-':
+        fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+
+    try:
+        yield fh
+    finally:
+        if fh is not sys.stdout:
+            fh.close()
 
 
 def format_stats_line(
