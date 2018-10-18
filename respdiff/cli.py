@@ -117,6 +117,15 @@ def add_arg_report_filename(parser: ArgumentParser) -> None:
                         help='JSON report file(s)')
 
 
+def get_reports_from_filenames(args: Namespace) -> Sequence[DiffReport]:
+    reports = []
+    for filename in args.report:
+        report = read_report(filename, skip_empty=True)
+        if report is not None:
+            reports.append(report)
+    return reports
+
+
 def get_datafile(args: Namespace, key: str = 'datafile', check_exists: bool = True) -> str:
     datafile = getattr(args, key, None)
     if datafile is None:
