@@ -43,7 +43,7 @@ __resolvers = []  # type: Sequence[Tuple[ResolverID, IP, Protocol, Port]]
 __worker_state = threading.local()
 __max_timeouts = 10  # crash when N consecutive timeouts are received from a single resolver
 __ignore_timeout = False
-__timeout = 16
+__timeout = 10
 __time_delay_min = 0
 __time_delay_max = 0
 __timeout_reply = DNSReply(None)  # optimization: create only one timeout_reply object
@@ -225,7 +225,7 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
 def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
     """Receive DNS message from socket and remove preambule (if present)."""
     if isstream:  # parse preambule
-        blength = sock.recv(2)  # TODO: does not work with TLS: , socket.MSG_WAITALL)
+        blength = sock.recv(2, socket.MSG_WAITALL)  # TODO: does not work with TLS: , socket.MSG_WAITALL)
         if not blength:  # stream closed
             raise ConnectionError('TCP recv length == 0')
         (length, ) = struct.unpack('!H', blength)
