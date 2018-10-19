@@ -10,6 +10,7 @@ threads or processes. Make sure not to break this compatibility.
 
 
 from argparse import Namespace
+import logging
 import random
 import signal
 import selectors
@@ -265,7 +266,8 @@ def send_recv_parallel(
             sock = key.fileobj
             try:
                 wire = _recv_msg(sock, isstream)
-            except ConnectionError:
+            except ConnectionError as exc:
+                logging.debug('ConnectionError %s, socket %s', str(exc), sock.getsockname())
                 reinit = True
                 selector.unregister(sock)
                 continue  # receive answers from other parties
