@@ -49,6 +49,13 @@ __timeout_reply = DNSReply(None)  # optimization: create only one timeout_reply 
 __dnsreplies_factory = None
 
 
+CONN_RESET_RETRIES = 2
+
+
+class TcpFin(Exception):
+    pass
+
+
 def module_init(args: Namespace) -> None:
     global __resolvers
     global __max_timeouts
@@ -116,10 +123,11 @@ def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBl
         time.sleep(random.uniform(__time_delay_min, __time_delay_max))
 
     replies, reinit = send_recv_parallel(qwire, selector, sockets, __timeout)
+
     if not __ignore_timeout:
         _check_timeout(replies)
 
-    if reinit:  # a connection is broken or something
+    if reinit:  # a connection is closed
         worker_deinit()
         worker_reinit()
 
@@ -224,16 +232,18 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
 def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
     """Receive DNS message from socket and remove preambule (if present)."""
     if isstream:  # parse preambule
-        blength = sock.recv(2)  # TODO: does not work with TLS: , socket.MSG_WAITALL)
-        if not blength:  # stream closed
-            raise ConnectionError('TCP recv length == 0')
+        blength = sock.recv(2)
+        if not blength:  # FIN - stream closed
+            raise TcpFin('TCP recv length == 0')
+        elif blength != 2:
+            raise ConnectionError('failed to recv DNS packet length')
         (length, ) = struct.unpack('!H', blength)
     else:
         length = 65535  # max. UDP message size, no IPv6 jumbograms
     return sock.recv(length)
 
 
-def send_recv_parallel(
+def _send_recv_parallel(
             dgram: WireFormat,  # DNS message suitable for UDP transport
             selector: Selector,
             sockets: ResolverSockets,
@@ -265,7 +275,7 @@ def send_recv_parallel(
             sock = key.fileobj
             try:
                 wire = _recv_msg(sock, isstream)
-            except ConnectionError:
+            except TcpFin:
                 reinit = True
                 selector.unregister(sock)
                 continue  # receive answers from other parties
@@ -280,3 +290,20 @@ def send_recv_parallel(
             replies[resolver] = __timeout_reply
 
     return replies, reinit
+
+
+def send_recv_parallel(
+            dgram: WireFormat,  # DNS message suitable for UDP transport
+            selector: Selector,
+            sockets: ResolverSockets,
+            timeout: float
+        ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
+    for _ in range(CONN_RESET_RETRIES + 1):
+        try:
+            return _send_recv_parallel(dgram, selector, sockets, timeout)
+        except ConnectionError:  # most likely TCP RST
+            worker_deinit()  # re-establish connection
+            worker_reinit()
+    raise RuntimeError(
+        'ConnectionError received {} times in a row, exiting!'.format(
+            CONN_RESET_RETRIES + 1))
