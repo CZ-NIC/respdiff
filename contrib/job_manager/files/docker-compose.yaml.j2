@@ -15,6 +15,12 @@ services:
         KNOT_BRANCH: ${KNOT_BRANCH}
         CFLAGS: {{ '-ggdb3 -O0 -fsanitize=address -fno-omit-frame-pointer' if asan else "''" }}
     image: knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }}
+    deploy:
+      resources:
+        limits:
+          memory: "{{ mem_limit }}M"
+    ulimits:
+      nofile: {{ ulimit_n }}
     volumes:
       - "./{{ name }}.conf:/etc/knot-resolver/kresd.conf:ro"
       - "./root.keys:/etc/knot-resolver/root.keys:ro"

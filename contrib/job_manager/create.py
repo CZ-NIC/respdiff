@@ -72,8 +72,9 @@ def load_test_case_config(test_case: str) -> Dict[str, Any]:
 def create_resolver_configs(directory: str, config: Dict[str, Any]):
     for name, resolver in config['resolvers'].items():
         resolver['name'] = name
-        resolver['verbose'] = config['verbose']
         if resolver['type'] == 'knot-resolver':
+            resolver['verbose'] = config['verbose']
+            resolver['tcp_pipeline'] = config['tcp_pipeline']
             dockerfile_dir = os.path.join(directory, 'docker-knot-resolver')
             if not os.path.exists(dockerfile_dir):
                 os.makedirs(dockerfile_dir)
@@ -154,6 +155,9 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['git_sha'] = git_sha
         config['knot_branch'] = args.knot_branch
         config['verbose'] = args.verbose
+        config['mem_limit'] = args.mem_limit
+        config['tcp_pipeline'] = args.tcp_pipeline
+        config['ulimit_n'] = args.ulimit_n
         config['asan'] = args.asan
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
@@ -195,6 +199,15 @@ def main() -> None:
     parser.add_argument(
         '--asan', action='store_true',
         help="Build with Address Sanitizer")
+    parser.add_argument(
+        '--mem-limit', type=int, default=2048,
+        help="Memory limit for kresd container in MB")
+    parser.add_argument(
+        '--ulimit-n', type=int, default=1048576,
+        help="Max open files for kresd container")
+    parser.add_argument(
+        '--tcp-pipeline', type=int, default=4096,
+        help="net.tcp_pipeline(n) argument for kresd config")
 
     args = parser.parse_args()
     create_jobs(args)
