@@ -1,5 +1,6 @@
 #!/bin/bash
 set -o xtrace
+DOCKER_COMPOSE_CMD="docker-compose --compatibility --no-ansi"
 
 JOBNAME=j$1.$2
 
@@ -27,7 +28,7 @@ fi
 set -o errexit
 
 cleanup() {
-    docker-compose --no-ansi rm -fsv || :
+    ${DOCKER_COMPOSE_CMD} rm -fsv || :
     exit 0
 }
 trap cleanup EXIT
@@ -45,7 +46,7 @@ set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
-time docker-compose --no-ansi up --no-start
+time ${DOCKER_COMPOSE_CMD} up --no-start
 
 # Run resperf test repeatedly
 for i in $(seq 3); do
@@ -80,9 +81,9 @@ for i in $(seq 3); do
     set -o xtrace
 
     # Execute resperf
-    docker-compose --no-ansi up -d
-    docker-compose --no-ansi exec -T resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 16 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
-    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt
-    docker-compose --no-ansi ps | (! grep Exit)
-    docker-compose --no-ansi kill
+    ${DOCKER_COMPOSE_CMD} up -d
+    ${DOCKER_COMPOSE_CMD} exec -T resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 16 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
+    ${DOCKER_COMPOSE_CMD} logs &>>${JOBNAME}_kresd.docker.txt
+    ${DOCKER_COMPOSE_CMD} ps | (! grep Exit)
+    ${DOCKER_COMPOSE_CMD} kill
 done

@@ -1,5 +1,6 @@
 #!/bin/bash
 set -o xtrace
+DOCKER_COMPOSE_CMD="docker-compose --compatibility --no-ansi"
 
 JOBNAME=j$1.$2
 
@@ -54,7 +55,7 @@ set -o xtrace
 set -o errexit
 
 cleanup() {
-    docker-compose --no-ansi rm -fsv || :
+    ${DOCKER_COMPOSE_CMD} rm -fsv || :
     tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
 {%if database['remove_after'] %}
     rm -rf ./*.mdb || :
@@ -74,13 +75,13 @@ set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
-time docker-compose --no-ansi up --no-start >&2
+time ${DOCKER_COMPOSE_CMD} up --no-start >&2
 # Start and wait for resolvers to be available
 ./restart-all.sh
 
 # Run respdiff toolchain
 time "{{ respdiff['srcdir'] }}/orchestrator.py" .
-docker-compose --no-ansi stop  # give lingering connections time to close
+${DOCKER_COMPOSE_CMD} stop  # give lingering connections time to close
 time "{{ respdiff['srcdir'] }}/msgdiff.py" -d ${JOBNAME}_report.json .
 cp ${JOBNAME}_report{,.diffrepro}.json
 time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.diffrepro.json .
