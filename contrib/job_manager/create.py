@@ -75,6 +75,7 @@ def create_resolver_configs(directory: str, config: Dict[str, Any]):
         if resolver['type'] == 'knot-resolver':
             resolver['verbose'] = config['verbose']
             resolver['tcp_pipeline'] = config['tcp_pipeline']
+            resolver['cache_size'] = config['cache_size']
             dockerfile_dir = os.path.join(directory, 'docker-knot-resolver')
             if not os.path.exists(dockerfile_dir):
                 os.makedirs(dockerfile_dir)
@@ -155,6 +156,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['git_sha'] = git_sha
         config['knot_branch'] = args.knot_branch
         config['verbose'] = args.verbose
+        config['cache_size'] = args.cache_size
         config['mem_limit'] = args.mem_limit
         config['tcp_pipeline'] = args.tcp_pipeline
         config['ulimit_n'] = args.ulimit_n
@@ -208,6 +210,9 @@ def main() -> None:
     parser.add_argument(
         '--tcp-pipeline', type=int, default=4096,
         help="net.tcp_pipeline(n) argument for kresd config")
+    parser.add_argument(
+        '--cache-size', type=int, default=1000,
+        help='size of kresd cache in MB')
 
     args = parser.parse_args()
     create_jobs(args)
