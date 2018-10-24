@@ -29,7 +29,10 @@ The report uses the following terms:
 - *target disagreements* refers to cases, when there's a difference
   between the answer from ``target`` server and the others server, and the
   other servers agree on the answer (there is no difference between them).
-  These are the most interesting cases that are analysed further.
+  These are the most interesting cases that are analyzed further.
+- *manually ignored* is the number of queries which were omitted from the
+  report by using `--without-ref-failing` or `--without-ref-unstable` along
+  with a reference statistics file
 
 The summary evaluates how many *target disagreements* there were in particular
 *fields* (or ``criteria``), and what did these mismatches look like. It produces
@@ -40,7 +43,7 @@ Notes
 -----
 
 * If you adjust the ``field_weights``, just re-order the fields. Don't remove
-  them, otherwise there'll be issues if such field is ever encountered when
+  them, otherwise there will be issues if such field is ever encountered when
   producing the summary.
 * In case you update respdiff and ``diffsum.py`` doesn't work, check the
   changelog. If a new field was added, adjust your config accordingly.

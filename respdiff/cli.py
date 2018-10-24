@@ -8,6 +8,7 @@ from typing import Callable, Dict, Mapping, Optional, Sequence, Tuple, Union  # 
 from tabulate import tabulate
 
 from .cfg import read_cfg
+from .database import MetaDatabase
 from .dataformat import DiffReport, FieldLabel, InvalidFileFormat, Summary
 from .match import DataMismatch
 from .stats import SummaryStatistics
@@ -100,10 +101,10 @@ def add_arg_stats(parser: ArgumentParser) -> None:
                         help='statistics file (default: {})'.format(STATS_FILENAME))
 
 
-def add_arg_stats_filename(parser: ArgumentParser) -> None:
+def add_arg_stats_filename(parser: ArgumentParser, default=STATS_FILENAME) -> None:
     parser.add_argument('-s', '--stats', type=str,
-                        default=STATS_FILENAME, dest='stats_filename',
-                        help='statistics file (default: {})'.format(STATS_FILENAME))
+                        default=default, dest='stats_filename',
+                        help='statistics file (default: {})'.format(default))
 
 
 def add_arg_report(parser: ArgumentParser) -> None:
@@ -126,6 +127,14 @@ def get_datafile(args: Namespace, key: str = 'datafile', check_exists: bool = Tr
         sys.exit(1)
 
     return datafile
+
+
+def check_metadb_servers_version(lmdb, servers: Sequence[str]) -> None:
+    try:
+        MetaDatabase(lmdb, servers, create=False)  # check version and servers
+    except NotImplementedError as exc:
+        logging.critical(str(exc))
+        sys.exit(1)
 
 
 def format_stats_line(
@@ -289,6 +298,7 @@ def print_global_stats(report: DiffReport, reference: DiffReport = None) -> None
 
 def print_differences_stats(report: DiffReport, reference: DiffReport = None) -> None:
     ref_summary = getattr(reference, 'summary', None)
+    ref_manual_ignore = getattr(ref_summary, 'manual_ignore', None)
     ref_upstream_unstable = getattr(ref_summary, 'upstream_unstable', None)
     ref_not_reproducible = getattr(ref_summary, 'not_reproducible', None)
     ref_target_disagrees = len(ref_summary) if ref_summary is not None else None
@@ -297,6 +307,10 @@ def print_differences_stats(report: DiffReport, reference: DiffReport = None) ->
         raise RuntimeError("Report doesn't containt necassary data!")
 
     print('== Differences statistics')
+    print(format_stats_line('manually ignored', *get_stats_data(
+        report.summary.manual_ignore, report.total_answers,
+        ref_manual_ignore),
+        additional='of answers (ignoring)'))
     print(format_stats_line('upstream unstable', *get_stats_data(
         report.summary.upstream_unstable, report.total_answers,
         ref_upstream_unstable),
