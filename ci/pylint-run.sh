@@ -7,4 +7,4 @@ FILES=$(find . \
 	-path './ci' -prune -o \
 	-name '*.py' -print)
 
-python3 -m pylint -j 2 --rcfile pylintrc ${FILES}
+python3 -m pylint -j 0 --rcfile pylintrc ${FILES}
