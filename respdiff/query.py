@@ -20,6 +20,11 @@ def get_query_iterator(
             yield qid, qwire
 
 
+def qwire_to_qname(qwire: WireFormat) -> str:
+    qmsg = dns.message.from_wire(qwire)
+    return qmsg.question[0].name
+
+
 def qwire_to_qname_qtype(qwire: WireFormat) -> str:
     """Get text representation of DNS wire format query"""
     qmsg = dns.message.from_wire(qwire)
