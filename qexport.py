@@ -8,7 +8,7 @@ from typing import Sequence, Set
 from respdiff import cli
 from respdiff.database import LMDB
 from respdiff.dataformat import DiffReport
-from respdiff.query import get_query_iterator, qwire_to_qname_qtype
+from respdiff.query import get_query_iterator, qwire_to_qname, qwire_to_qname_qtype
 from respdiff.typing import QID
 
 
@@ -41,14 +41,20 @@ def export_qids_to_qname_qtype(qids: Set[QID], lmdb, file=sys.stdout):
         print(qwire_to_qname_qtype(qwire), file=file)
 
 
+def export_qids_to_qname(qids: Set[QID], lmdb, file=sys.stdout):
+    domains = {qwire_to_qname(qwire) for _, qwire in get_query_iterator(lmdb, qids)}
+    for domain in domains:
+        print(domain, file=file)
+
+
 def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(description="export queries from reports' summaries")
     cli.add_arg_report_filename(parser, nargs='+')
     parser.add_argument('--envdir', type=str,
                         help="LMDB environment (required when output format isn't 'qid')")
-    parser.add_argument('-f', '--format', type=str, choices=['text', 'qid'], default='text',
-                        help="output data format")
+    parser.add_argument('-f', '--format', type=str, choices=['text', 'qid', 'domain'],
+                        default='text', help="output data format")
     parser.add_argument('-o', '--output', type=str, help='output file')
     parser.add_argument('--failing', action='store_true', help="get target disagreements")
     parser.add_argument('--unstable', action='store_true', help="get upstream unstable")
@@ -76,10 +82,14 @@ def main():
     with cli.smart_open(args.output) as fh:
         if args.format == 'qid':
             export_qids(qids, fh)
-        elif args.format == 'text':
+        else:
             with LMDB(args.envdir, readonly=True) as lmdb:
                 lmdb.open_db(LMDB.QUERIES)
-                export_qids_to_qname_qtype(qids, lmdb, fh)
+
+                if args.format == 'text':
+                    export_qids_to_qname_qtype(qids, lmdb, fh)
+                elif args.format == 'domain':
+                    export_qids_to_qname(qids, lmdb, fh)
 
 
 if __name__ == '__main__':
