@@ -23,6 +23,7 @@ LOGGING_LEVEL = logging.DEBUG
 CONFIG_FILENAME = 'respdiff.cfg'
 REPORT_FILENAME = 'report.json'
 STATS_FILENAME = 'stats.json'
+DNSVIZ_FILENAME = 'dnsviz.json'
 DEFAULT_PRINT_QUERY_LIMIT = 10
 
 
@@ -102,10 +103,15 @@ def add_arg_stats(parser: ArgumentParser) -> None:
                         help='statistics file (default: {})'.format(STATS_FILENAME))
 
 
-def add_arg_stats_filename(parser: ArgumentParser, default=STATS_FILENAME) -> None:
+def add_arg_stats_filename(parser: ArgumentParser, default: str = STATS_FILENAME) -> None:
     parser.add_argument('-s', '--stats', type=str,
                         default=default, dest='stats_filename',
                         help='statistics file (default: {})'.format(default))
+
+
+def add_arg_dnsviz(parser: ArgumentParser, default: str = DNSVIZ_FILENAME) -> None:
+    parser.add_argument('--dnsviz', type=str, default=default,
+                        help='dnsviz grok output (default: {})'.format(default))
 
 
 def add_arg_report(parser: ArgumentParser) -> None:
