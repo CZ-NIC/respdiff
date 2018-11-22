@@ -25,7 +25,7 @@ def restart_resolver(script_path: str) -> None:
     except subprocess.CalledProcessError as exc:
         logging.warning('Resolver restart failed (exit code %d): %s',
                         exc.returncode, script_path)
-    except PermissionError as exc:
+    except PermissionError:
         logging.warning('Resolver restart failed (permission error): %s',
                         script_path)
 
