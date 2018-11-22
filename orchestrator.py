@@ -44,7 +44,7 @@ def main():
                     if i % 10000 == 0:
                         logging.info('Received {:d} answers'.format(i))
                     txn.put(qkey, blob)
-        except KeyboardInterrupt as err:
+        except KeyboardInterrupt:
             logging.info('SIGINT received, exiting...')
             sys.exit(130)
         except RuntimeError as err:

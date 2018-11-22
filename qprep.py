@@ -157,7 +157,7 @@ def main():
                 for key, wire in workers.imap(method, data_stream, chunksize=1000):
                     if key is not None:
                         txn.put(key, wire)
-        except KeyboardInterrupt as err:
+        except KeyboardInterrupt:
             logging.info('SIGINT received, exiting...')
             sys.exit(130)
         except RuntimeError as err:
