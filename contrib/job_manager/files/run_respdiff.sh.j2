@@ -7,6 +7,10 @@ JOBNAME=j$1.$2
 touch ${JOBNAME}_report{,.diffrepro}.json
 touch ${JOBNAME}_report{,.diffrepro}.txt
 touch ${JOBNAME}_histogram.png
+if [ -f "stats.json" ]; then
+    touch ${JOBNAME}_report.noref.json
+    touch ${JOBNAME}_report.noref.txt
+fi
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
@@ -85,4 +89,9 @@ cp ${JOBNAME}_report{,.diffrepro}.json
 time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.diffrepro.json .
 time "{{ respdiff['srcdir'] }}/diffsum.py" --without-diffrepro -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
 time "{{ respdiff['srcdir'] }}/diffsum.py" -d ${JOBNAME}_report.diffrepro.json . > ${JOBNAME}_report.diffrepro.txt
+if [ -f "stats.json" ]; then
+    cp ${JOBNAME}_report{,.noref}.json
+    time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
+        -l 0 -d ${JOBNAME}_report.noref.json . > ${JOBNAME}_report.noref.txt
+fi
 time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.png .
