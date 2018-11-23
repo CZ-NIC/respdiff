@@ -39,6 +39,10 @@ def condor_submit(txn, priority: int) -> int:
             'j$(Cluster).$(Process)_report.diffrepro.txt',
             'j$(Cluster).$(Process)_histogram.png',
             'j$(Cluster).$(Process)_logs.tar.gz']
+        if 'stats.json' in input_files:
+            output_files.extend([
+                'j$(Cluster).$(Process).noref.json',
+                'j$(Cluster).$(Process).noref.txt'])
     elif 'run_resperf.sh' in input_files:
         executable = 'run_resperf.sh'
         output_files = [
