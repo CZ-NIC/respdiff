@@ -116,6 +116,9 @@ def create_respdiff_files(directory: str, config: Dict[str, Any]):
         if 'respdiff' in res}
     create_file_from_template('respdiff.cfg.j2', config, directory)
 
+    if config['respdiff_stats']:  # copy optional stats file
+        shutil.copyfile(config['respdiff_stats'], os.path.join(directory, 'stats.json'))
+
 
 def create_template_files(directory: str, config: Dict[str, Any]):
     if 'respdiff' in config:
@@ -155,6 +158,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['knot_branch'] = args.knot_branch
         config['verbose'] = args.verbose
         config['asan'] = args.asan
+        config['respdiff_stats'] = args.respdiff_stats
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
         prepare_dir(directory, clean=args.clean)
@@ -195,6 +199,10 @@ def main() -> None:
     parser.add_argument(
         '--asan', action='store_true',
         help="Build with Address Sanitizer")
+    parser.add_argument(
+        '--respdiff-stats', type=str, default='',
+        help=("Statistics file to generate extra respdiff report(s) with omitted "
+              "unstable/failing queries"))
 
     args = parser.parse_args()
     create_jobs(args)
