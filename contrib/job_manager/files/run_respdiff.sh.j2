@@ -10,6 +10,9 @@ touch ${JOBNAME}_histogram.png
 if [ -f "stats.json" ]; then
     touch ${JOBNAME}_report.noref.json
     touch ${JOBNAME}_report.noref.txt
+    touch ${JOBNAME}_dnsviz.json
+    touch ${JOBNAME}_report.noref.dnsviz.json
+    touch ${JOBNAME}_report.noref.dnsviz.txt
 fi
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
@@ -94,5 +97,13 @@ if [ -f "stats.json" ]; then
     cp ${JOBNAME}_report{,.noref}.json
     time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
         -l 0 -d ${JOBNAME}_report.noref.json . > ${JOBNAME}_report.noref.txt
+    "{{ respdiff['srcdir'] }}/qexport.py" --envdir . -f domain -o domains --failing ${JOBNAME}_report.noref.json
+    if [[ $(wc -l <domains) -le 1000 ]]; then
+        time "{{ respdiff['srcdir'] }}/dnsviz.py" domains
+        cp ${JOBNAME}_report.noref{,.dnsviz}.json
+        time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
+            --dnsviz dnsviz.json --without-dnsviz-errors -l 0 \
+            -d ${JOBNAME}_report.noref.dnsviz.json . > ${JOBNAME}_report.noref.dnsviz.txt
+    fi
 fi
 time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.png .
