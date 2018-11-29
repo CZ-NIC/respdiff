@@ -31,6 +31,7 @@ def is_blacklisted(packet: bytes) -> bool:
         if 'QR' in flags:  # not a query
             return True
         dnspacket = dnsmsg.question[0]
+        # there is not standard describing common behavior for ANY query
         if dnspacket.rdtype == dns.rdatatype.ANY:
             return True
         return False
