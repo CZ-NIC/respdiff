@@ -31,8 +31,8 @@ def is_blacklisted(packet: bytes) -> bool:
         if 'QR' in flags:  # not a query
             return True
         dnspacket = dnsmsg.question[0]
-        # there is not standard describing common behavior for ANY query
-        if dnspacket.rdtype == dns.rdatatype.ANY:
+        # there is not standard describing common behavior for ANY/RRSIG query
+        if dnspacket.rdtype in {dns.rdatatype.ANY, dns.rdatatype.RRSIG}:
             return True
         return False
     except Exception:
