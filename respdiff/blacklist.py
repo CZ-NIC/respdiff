@@ -9,29 +9,11 @@ _BLACKLIST_SUBDOMAINS = [dns.name.from_text(name) for name in
                          ['dotnxdomain.net.', 'dashnxdomain.net.']]
 
 
-def extract_packet(packet: bytes) -> Message:
-    """
-    Extract packet from bytes. Return dns.Message
-    """
-    frame = dpkt.ethernet.Ethernet(packet)
-    ip = frame.data
-    transport = ip.data
-    if transport.data == b'':
-        return True
-    if isinstance(transport, dpkt.tcp.TCP):
-        wire = transport.data[2:]
-    else:
-        wire = transport.data
-    dnsmsg = from_wire(wire)
-    return dnsmsg
-
-
-def is_blacklisted(packet: bytes) -> bool:
+def is_blacklisted(dnsmsg: Message) -> bool:
     """
     Detect if given packet is blacklisted or not.
     """
     try:
-        dnsmsg = extract_packet(packet)
         flags = dns.flags.to_text(dnsmsg.flags).split()
         if 'QR' in flags:  # not a query
             return True
