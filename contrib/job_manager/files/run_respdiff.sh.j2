@@ -59,9 +59,8 @@ cleanup() {
 {%if database['remove_after'] %}
     rm -rf ./*.mdb || :
 {% endif %}
-    exit 0
 }
-trap cleanup ERR EXIT
+trap cleanup EXIT
 
 # Get database
 wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
