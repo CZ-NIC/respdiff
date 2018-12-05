@@ -89,7 +89,7 @@ def wrk_process_line(
         return None, None
 
 
-def wrk_process_frame(args: Tuple[int, bytes, str]):
+def wrk_process_frame(args: Tuple[int, bytes, str]) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: convert packet from pcap to binary data
     """
@@ -112,14 +112,16 @@ def wrk_process_wire_packet(
     """
     try:
         msg = dns.message.from_wire(wire_packet)
+    except dns.exception.DNSException:
+        # pass invalid blobs to LMDB (for testing non-standard states)
+        pass
+    else:
         if blacklist.is_blacklisted(msg):
             logging.debug('Blacklisted query "%s", skipping QID %d',
                           log_repr, qid)
             return None, None
-    except dns.exception.DNSException:
-        # pass invalid blobs to LMDB (for testing non-standard states)
-        pass
     return qid, wire_packet
+
 
 def int_or_fromtext(value, fromtext):
     try:
@@ -135,7 +137,10 @@ def msg_from_text(text):
     Returns: DNS packet in binary form
     Raises: ValueError or dns.exception.Exception on invalid input
     """
-    qname, qtype = text.rsplit(None, 1)
+    try:
+        qname, qtype = text.split()
+    except ValueError:
+        raise ValueError('space is only allowed as separator between qname qtype')
     qname = dns.name.from_text(qname.encode('ascii'))
     qtype = int_or_fromtext(qtype, dns.rdatatype.from_text)
     msg = dns.message.make_query(qname, qtype, dns.rdataclass.IN,
@@ -186,7 +191,7 @@ def main():
                     if qid is not None:
                         key = qid2key(qid)
                         txn.put(key, wire)
-        except KeyboardInterrupt as err:
+        except KeyboardInterrupt:
             logging.info('SIGINT received, exiting...')
             sys.exit(130)
         except RuntimeError as err:
