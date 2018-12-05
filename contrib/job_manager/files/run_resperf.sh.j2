@@ -20,6 +20,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
     echo "ERROR: running docker containers detected" >&2
+    echo '2' > ${JOBNAME}_exitcode
     exit 2
 fi
 
