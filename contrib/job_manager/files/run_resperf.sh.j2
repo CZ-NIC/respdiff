@@ -3,10 +3,18 @@ set -o xtrace
 
 JOBNAME=j$1.$2
 
+exit_handler() {
+    exitcode=$?
+    docker-compose --no-ansi rm -fsv || :
+    echo "$exitcode" > ${JOBNAME}_exitcode
+    # exit 0
+}
+trap exit_handler EXIT
+
 # HACK (condor): ensure files for transfer exist to avoid held jobs
 touch ${JOBNAME}_kresd.docker.txt
 touch ${JOBNAME}_resperf.txt
-echo '0' > ${JOBNAME}_exitcode
+echo '1' > ${JOBNAME}_exitcode  # failed unless job exits with 0
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
@@ -17,26 +25,16 @@ mv Dockerfile docker-knot-resolver/ || :
 # HACK (condor): set PATH, otherwise docker-compose exec will fail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+false
+
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
     echo "ERROR: running docker containers detected" >&2
-    echo '2' > ${JOBNAME}_exitcode
     exit 2
 fi
 
 # Exit if any cmd fails from now on.
 set -o errexit
-
-cleanup() {
-    docker-compose --no-ansi rm -fsv || :
-    exit 0
-}
-trap cleanup EXIT
-
-err_handle() {
-    echo '1' > ${JOBNAME}_exitcode
-}
-trap err_handle ERR
 
 # Prepare ssh key for knot-resolver-security
 set +o xtrace
