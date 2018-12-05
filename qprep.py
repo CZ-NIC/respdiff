@@ -23,14 +23,34 @@ def read_lines(instream):
     """
     Yield (line number, stripped line text, representation for logs). Skip empty lines.
     """
-    i = 0
+    i = 1
     for line in instream:
+        if i % REPORT_CHUNKS == 0:
+            logging.info('Read %d lines', i)
         line = line.strip()
         if line:
-            i += 1
             yield (i, line, line)
-            if i % REPORT_CHUNKS == 0:
-                logging.info('Read %d queries', i)
+        i += 1
+
+
+def extract_wire(packet: bytes) -> bytes:
+    """
+    Extract DNS message wire format from PCAP packet.
+    UDP payload is passed as it was.
+    TCP payload will have first two bytes removed (length prefix).
+    Caller must verify if return value is a valid DNS message
+    and decice what to do with invalid ones.
+    """
+    frame = dpkt.ethernet.Ethernet(packet)
+    ip = frame.data
+    transport = ip.data
+    if isinstance(transport, dpkt.tcp.TCP):
+        if len(transport.data) < 2:
+            return transport.data
+        wire = transport.data[2:]
+    else:
+        wire = transport.data
+    return wire
 
 
 def parse_pcap(pcap_file):
@@ -38,44 +58,51 @@ def parse_pcap(pcap_file):
     Filters dns query packets from pcap_file
     Yield (packet number, packet as wire, representation for logs)
     """
-    i = 0
+    i = 1
     pcap_file = dpkt.pcap.Reader(pcap_file)
-    for _, wire in pcap_file:
+    for _, frame in pcap_file:
+        if i % REPORT_CHUNKS == 0:
+            logging.info('Read %d frames', i)
+        yield (i, frame, 'frame no. {}'.format(i))
         i += 1
-        yield (i, wire, '')
 
 
 def wrk_process_line(
             args: Tuple[int, str, str]
-        ) -> Tuple[Optional[bytes], Optional[bytes]]:
+        ) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: parse input line, creates a packet in binary format
 
-    Skips over empty lines, raises for malformed inputs.
+    Skips over malformed inputs.
     """
-    qid, line, _ = args
+    qid, line, log_repr = args
 
     try:
-        wire = wire_from_text(line)
+        msg = msg_from_text(line)
+        if blacklist.is_blacklisted(msg):
+            logging.debug('Blacklisted query "%s", skipping QID %d',
+                          log_repr, qid)
+            return None, None
+        return qid, msg.to_wire()
     except (ValueError, struct.error, dns.exception.DNSException) as ex:
-        logging.error('Invalid query "%s": %s (skipping query ID %d)', line, ex, qid)
+        logging.error('Invalid query specification "%s": %s, skipping QID %d', line, ex, qid)
         return None, None
-    return wrk_process_wire_packet(qid, wire, line)
 
 
-def wrk_process_packet(args: Tuple[int, bytes, str]):
+def wrk_process_frame(args: Tuple[int, bytes, str]) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: convert packet from pcap to binary data
     """
-    qid, wire, log_repr = args
-    wrk_process_wire_packet(qid, wire, log_repr)
+    qid, frame, log_repr = args
+    wire = extract_wire(frame)
+    return wrk_process_wire_packet(qid, wire, log_repr)
 
 
 def wrk_process_wire_packet(
             qid: int,
             wire_packet: bytes,
             log_repr: str
-        ) -> Tuple[Optional[bytes], Optional[bytes]]:
+        ) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: Return packet's data if it's not blacklisted
 
@@ -83,14 +110,17 @@ def wrk_process_wire_packet(
     :arg wire_packet packet in binary data
     :arg log_repr representation of packet for logs
     """
-    if not blacklist.is_blacklisted(wire_packet):
-        key = qid2key(qid)
-        return key, wire_packet
-
-    logging.debug('Query "%s" blacklisted (skipping query ID %d)',
-                  log_repr if log_repr else repr(blacklist.extract_packet(wire_packet)),
-                  qid)
-    return None, None
+    try:
+        msg = dns.message.from_wire(wire_packet)
+    except dns.exception.DNSException:
+        # pass invalid blobs to LMDB (for testing non-standard states)
+        pass
+    else:
+        if blacklist.is_blacklisted(msg):
+            logging.debug('Blacklisted query "%s", skipping QID %d',
+                          log_repr, qid)
+            return None, None
+    return qid, wire_packet
 
 
 def int_or_fromtext(value, fromtext):
@@ -100,19 +130,22 @@ def int_or_fromtext(value, fromtext):
         return fromtext(value)
 
 
-def wire_from_text(text):
+def msg_from_text(text):
     """
     Convert line from <qname> <RR type> to DNS query in IN class.
 
     Returns: DNS packet in binary form
     Raises: ValueError or dns.exception.Exception on invalid input
     """
-    qname, qtype = text.rsplit(None, 1)
+    try:
+        qname, qtype = text.split()
+    except ValueError:
+        raise ValueError('space is only allowed as separator between qname qtype')
     qname = dns.name.from_text(qname.encode('ascii'))
     qtype = int_or_fromtext(qtype, dns.rdatatype.from_text)
     msg = dns.message.make_query(qname, qtype, dns.rdataclass.IN,
                                  want_dnssec=True, payload=4096)
-    return msg.to_wire()
+    return msg
 
 
 def main():
@@ -150,14 +183,15 @@ def main():
                     method = wrk_process_line
                 elif args.in_format == 'pcap':
                     data_stream = parse_pcap(args.pcap_file)
-                    method = wrk_process_packet
+                    method = wrk_process_frame
                 else:
                     logging.error('unknown in-format, use "text" or "pcap"')
                     sys.exit(1)
-                for key, wire in workers.imap(method, data_stream, chunksize=1000):
-                    if key is not None:
+                for qid, wire in workers.imap(method, data_stream, chunksize=1000):
+                    if qid is not None:
+                        key = qid2key(qid)
                         txn.put(key, wire)
-        except KeyboardInterrupt as err:
+        except KeyboardInterrupt:
             logging.info('SIGINT received, exiting...')
             sys.exit(130)
         except RuntimeError as err:
