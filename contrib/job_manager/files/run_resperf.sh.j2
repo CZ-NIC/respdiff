@@ -19,7 +19,7 @@ tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
 # HACK (condor): Create proper dir structure
 mkdir -p docker-knot-resolver || :
-mv Dockerfile docker-knot-resolver/ || :
+mv -t docker-knot-resolver/ Dockerfile kresd.entrypoint.sh || :
 
 # HACK (condor): set PATH, otherwise docker-compose exec will fail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

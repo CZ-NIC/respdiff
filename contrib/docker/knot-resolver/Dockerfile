@@ -39,4 +39,6 @@ RUN make install PREFIX=/var/opt/knot-resolver/.install
 
 RUN mkdir /log
 
-CMD /var/opt/knot-resolver/.install/sbin/kresd -c /etc/knot-resolver/kresd.conf -K /etc/knot-resolver/root.keys -v -f 1 /dev/shm >> /log/kresd.log
+COPY kresd.entrypoint.sh /
+
+ENTRYPOINT ["/kresd.entrypoint.sh"]
