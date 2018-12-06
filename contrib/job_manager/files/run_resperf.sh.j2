@@ -24,8 +24,6 @@ mv Dockerfile docker-knot-resolver/ || :
 # HACK (condor): set PATH, otherwise docker-compose exec will fail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-false
-
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
     echo "ERROR: running docker containers detected" >&2
