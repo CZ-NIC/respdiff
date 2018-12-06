@@ -15,4 +15,4 @@ RUN make install
 
 RUN useradd -s /usr/sbin/nologin -r unbound
 
-CMD /var/opt/unbound/unbound -d
+ENTRYPOINT ["/var/opt/unbound/unbound", "-d"]
