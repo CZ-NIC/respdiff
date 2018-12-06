@@ -5,6 +5,7 @@ JOBNAME=j$1.$2
 
 exit_handler() {
     exitcode=$?
+    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt
     docker-compose --no-ansi rm -fsv || :
     echo "$exitcode" > ${JOBNAME}_exitcode
 }
@@ -77,8 +78,7 @@ for i in $(seq 3); do
 
     # Execute resperf
     docker-compose --no-ansi up -d
-    docker-compose --no-ansi exec -T resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
-    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt
-    docker-compose --no-ansi ps | (! grep Exit)
-    docker-compose --no-ansi kill
+    docker run registry.labs.nic.cz/knot/respdiff/resperf:latest -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
+    docker-compose --no-ansi stop
+    docker-compose --no-ansi ps | (! grep 'Exit [1-9]')
 done
