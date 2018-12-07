@@ -23,6 +23,7 @@ resolvers:
   bind:
     type: bind
     port: &bind_port 53211
+    depends_on: unbound
     forward: &fwd_unbound
       ip: '::1'
       port: *unbound_port
@@ -37,6 +38,7 @@ resolvers:
     port: 53221
     tls_port: &kresd_tls_port 53228
     listen_ipv6: true
+    depends_on: unbound
     forward: *fwd_unbound
     respdiff:
       ip: '::1'
