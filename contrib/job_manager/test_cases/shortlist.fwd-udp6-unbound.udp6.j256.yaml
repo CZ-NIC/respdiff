@@ -23,6 +23,7 @@ resolvers:
   bind:
     type: bind
     port: &bind_port 53311
+    depends_on: unbound
     forward: &fwd_unbound
       ip: '::1'
       port: *unbound_port
@@ -36,6 +37,7 @@ resolvers:
     type: knot-resolver
     port: &kresd_port 53321
     listen_ipv6: true
+    depends_on: unbound
     forward: *fwd_unbound
     respdiff:
       ip: '::1'
