@@ -5,6 +5,11 @@ services:
   {{ name }}:
     network_mode: host
 
+    {%- if 'depends_on' in resolver %}
+    depends_on:
+      - {{ resolver['depends_on'] }}
+    {%- endif -%}
+
     {%- if resolver['type'] == 'knot-resolver' %}
     build:
       context: ./docker-knot-resolver
