@@ -78,6 +78,7 @@ def create_resolver_configs(directory: str, config: Dict[str, Any]):
             if not os.path.exists(dockerfile_dir):
                 os.makedirs(dockerfile_dir)
                 copy_file('Dockerfile.knot-resolver', dockerfile_dir, 'Dockerfile')
+                copy_file('kresd.entrypoint.sh', dockerfile_dir)
             create_file_from_template(
                 'kresd.conf.j2', resolver, directory, name + '.conf')
             copy_file('root.keys', directory)

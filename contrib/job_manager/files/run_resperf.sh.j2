@@ -3,16 +3,24 @@ set -o xtrace
 
 JOBNAME=j$1.$2
 
+exit_handler() {
+    exitcode=$?
+    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt || :
+    docker-compose --no-ansi rm -fsv || :
+    echo "$exitcode" > ${JOBNAME}_exitcode
+}
+trap exit_handler EXIT
+
 # HACK (condor): ensure files for transfer exist to avoid held jobs
 touch ${JOBNAME}_kresd.docker.txt
 touch ${JOBNAME}_resperf.txt
-echo '0' > ${JOBNAME}_exitcode
+echo '1' > ${JOBNAME}_exitcode  # failed unless job exits with 0
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
 # HACK (condor): Create proper dir structure
 mkdir -p docker-knot-resolver || :
-mv Dockerfile docker-knot-resolver/ || :
+mv -t docker-knot-resolver/ Dockerfile kresd.entrypoint.sh || :
 
 # HACK (condor): set PATH, otherwise docker-compose exec will fail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -25,17 +33,6 @@ fi
 
 # Exit if any cmd fails from now on.
 set -o errexit
-
-cleanup() {
-    docker-compose --no-ansi rm -fsv || :
-    exit 0
-}
-trap cleanup EXIT
-
-err_handle() {
-    echo '1' > ${JOBNAME}_exitcode
-}
-trap err_handle ERR
 
 # Prepare ssh key for knot-resolver-security
 set +o xtrace
@@ -81,8 +78,7 @@ for i in $(seq 3); do
 
     # Execute resperf
     docker-compose --no-ansi up -d
-    docker-compose --no-ansi exec -T resperf resperf -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
-    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt
-    docker-compose --no-ansi ps | (! grep Exit)
-    docker-compose --no-ansi kill
+    docker run registry.labs.nic.cz/knot/respdiff/resperf:shortlist3 -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
+    docker-compose --no-ansi stop
+    docker-compose --no-ansi ps | (! grep 'Exit [1-9]')
 done

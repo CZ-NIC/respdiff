@@ -12,7 +12,7 @@ tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 
 # HACK (condor): Create proper dir structure
 mkdir -p docker-knot-resolver || :
-mv Dockerfile docker-knot-resolver/ || :
+mv -t docker-knot-resolver/ Dockerfile kresd.entrypoint.sh || :
 
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
@@ -59,9 +59,8 @@ cleanup() {
 {%if database['remove_after'] %}
     rm -rf ./*.mdb || :
 {% endif %}
-    exit 0
 }
-trap cleanup ERR EXIT
+trap cleanup EXIT
 
 # Get database
 wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
