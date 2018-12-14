@@ -302,6 +302,12 @@ def send_recv_parallel(
         except (TcpDnsLengthError, ConnectionError):  # most likely TCP RST
             worker_deinit()  # re-establish connection
             worker_reinit()
-    raise RuntimeError(
-        'ConnectionError received {} times in a row, exiting!'.format(
-            CONN_RESET_RETRIES + 1))
+
+    # FIXME quick hack to solve connection resets for tcp/tls when sending invalid data
+    # set reply as timeout
+        # set missing replies as timeout
+    replies = {}  # type: Dict[ResolverID, DNSReply]
+    for resolver, *_ in __worker_state.sockets:  # type: ignore  # python/mypy#465
+        if resolver not in replies:
+            replies[resolver] = __timeout_reply
+    return replies
