@@ -23,7 +23,7 @@ fi
 # Ensure ports are empty, so we're not testing something else!
 set +o xtrace
 echo "Waiting for ports..."
-MAX_RETRIES=60
+MAX_RETRIES=120
 {% for resolver in resolvers.values() -%}
 retries=0
 {% if resolver['port'] %}
