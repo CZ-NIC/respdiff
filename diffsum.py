@@ -86,14 +86,16 @@ def main():
             logging.critical('Failed to load dnsviz data: %s', exc)
             sys.exit(1)
 
-        error_domains = {domain for domain in dnsviz_grok.error_domains()}
+        error_domains = dnsviz_grok.error_domains()
         with LMDB(args.envdir, readonly=True) as lmdb:
             lmdb.open_db(LMDB.QUERIES)
             # match domain, add QID to ignore
             for qid, wire in get_query_iterator(lmdb, report.summary.keys()):
                 msg = dns.message.from_wire(wire)
-                if msg.question and str(msg.question[0].name) in error_domains:
-                    ignore_qids.add(qid)
+                if msg.question:
+                    if any(msg.question[0].name.is_subdomain(name)
+                           for name in error_domains):
+                        ignore_qids.add(qid)
 
         report.summary = Summary.from_report(
             report, field_weights,

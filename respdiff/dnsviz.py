@@ -2,6 +2,9 @@ from collections import abc, defaultdict
 import json
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple  # noqa
 
+import dns
+import dns.name
+
 
 TYPES = 'A,AAAA,CNAME'
 KEYS_ERROR = ['error', 'errors']
@@ -71,8 +74,10 @@ class DnsvizGrok(dict):
                 "File {} doesn't contain dnsviz grok json data".format(filename))
         return DnsvizGrok(grok_data)
 
-    def error_domains(self) -> Iterator[str]:
+    def error_domains(self) -> List[dns.name.Name]:
+        err_domains = []
         for domain, data in self.domains.items():
             if data.is_error:
                 assert domain[-1] == '.'
-                yield domain
+                err_domains.append(dns.name.from_text(domain))
+        return err_domains
