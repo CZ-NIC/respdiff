@@ -92,7 +92,7 @@ def main():
             # match domain, add QID to ignore
             for qid, wire in get_query_iterator(lmdb, report.summary.keys()):
                 msg = dns.message.from_wire(wire)
-                if str(msg.question[0].name) in error_domains:
+                if msg.question and str(msg.question[0].name) in error_domains:
                     ignore_qids.add(qid)
 
         report.summary = Summary.from_report(

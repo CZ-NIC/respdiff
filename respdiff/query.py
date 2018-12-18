@@ -1,4 +1,5 @@
 from collections import Counter
+import logging
 from typing import Callable, Iterable, Iterator, Sequence, Tuple
 
 import dns.message
@@ -22,12 +23,16 @@ def get_query_iterator(
 
 def qwire_to_qname(qwire: WireFormat) -> str:
     qmsg = dns.message.from_wire(qwire)
+    if not qmsg.question:
+        raise ValueError('no qname in wire format')
     return qmsg.question[0].name
 
 
 def qwire_to_qname_qtype(qwire: WireFormat) -> str:
     """Get text representation of DNS wire format query"""
     qmsg = dns.message.from_wire(qwire)
+    if not qmsg.question:
+        raise ValueError('no qname in wire format')
     return '{} {}'.format(
         qmsg.question[0].name,
         dns.rdatatype.to_text(qmsg.question[0].rdtype))
@@ -38,9 +43,13 @@ def convert_queries(
             qwire_to_text_func: Callable[[WireFormat], str] = qwire_to_qname_qtype
         ) -> Counter:
     qcounter = Counter()  # type: Counter
-    for _, qwire in query_iterator:
-        text = qwire_to_text_func(qwire)
-        qcounter[text] += 1
+    for qid, qwire in query_iterator:
+        try:
+            text = qwire_to_text_func(qwire)
+        except ValueError as exc:
+            logging.debug('Omitting QID %d: %s', qid, exc)
+        else:
+            qcounter[text] += 1
     return qcounter
 
 

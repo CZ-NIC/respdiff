@@ -39,14 +39,26 @@ def export_qids(qids: Set[QID], file=sys.stdout):
 
 
 def export_qids_to_qname_qtype(qids: Set[QID], lmdb, file=sys.stdout):
-    for _, qwire in get_query_iterator(lmdb, qids):
-        print(qwire_to_qname_qtype(qwire), file=file)
+    for qid, qwire in get_query_iterator(lmdb, qids):
+        try:
+            query = qwire_to_qname_qtype(qwire)
+        except ValueError as exc:
+            logging.debug('Omitting QID %d from export: %s', qid, exc)
+        else:
+            print(query, file=file)
 
 
 def export_qids_to_qname(qids: Set[QID], lmdb, file=sys.stdout):
-    domains = {qwire_to_qname(qwire) for _, qwire in get_query_iterator(lmdb, qids)}
-    for domain in domains:
-        print(domain, file=file)
+    domains = set()  # type: Set[str]
+    for qid, qwire in get_query_iterator(lmdb, qids):
+        try:
+            qname = qwire_to_qname(qwire)
+        except ValueError as exc:
+            logging.debug('Omitting QID %d from export: %s', qid, exc)
+        else:
+            if qname not in domains:
+                print(qname, file=file)
+                domains.add(qname)
 
 
 def main():
