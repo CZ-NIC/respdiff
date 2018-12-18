@@ -24,7 +24,7 @@ class DnsvizDomainResult:
 
     @property
     def is_error(self):
-        return len(self.errors) == 0
+        return len(self.errors) > 0
 
 
 def _find_keys(
