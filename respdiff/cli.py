@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, Namespace
+import contextlib
 from collections import Counter
 import logging
 import os
@@ -22,6 +23,7 @@ LOGGING_LEVEL = logging.DEBUG
 CONFIG_FILENAME = 'respdiff.cfg'
 REPORT_FILENAME = 'report.json'
 STATS_FILENAME = 'stats.json'
+DNSVIZ_FILENAME = 'dnsviz.json'
 DEFAULT_PRINT_QUERY_LIMIT = 10
 
 
@@ -101,10 +103,15 @@ def add_arg_stats(parser: ArgumentParser) -> None:
                         help='statistics file (default: {})'.format(STATS_FILENAME))
 
 
-def add_arg_stats_filename(parser: ArgumentParser, default=STATS_FILENAME) -> None:
+def add_arg_stats_filename(parser: ArgumentParser, default: str = STATS_FILENAME) -> None:
     parser.add_argument('-s', '--stats', type=str,
                         default=default, dest='stats_filename',
                         help='statistics file (default: {})'.format(default))
+
+
+def add_arg_dnsviz(parser: ArgumentParser, default: str = DNSVIZ_FILENAME) -> None:
+    parser.add_argument('--dnsviz', type=str, default=default,
+                        help='dnsviz grok output (default: {})'.format(default))
 
 
 def add_arg_report(parser: ArgumentParser) -> None:
@@ -112,9 +119,18 @@ def add_arg_report(parser: ArgumentParser) -> None:
                         help='JSON report file(s)')
 
 
-def add_arg_report_filename(parser: ArgumentParser) -> None:
-    parser.add_argument('report', type=str, nargs='*',
+def add_arg_report_filename(parser: ArgumentParser, nargs='*') -> None:
+    parser.add_argument('report', type=str, nargs=nargs,
                         help='JSON report file(s)')
+
+
+def get_reports_from_filenames(args: Namespace) -> Sequence[DiffReport]:
+    reports = []
+    for filename in args.report:
+        report = read_report(filename, skip_empty=True)
+        if report is not None:
+            reports.append(report)
+    return reports
 
 
 def get_datafile(args: Namespace, key: str = 'datafile', check_exists: bool = True) -> str:
@@ -135,6 +151,20 @@ def check_metadb_servers_version(lmdb, servers: Sequence[str]) -> None:
     except NotImplementedError as exc:
         logging.critical(str(exc))
         sys.exit(1)
+
+
+@contextlib.contextmanager
+def smart_open(filename=None):
+    if filename and filename != '-':
+        fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+
+    try:
+        yield fh
+    finally:
+        if fh is not sys.stdout:
+            fh.close()
 
 
 def format_stats_line(

@@ -31,8 +31,9 @@ The report uses the following terms:
   other servers agree on the answer (there is no difference between them).
   These are the most interesting cases that are analyzed further.
 - *manually ignored* is the number of queries which were omitted from the
-  report by using `--without-ref-failing` or `--without-ref-unstable` along
-  with a reference statistics file
+  report by using `--without-ref-failing`, `--without-ref-unstable` or
+  `--without-dnsviz-errors` along with a reference statistics file / dnsviz
+  grok file
 
 The summary evaluates how many *target disagreements* there were in particular
 *fields* (or ``criteria``), and what did these mismatches look like. It produces

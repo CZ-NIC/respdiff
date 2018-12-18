@@ -20,12 +20,7 @@ def main():
     cli.add_arg_stats_filename(parser)
 
     args = parser.parse_args()
-
-    reports = []
-    for filename in args.report:
-        report = cli.read_report(filename, skip_empty=True)
-        if report is not None:
-            reports.append(report)
+    reports = cli.get_reports_from_filenames(args)
 
     try:
         sumstats = SummaryStatistics(reports)
