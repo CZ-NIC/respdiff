@@ -67,7 +67,7 @@ def main():
     cli.add_arg_report_filename(parser, nargs='+')
     parser.add_argument('--envdir', type=str,
                         help="LMDB environment (required when output format isn't 'qid')")
-    parser.add_argument('-f', '--format', type=str, choices=['text', 'qid', 'domain'],
+    parser.add_argument('-f', '--format', type=str, choices=['query', 'qid', 'domain'],
                         default='domain', help="output data format")
     parser.add_argument('-o', '--output', type=str, help='output file')
     parser.add_argument('--failing', action='store_true', help="get target disagreements")

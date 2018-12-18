@@ -10,10 +10,11 @@ import respdiff.dnsviz
 
 def main():
     cli.setup_logging()
-    parser = argparse.ArgumentParser(description="use dnsviz to analyze domains")
+    parser = argparse.ArgumentParser(
+        description="use dnsviz to categorize domains (perfect, warnings, errors)")
     cli.add_arg_config(parser)
     cli.add_arg_dnsviz(parser)
-    parser.add_argument('input', type=str, help='input file with domains')
+    parser.add_argument('input', type=str, help='input file with domains (one qname per line)')
     args = parser.parse_args()
 
     njobs = args.cfg['sendrecv']['jobs']
