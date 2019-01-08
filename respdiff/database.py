@@ -199,7 +199,7 @@ class DNSReply:
 
     def parse_wire(
                 self
-            ) -> Tuple[Optional[dns.message.Message], Optional[str]]:
+            ) -> Tuple[Optional[dns.message.Message], str]:
         try:
             return dns.message.from_wire(self.wire), self.WIREFORMAT_VALID
         except dns.exception.FormError as exc:

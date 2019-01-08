@@ -196,6 +196,10 @@ def match(
     if expected.timeout or got.timeout or exp_malformed or got_malformed:
         return  # don't attempt to match any other fields
 
+    # checked above via exp/got_malformed, this is for mypy
+    assert exp_msg is not None
+    assert got_msg is not None
+
     for criteria in match_fields:
         try:
             match_part(exp_msg, got_msg, criteria)
