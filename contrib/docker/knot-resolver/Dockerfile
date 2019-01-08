@@ -17,12 +17,13 @@ RUN ssh-keyscan gitlab.labs.nic.cz >> /root/.ssh/known_hosts
 RUN git clone --recursive -j8 https://gitlab.labs.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
 RUN \
 	cd /var/opt/knot-resolver; \
-	git checkout "${GIT_SHA}" -- || (\
+	(git checkout "${GIT_SHA}" -- && git submodule update) || (\
 		cd /var/opt; \
 		rm -rf /var/opt/knot-resolver; \
 		git clone --recursive -j8 git@gitlab.labs.nic.cz:knot/knot-resolver-security.git /var/opt/knot-resolver; \
 		cd /var/opt/knot-resolver; \
-		git checkout "${GIT_SHA}" --)
+		git checkout "${GIT_SHA}" --; \
+		git submodule update)
 
 
 # actual image
