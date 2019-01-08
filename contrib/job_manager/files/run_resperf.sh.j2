@@ -78,7 +78,7 @@ for i in $(seq 3); do
 
     # Execute resperf
     docker-compose --no-ansi up -d
-    docker run registry.labs.nic.cz/knot/respdiff/resperf:shortlist3 -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
+    docker run --network host registry.labs.nic.cz/knot/respdiff/resperf:shortlist3 -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
     docker-compose --no-ansi stop
     docker-compose --no-ansi ps | (! grep 'Exit [1-9]')
 done
