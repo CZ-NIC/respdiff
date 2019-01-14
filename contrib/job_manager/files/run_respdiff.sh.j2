@@ -97,13 +97,15 @@ if [ -f "stats.json" ]; then
     time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
         -l 0 -d ${JOBNAME}_report.noref.json . > ${JOBNAME}_report.noref.txt
     "{{ respdiff['srcdir'] }}/qexport.py" --envdir . -f domain -o domains --failing ${JOBNAME}_report.noref.json
-    if [[ $(wc -l <domains) -le 1000 ]]; then
-        time "{{ respdiff['srcdir'] }}/dnsviz.py" domains --dnsviz ${JOBNAME}_dnsviz.json
-        cp ${JOBNAME}_report.noref{,.dnsviz}.json
-        time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
-            --dnsviz ${JOBNAME}_dnsviz.json --without-dnsviz-errors -l 0 \
-            -d ${JOBNAME}_report.noref.dnsviz.json . > ${JOBNAME}_report.noref.dnsviz.txt
-        gzip -f ${JOBNAME}_dnsviz.json
-    fi
+    # TODO: turn on once dnsviz is usable and safe to use in CI
+    # https://gitlab.labs.nic.cz/knot/respdiff/issues/31
+    # if [[ $(wc -l <domains) -le 1000 ]]; then
+    #     time "{{ respdiff['srcdir'] }}/dnsviz.py" domains --dnsviz ${JOBNAME}_dnsviz.json
+    #     cp ${JOBNAME}_report.noref{,.dnsviz}.json
+    #     time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
+    #         --dnsviz ${JOBNAME}_dnsviz.json --without-dnsviz-errors -l 0 \
+    #         -d ${JOBNAME}_report.noref.dnsviz.json . > ${JOBNAME}_report.noref.dnsviz.txt
+    #     gzip -f ${JOBNAME}_dnsviz.json
+    # fi
 fi
 time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.png .
