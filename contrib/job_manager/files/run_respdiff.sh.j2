@@ -10,9 +10,9 @@ touch ${JOBNAME}_histogram.png
 if [ -f "stats.json" ]; then
     touch ${JOBNAME}_report.noref.json
     touch ${JOBNAME}_report.noref.txt
-    touch ${JOBNAME}_dnsviz.json.gz
-    touch ${JOBNAME}_report.noref.dnsviz.json
-    touch ${JOBNAME}_report.noref.dnsviz.txt
+    # touch ${JOBNAME}_dnsviz.json.gz
+    # touch ${JOBNAME}_report.noref.dnsviz.json
+    # touch ${JOBNAME}_report.noref.dnsviz.txt
 fi
 mkdir logs
 tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default

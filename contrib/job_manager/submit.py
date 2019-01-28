@@ -43,9 +43,10 @@ def condor_submit(txn, priority: int) -> int:
             output_files.extend([
                 'j$(Cluster).$(Process)_report.noref.json',
                 'j$(Cluster).$(Process)_report.noref.txt',
-                'j$(Cluster).$(Process)_dnsviz.json.gz',
-                'j$(Cluster).$(Process)_report.noref.dnsviz.json',
-                'j$(Cluster).$(Process)_report.noref.dnsviz.txt'])
+                # 'j$(Cluster).$(Process)_dnsviz.json.gz',
+                # 'j$(Cluster).$(Process)_report.noref.dnsviz.json',
+                # 'j$(Cluster).$(Process)_report.noref.dnsviz.txt',
+            ])
     elif 'run_resperf.sh' in input_files:
         executable = 'run_resperf.sh'
         output_files = [

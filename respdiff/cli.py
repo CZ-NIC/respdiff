@@ -264,8 +264,8 @@ def print_fields_overview(
         headers.extend(['Change', 'Change (%)'])
 
     print('== Target Disagreements')
-    print(tabulate(
-        sorted(rows, key=lambda data: data[1], reverse=True),
+    print(tabulate(  # type: ignore
+        sorted(rows, key=lambda data: data[1], reverse=True),  # type: ignore
         headers,
         tablefmt='simple',
         floatfmt=('s', 'd', '.2f', 's', '+.2f')))
@@ -295,8 +295,8 @@ def print_field_mismatch_stats(
         headers.extend(['Change', 'Change (%)'])
 
     print('== Field "{}" mismatch statistics'.format(field))
-    print(tabulate(
-        sorted(rows, key=lambda data: data[2], reverse=True),
+    print(tabulate(  # type: ignore
+        sorted(rows, key=lambda data: data[2], reverse=True),  # type: ignore
         headers,
         tablefmt='simple',
         floatfmt=('s', 's', 'd', '.2f', 's', '+.2f')))
