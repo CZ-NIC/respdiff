@@ -29,14 +29,15 @@ RUN \
 # actual image
 FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+ARG MESONARGS
 ARG CFLAGS
 
 COPY --from=intermediate /var/opt/knot-resolver /var/opt/knot-resolver
 WORKDIR /var/opt/knot-resolver
 
 RUN mkdir .install
-RUN make PREFIX=/var/opt/knot-resolver/.install LDFLAGS="-Wl,-rpath=/var/opt/knot-resolver/.install/lib" CFLAGS="${CFLAGS}"
-RUN make install PREFIX=/var/opt/knot-resolver/.install
+RUN meson build_respdiff --prefix=/var/opt/knot-resolver/.install --default-library=static ${MESONARGS}
+RUN ninja -C build_respdiff install
 
 RUN mkdir /log
 
