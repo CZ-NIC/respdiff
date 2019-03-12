@@ -163,6 +163,34 @@ def _check_timeout(replies: Mapping[ResolverID, DNSReply]) -> None:
                         resolver, __max_timeouts))
 
 
+def make_ssl_context():
+    # TLS v1.3 support might not be complete as of Python 3.7.2 and there
+    # seem to be issues when using it in respdiff.
+    # https://docs.python.org/3/library/ssl.html#tls-1-3
+
+    # NOTE forcing TLS v1.2 is hacky, because of different py3/openssl versions...
+    if getattr(ssl, 'PROTOCOL_TLS', None) is not None:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # pylint: disable=no-member
+    else:
+        context = ssl.SSLContext()
+
+    if getattr(ssl, 'maximum_version', None) is not None:
+        context.maximum_version = ssl.TLSVersion.TLSv1_2  # pylint: disable=no-member
+    else:
+        context.options |= ssl.OP_NO_SSLv2
+        context.options |= ssl.OP_NO_SSLv3
+        context.options |= ssl.OP_NO_TLSv1
+        context.options |= ssl.OP_NO_TLSv1_1
+        if getattr(ssl, 'OP_NO_TLSv1_3', None) is not None:
+            context.options |= ssl.OP_NO_TLSv1_3  # pylint: disable=no-member
+
+    # turn off certificate verification
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+
+    return context
+
+
 def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]]:
     sockets = []
     selector = selectors.DefaultSelector()
@@ -189,7 +217,8 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
         while attempt <= retry:
             sock = socket.socket(af, socktype, 0)
             if transport == 'tls':
-                sock = ssl.wrap_socket(sock)
+                ctx = make_ssl_context()
+                sock = ctx.wrap_socket(sock)
             try:
                 sock.connect(destination)
             except ConnectionRefusedError:  # TCP socket is closed
@@ -219,9 +248,13 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
 def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
     """Receive DNS message from socket and remove preambule (if present)."""
     if isstream:  # parse preambule
-        blength = sock.recv(2)
-        if len(blength) != 2:  # FIN / RST
+        try:
+            blength = sock.recv(2)
+        except ssl.SSLWantReadError:
             raise TcpDnsLengthError('failed to recv DNS packet length')
+        else:
+            if len(blength) != 2:  # FIN / RST
+                raise TcpDnsLengthError('failed to recv DNS packet length')
         (length, ) = struct.unpack('!H', blength)
     else:
         length = 65535  # max. UDP message size, no IPv6 jumbograms
