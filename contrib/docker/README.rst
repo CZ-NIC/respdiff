@@ -38,7 +38,7 @@ Registry Maintance - new builds
 
 .. code-block:: console
 
-   $ export KNOT_BRANCH=2.7
+   $ export KNOT_BRANCH=2.8
    $ docker build -t registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH --build-arg KNOT_BRANCH=$KNOT_BRANCH knot-resolver-buildenv
 
    $ docker login registry.labs.nic.cz
