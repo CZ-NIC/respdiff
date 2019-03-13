@@ -1,4 +1,4 @@
-ARG KNOT_BRANCH=2.7
+ARG KNOT_BRANCH=2.8
 
 # first build stage, it will not persist in the final image
 FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH as intermediate
