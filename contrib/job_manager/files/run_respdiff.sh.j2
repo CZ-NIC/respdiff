@@ -61,6 +61,7 @@ set -o xtrace
 set -o errexit
 
 cleanup() {
+    docker-compose --no-ansi ps
     docker-compose --no-ansi rm -fsv || :
     tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
 {%if database['remove_after'] %}
