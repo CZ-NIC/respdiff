@@ -26,7 +26,6 @@ services:
     {%- endif %}
     volumes:
       - "./{{ name }}.conf:/etc/knot-resolver/kresd.conf:ro"
-      - "./root.keys:/etc/knot-resolver/root.keys:ro"
       - type: tmpfs
         target: /dev/shm
       - "./logs/{{ name }}:/log:rw"
