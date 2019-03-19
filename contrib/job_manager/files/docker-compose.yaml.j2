@@ -29,9 +29,7 @@ services:
       - "./root.keys:/etc/knot-resolver/root.keys:ro"
       - type: tmpfs
         target: /dev/shm
-      {%- if verbose %}
       - "./logs/{{ name }}:/log:rw"
-      {%- endif -%}
     {%- endif -%}
 
     {%- if resolver['type'] == 'bind' %}
