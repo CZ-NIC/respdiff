@@ -28,6 +28,8 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 # Check no other docker containers are running
 if [ -n "$(docker ps -q)" ]; then
     echo "ERROR: running docker containers detected" >&2
+    # remove machine from cluster until issue is manually resolved
+    condor_off || :
     exit 2
 fi
 
