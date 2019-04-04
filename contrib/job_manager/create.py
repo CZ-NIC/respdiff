@@ -81,7 +81,6 @@ def create_resolver_configs(directory: str, config: Dict[str, Any]):
                 copy_file('kresd.entrypoint.sh', dockerfile_dir)
             create_file_from_template(
                 'kresd.conf.j2', resolver, directory, name + '.conf')
-            copy_file('root.keys', directory)
         elif resolver['type'] == 'unbound':
             create_file_from_template(
                 'unbound.conf.j2', resolver, directory, name + '.conf')
