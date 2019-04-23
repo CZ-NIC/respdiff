@@ -14,8 +14,8 @@ mkdir -p ${MASTERDIR}
 if [ -h "${ADDDIR}" ]; then
     SAMPLE_NAME=$(basename $(readlink -f "${ADDDIR}"))
 
-    # exit if sample jobs are still executing in condor
-    if condor_q  -format "%s\n" JobBatchName | grep -qE "${SAMPLE_NAME}"; then
+    # exit if sample jobs are still executing in condor (omit held jobs - status=5)
+    if condor_q -c JobStatus!=5 -format "%s\n" JobBatchName | grep -qE "${SAMPLE_NAME}"; then
         exit 0
     fi
 
