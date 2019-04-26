@@ -16,9 +16,9 @@ These containers are also available in our
 ``knot-resolver`` container
 ---------------------------
 
-The ``knot-resolver`` container is not available, as it's supposed to be
-re-build often, for every commmit. Only the base build environment
-``knot-resolver-buildenv`` is available from the registry.
+The ``knot-resolver`` container is not available from the registry, as it's
+supposed to be re-build often, for every commmit. Only the base build
+environment ``knot-resolver-buildenv`` is available from the registry.
 
 To build the container locally, with the desired git version:
 
@@ -38,8 +38,20 @@ Registry Maintance - new builds
 
 .. code-block:: console
 
+   # knot-resolver-buildenv container build
    $ export KNOT_BRANCH=2.8
    $ docker build -t registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH --build-arg KNOT_BRANCH=$KNOT_BRANCH knot-resolver-buildenv
 
+   # bind container build
+   $ export GIT_TAG=v9_14_1
+   $ docker build -t registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG bind
+
+   # unbound container build
+   $ export UNBOUND_VERSION=1.9.1
+   $ docker build -t registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
+
+   # push containers to registry
    $ docker login registry.labs.nic.cz
    $ docker push registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
+   $ docker push registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG
+   $ docker push registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION
