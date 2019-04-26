@@ -1,6 +1,6 @@
 FROM ubuntu:rolling
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
-ARG KNOT_BRANCH=2.8
+ARG KNOT_BRANCH
 
 RUN apt-get update -qq
 RUN apt-get upgrade -y -qqq
