@@ -103,6 +103,10 @@ def create_resperf_files(directory: str, config: Dict[str, Any]):
     create_resolver_configs(directory, config)
 
 
+def create_distrotest_files(directory: str, config: Dict[str, Any]):
+    create_file_from_template('run_distrotest.sh.j2', config, directory, executable=True)
+
+
 def create_respdiff_files(directory: str, config: Dict[str, Any]):
     create_file_from_template('run_respdiff.sh.j2', config, directory, executable=True)
     create_file_from_template('restart-all.sh.j2', config, directory, executable=True)
@@ -128,6 +132,8 @@ def create_template_files(directory: str, config: Dict[str, Any]):
         create_respdiff_files(directory, config)
     elif 'resperf' in config:
         create_resperf_files(directory, config)
+    elif 'distrotest' in config:
+        create_distrotest_files(directory, config)
 
 
 def get_test_case_list(nameglob: str = '') -> List[str]:
@@ -162,6 +168,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['verbose'] = args.verbose
         config['asan'] = args.asan
         config['respdiff_stats'] = args.respdiff_stats
+        config['obs_repo'] = args.obs_repo
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
         prepare_dir(directory, clean=args.clean)
@@ -206,6 +213,9 @@ def main() -> None:
         '--respdiff-stats', type=str, default='',
         help=("Statistics file to generate extra respdiff report(s) with omitted "
               "unstable/failing queries"))
+    parser.add_argument(
+        '--obs-repo', type=str, default='knot-resolver-devel',
+        help=("OBS repository for distrotests (default: knot-resolver-devel)"))
 
     args = parser.parse_args()
     create_jobs(args)

@@ -1,0 +1,32 @@
+#!/bin/bash
+set -o xtrace
+
+JOBNAME=j$1.$2
+
+# HACK (condor): ensure files for transfer exist to avoid held jobs
+touch ${JOBNAME}_vagrant.log
+echo '1' > ${JOBNAME}_exitcode  # fail unless explicitly successful
+
+# Exit if any cmd fails from now on.
+set -o errexit
+
+cleanup() {
+    vagrant destroy -f &>/dev/null ||:
+}
+trap cleanup EXIT
+
+git clone https://gitlab.labs.nic.cz/knot/knot-resolver.git
+pushd knot-resolver
+
+git checkout -q {{ git_sha }}
+git_hash=$(git rev-parse --short HEAD)
+
+export VAGRANT_DEFAULT_PROVIDER="virtualbox"
+./distro/tests/test-distro.sh {{ obs_repo }} {{ distrotest['distro'] }} &>../${JOBNAME}_vagrant.log || \
+    (cat ../${JOBNAME}_vagrant.log; exit 1)
+
+# TODO handle tagged versions
+grep -q "package_version.stdout.*${git_hash}" ../${JOBNAME}_vagrant.log || \
+    (echo "ERROR: version ${git_hash} does't match installed packaged"; exit 1)
+
+echo '0' > ${JOBNAME}_exitcode
