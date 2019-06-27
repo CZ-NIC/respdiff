@@ -13,7 +13,7 @@ import dns.inet
 
 ALL_FIELDS = [
     'timeout', 'malformed', 'opcode', 'question', 'rcode', 'flags', 'answertypes',
-    'answerrrsigs', 'answer', 'authority', 'additional', 'edns', 'nsid']
+    'answerrrsigs', 'answer', 'authority', 'authorityIfRelevant', 'additional', 'edns', 'nsid']
 ALL_FIELDS_SET = set(ALL_FIELDS)
 
 

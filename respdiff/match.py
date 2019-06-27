@@ -1,7 +1,7 @@
 import collections
 import logging
 from typing import (  # noqa
-    Any, Dict, Hashable, Iterator, Mapping, Optional, Sequence, Tuple)
+    Any, Dict, Hashable, Iterator, List, Mapping, Optional, Sequence, Tuple)
 
 import dns.rdatatype
 from dns.rrset import RRset
@@ -114,6 +114,35 @@ def compare_rrs_types(
             tuple(key_to_text(i) for i in sorted(exp_types)),
             tuple(key_to_text(i) for i in sorted(got_types)))
 
+def contains_answer(q: dns.rrset.RRset,
+                    answer: List[dns.rrset.RRset]) -> bool:
+    assert len(q) == 1, "multiple question in single DNS query unsupported"
+    qname = q.name
+    cnames = [rr for rr in answer if rr.rdtype == dns.rdatatype.CNAME]
+    answer = [rr for rr in answer if rr.rdtype == q.rdtype]
+    chain = set()
+
+    while True:
+        for rr in answer:
+            if qname == rr.name and q.rdclass == rr.rdclass and q.rdtype == rr.rdtype:
+                return True
+
+        if q.rdtype == dns.rdatatype.CNAME:
+            return False
+
+        for c in cnames:
+            if c.name == qname:
+                assert len(c.items) == 1, "multiple question in single DNS query unsupported"
+                qname = c.items[0].target
+                break
+        else:
+            return False
+
+        if qname in chain:
+            return False
+
+        chain.add(qname)
+
 
 def match_part(  # pylint: disable=inconsistent-return-statements
             exp_msg: dns.message.Message,
@@ -144,6 +173,15 @@ def match_part(  # pylint: disable=inconsistent-return-statements
         return compare_rrs(exp_msg.authority, got_msg.authority)
     elif criteria == 'additional':
         return compare_rrs(exp_msg.additional, got_msg.additional)
+    elif criteria == 'authorityIfRelevant':
+        if got_msg.rcode() == dns.rcode.NOERROR:
+            question = got_msg.question[0]
+            answer = got_msg.answer
+            if contains_answer(question, answer):
+                return True
+
+        return compare_rrs(exp_msg.authority, got_msg.authority)
+
     elif criteria == 'edns':
         if got_msg.edns != exp_msg.edns:
             raise DataMismatch(str(exp_msg.edns), str(got_msg.edns))
@@ -168,6 +206,7 @@ def match_part(  # pylint: disable=inconsistent-return-statements
             raise DataMismatch(str(nsid_opt.data), '')
     else:
         raise NotImplementedError('unknown match request "%s"' % criteria)
+
 
 
 def match(
