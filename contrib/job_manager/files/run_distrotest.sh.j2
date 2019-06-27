@@ -15,11 +15,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-git clone https://gitlab.labs.nic.cz/knot/knot-resolver.git
-pushd knot-resolver
+git clone https://gitlab.labs.nic.cz/knot/{{ package }}.git
+pushd {{ package }}
 
 git checkout -q {{ git_sha }}
-git_hash=$(git rev-parse --short HEAD)
+version=$(sed 's/^v//' <(git describe --exact-match HEAD || git rev-parse --short HEAD) )
 
 export HOME="$(eval echo ~$USER)"
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
@@ -27,9 +27,8 @@ export VAGRANT_DEFAULT_PROVIDER="virtualbox"
 ./distro/tests/test-distro.sh {{ obs_repo }} {{ distrotest['distro'] }} &>../${JOBNAME}_vagrant.log || \
     (cat ../${JOBNAME}_vagrant.log; exit 1)
 
-# TODO handle tagged versions
-grep -q "package_version.stdout.*${git_hash}" ../${JOBNAME}_vagrant.log || \
-    (echo "ERROR: version ${git_hash} does't match installed packaged"; exit 1)
+grep -q "package_version.stdout.*${version}" ../${JOBNAME}_vagrant.log || \
+    (echo "ERROR: version ${version} does't match installed packaged"; exit 1)
 
 popd
 echo '0' > ${JOBNAME}_exitcode
