@@ -4,7 +4,7 @@ set -o xtrace
 JOBNAME=j$1.$2
 
 # HACK (condor): ensure files for transfer exist to avoid held jobs
-touch ${JOBNAME}_vagrant.log
+touch ${JOBNAME}_vagrant.log.txt
 echo '1' > ${JOBNAME}_exitcode  # fail unless explicitly successful
 
 # Exit if any cmd fails from now on.
@@ -24,10 +24,10 @@ version=$(sed 's/^v//' <(git describe --exact-match HEAD || git rev-parse --shor
 export HOME="$(eval echo ~$USER)"
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin"
 export VAGRANT_DEFAULT_PROVIDER="virtualbox"
-./distro/tests/test-distro.sh {{ obs_repo }} {{ distrotest['distro'] }} &>../${JOBNAME}_vagrant.log || \
-    (cat ../${JOBNAME}_vagrant.log; exit 1)
+./distro/tests/test-distro.sh {{ obs_repo }} {{ distrotest['distro'] }} &>../${JOBNAME}_vagrant.log.txt || \
+    (cat ../${JOBNAME}_vagrant.log.txt; exit 1)
 
-grep -q "package_version.stdout.*${version}" ../${JOBNAME}_vagrant.log || \
+grep -q "package_version.stdout.*${version}" ../${JOBNAME}_vagrant.log.txt || \
     (echo "ERROR: version ${version} does't match installed packaged"; exit 1)
 
 popd
