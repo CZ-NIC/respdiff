@@ -169,6 +169,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['asan'] = args.asan
         config['respdiff_stats'] = args.respdiff_stats
         config['obs_repo'] = args.obs_repo
+        config['package'] = args.package
 
         directory = os.path.join(args.jobs_dir, commit_dir, test_case)
         prepare_dir(directory, clean=args.clean)
@@ -216,6 +217,9 @@ def main() -> None:
     parser.add_argument(
         '--obs-repo', type=str, default='knot-resolver-devel',
         help=("OBS repository for distrotests (default: knot-resolver-devel)"))
+    parser.add_argument(
+        '--package', type=str, default='knot-resolver',
+        help=("package for distrotests (default: knot-resolver)"))
 
     args = parser.parse_args()
     create_jobs(args)

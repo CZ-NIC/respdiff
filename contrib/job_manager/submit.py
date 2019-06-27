@@ -58,7 +58,7 @@ def condor_submit(txn, priority: int) -> int:
         executable = 'run_distrotest.sh'
         output_files = [
             'j$(Cluster).$(Process)_exitcode',
-            'j$(Cluster).$(Process)_vagrant.log']
+            'j$(Cluster).$(Process)_vagrant.log.txt']
     else:
         raise RuntimeError(
             "The provided directory doesn't look like a respdiff/resperf job. "
