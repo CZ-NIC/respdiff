@@ -154,7 +154,7 @@ def create_jobs(args: argparse.Namespace) -> None:
     if not test_cases:
         raise RuntimeError("No test cases found!")
 
-    git_sha = args.sha_or_tag[:8]
+    git_sha = args.sha_or_tag
     commit_dir = git_sha
     if args.label is not None:
         if ' ' in args.label:
