@@ -8,9 +8,11 @@
 import argparse
 import logging
 import math
-from typing import Dict, List
+import os
+from typing import Dict, List, Tuple, Optional
 import sys
 
+import dns
 import lmdb
 import numpy as np
 
@@ -28,17 +30,22 @@ import matplotlib.pyplot as plt  # noqa
 def load_data(
             txn: lmdb.Transaction,
             dnsreplies_factory: DNSRepliesFactory
-        ) -> Dict[ResolverID, List[float]]:
+        ) -> Dict[ResolverID, List[Tuple[float, Optional[int]]]]:
     data = {}  # type: Dict[ResolverID, List[float]]
     cursor = txn.cursor()
     for value in cursor.iternext(keys=False, values=True):
         replies = dnsreplies_factory.parse(value)
         for resolver, reply in replies.items():
-            data.setdefault(resolver, []).append(reply.time)
+            message = reply.parse_wire()[0]
+            if message:
+                rcode = message.rcode()
+            else:
+                rcode = None
+            data.setdefault(resolver, []).append((reply.time, rcode))
     return data
 
 
-def plot_log_percentile_histogram(data: Dict[str, List[float]], config=None):
+def plot_log_percentile_histogram(data: Dict[str, List[float]], title, config=None):
     """
     For graph explanation, see
     https://blog.powerdns.com/2017/11/02/dns-performance-metrics-the-logarithmic-percentile-histogram/
@@ -58,22 +65,38 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]], config=None):
 
     ax.set_xlabel('Slowest percentile')
     ax.set_ylabel('Response time [ms]')
-    ax.set_title('Resolver Response Time')
+    ax.set_title('Resolver Response Time' + " - " + title)
 
     # plot data
     for server in sorted(data):
-        try:
-            color = config[server]['graph_color']
-        except KeyError:
-            color = None
+        if data[server]:
+            try:
+                color = config[server]['graph_color']
+            except KeyError:
+                color = None
 
-        # convert to ms and sort
-        values = sorted([1000 * x for x in data[server]], reverse=True)
-        ax.plot(percentiles,
-                [values[math.ceil(pctl * len(values) / 100) - 1] for pctl in percentiles],
-                lw=2, label=server, color=color)
+            # convert to ms and sort
+            values = sorted([1000 * x for x in data[server]], reverse=True)
+            ax.plot(percentiles,
+                    [values[math.ceil(pctl * len(values) / 100) - 1] for pctl in percentiles],
+                    lw=2, label=server, color=color)
 
     plt.legend()
+
+
+def create_histogram(data: Dict[str, List[float]], filename, title, config=None):
+    nonempty_resolvers = {k: d for (k, d) in data.items() if d}
+    if nonempty_resolvers:
+        plot_log_percentile_histogram(data, title, config)
+        # save to file
+        plt.savefig(filename, dpi=300)
+
+
+def histogram_by_rcode(rcode: int, data: Dict[ResolverID, List[Tuple[float, Optional[int]]]],
+                       filename: str, title: str, config):
+    filtered_by_rcode = {k: [time for (time, rc) in dat if rc == rcode] for (k, dat)
+                         in data.items()}
+    create_histogram(filtered_by_rcode, filename, title, config)
 
 
 def main():
@@ -82,8 +105,8 @@ def main():
         description='Plot query response time histogram from answers stored '
                     'in LMDB')
     parser.add_argument('-o', '--output', type=str,
-                        default='histogram.png',
-                        help='output image file (default: histogram.png)')
+                        default='histogram',
+                        help='output directory for image files (default: histograms)')
     parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
                         help='config file (default: respdiff.cfg)')
     parser.add_argument('envdir', type=str,
@@ -104,10 +127,15 @@ def main():
 
         with lmdb_.env.begin(adb) as txn:
             data = load_data(txn, dnsreplies_factory)
-    plot_log_percentile_histogram(data, config)
 
-    # save to file
-    plt.savefig(args.output, dpi=300)
+    if not os.path.exists(args.output):
+        os.makedirs(args.output)
+    create_histogram({k: d[0] for (k, d) in data.items()}, args.output + "/all.png", "all", config)
+    for rcode in range(24):
+        rcode_text = dns.rcode.to_text(rcode)
+        histogram_by_rcode(rcode, data, args.output + "/" + rcode_text + ".png",
+                           rcode_text, config)
+    histogram_by_rcode(None, data, args.output + "/unparsed.png", "unparsed queries", config)
 
 
 if __name__ == '__main__':
