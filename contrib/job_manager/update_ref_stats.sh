@@ -26,8 +26,8 @@ if [ -h "${ADDDIR}" ]; then
     rm ${ADDDIR}
 fi
 
-# delete reports older than 72h
-find ${MASTERDIR} -type f -mtime +2 -delete
+# delete reports older than 42h
+find ${MASTERDIR} -type f -mmin +2520 -delete
 
 # update statistics
 ${RESPDIFF_SRC}/contrib/job_manager/make_stats.sh ${MASTERDIR}
