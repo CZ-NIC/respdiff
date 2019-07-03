@@ -50,6 +50,7 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]], title, config=No
     For graph explanation, see
     https://blog.powerdns.com/2017/11/02/dns-performance-metrics-the-logarithmic-percentile-histogram/
     """
+    plt.rcParams["font.family"] = "monospace"
     _, ax = plt.subplots(figsize=(8, 8))
 
     # Distribute sample points along logarithmic X axis
@@ -78,8 +79,8 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]], title, config=No
             # convert to ms and sort
             values = sorted([1000 * x for x in data[server]], reverse=True)
             ax.plot(percentiles,
-                    [values[math.ceil(pctl * len(values) / 100) - 1] for pctl in percentiles],
-                    lw=2, label=server, color=color)
+                    [values[math.ceil(pctl * len(values) / 100) - 1] for pctl in percentiles], lw=2,
+                    label='{:<10}'.format(server) + " " + '{:9d}'.format(len(values)), color=color)
 
     plt.legend()
 
