@@ -27,6 +27,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa
 
 
+HISTOGRAM_RCODE_MAX = 23
+
+
 def load_data(
             txn: lmdb.Transaction,
             dnsreplies_factory: DNSRepliesFactory
@@ -133,7 +136,9 @@ def main():
         os.makedirs(args.output)
     create_histogram({k: [tup[0] for tup in d] for (k, d) in data.items()},
                      args.output + "/all.png", "all", config)
-    for rcode in range(24):
+
+    # rcode-specific queries
+    for rcode in range(HISTOGRAM_RCODE_MAX + 1):
         rcode_text = dns.rcode.to_text(rcode)
         histogram_by_rcode(rcode, data, args.output + "/" + rcode_text + ".png",
                            rcode_text, config)
