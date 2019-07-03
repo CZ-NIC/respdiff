@@ -126,14 +126,17 @@ def histogram_by_rcode(
     create_histogram(filtered_by_rcode, filename, title, config)
 
 
+
+
 def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(
         description='Plot query response time histogram from answers stored '
                     'in LMDB')
-    parser.add_argument('-o', '--output', type=str,
-                        default='histogram',
+    parser.add_argument('-o', '--output', type=str, default='histogram',
                         help='output directory for image files (default: histogram)')
+    parser.add_argument('-f', '--format', type=str, default='png',
+                        help='output image format (default: png)')
     parser.add_argument('-c', '--config', default='respdiff.cfg', dest='cfgpath',
                         help='config file (default: respdiff.cfg)')
     parser.add_argument('envdir', type=str,
@@ -155,19 +158,21 @@ def main():
         with lmdb_.env.begin(adb) as txn:
             data = load_data(txn, dnsreplies_factory)
 
+    def get_filepath(filename) -> str:
+        return os.path.join(args.output, filename + '.' + args.format)
+
     if not os.path.exists(args.output):
         os.makedirs(args.output)
-    filepath = os.path.join(args.output, 'all.png')
     create_histogram({k: [tup[0] for tup in d] for (k, d) in data.items()},
-                     filepath, "all", config)
+                     get_filepath('all'), 'all', config)
 
     # rcode-specific queries
     for rcode in range(HISTOGRAM_RCODE_MAX + 1):
         rcode_text = dns.rcode.to_text(rcode)
-        filepath = os.path.join(args.output, rcode_text + ".png")
+        filepath = get_filepath(rcode_text)
         histogram_by_rcode(data, filepath, rcode_text, config, rcode)
-    filepath = os.path.join(args.output, "unparsed.png")
-    histogram_by_rcode(data, filepath, "unparsed queries", config, None)
+    filepath = get_filepath('unparsed')
+    histogram_by_rcode(data, filepath, 'unparsed queries', config, None)
 
 
 if __name__ == '__main__':

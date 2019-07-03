@@ -64,6 +64,8 @@ Respdiff is conceptually chain of independent tools:
 Changelog
 ---------
 
+- 2019-07-03: ``histrogram.py`` - ``-o/--output`` now expects directory instead
+  of a single file, ``-f/--format`` can be used to specify image format
 - 2018-08-30: JSON datafile format changed: ``other_disagreements`` now
   includes a list of all affected queries. Older reports will incorrectly report
   0 for this field. (Can be fixed by re-creating reports with ``msgdiff.py``).

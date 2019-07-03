@@ -21,6 +21,9 @@ The type of graph this tool generates is the
 See the link for full explanation of this graph and the reasoning why it's
 suitable to use for benchmarking.
 
+The tool generates multiple graphs - ``all`` for queries with any RCODE, and then
+graphs for every individual RCODE (if present, only codes 0-23 by default).
+
 
 Reading the graph
 -----------------
@@ -42,5 +45,5 @@ data for the lower slowest percentiles. The curve also typically flattens out fo
 Notes
 -----
 
-* You can specify various image file extensions in the ``--output`` argument to
+* You can specify various image file extensions in the ``--format`` argument to
   generate different image formats.
