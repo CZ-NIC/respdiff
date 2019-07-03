@@ -105,10 +105,24 @@ def create_histogram(
         plt.savefig(filename, dpi=300)
 
 
-def histogram_by_rcode(rcode: int, data: Dict[ResolverID, List[Tuple[float, Optional[int]]]],
-                       filename: str, title: str, config):
-    filtered_by_rcode = {k: [time for (time, rc) in dat if rc == rcode] for (k, dat)
-                         in data.items()}
+def histogram_by_rcode(
+            data: Dict[ResolverID, List[Tuple[float, Optional[int]]]],
+            filename: str,
+            title: str,
+            config=None,
+            rcode: Optional[int] = None
+        ) -> None:
+    def same_rcode(value: Tuple[float, Optional[int]]) -> bool:
+        if rcode is None:
+            if value[1] is None:
+                return True
+            return False
+        else:
+            return rcode == value[1]
+
+    filtered_by_rcode = {
+        resolver: [time for (time, rc) in filter(same_rcode, values)]
+        for (resolver, values) in data.items()}
     create_histogram(filtered_by_rcode, filename, title, config)
 
 
@@ -143,15 +157,17 @@ def main():
 
     if not os.path.exists(args.output):
         os.makedirs(args.output)
+    filepath = os.path.join(args.output, 'all.png')
     create_histogram({k: [tup[0] for tup in d] for (k, d) in data.items()},
-                     args.output + "/all.png", "all", config)
+                     filepath, "all", config)
 
     # rcode-specific queries
     for rcode in range(HISTOGRAM_RCODE_MAX + 1):
         rcode_text = dns.rcode.to_text(rcode)
-        histogram_by_rcode(rcode, data, args.output + "/" + rcode_text + ".png",
-                           rcode_text, config)
-    histogram_by_rcode(None, data, args.output + "/unparsed.png", "unparsed queries", config)
+        filepath = os.path.join(args.output, rcode_text + ".png")
+        histogram_by_rcode(data, filepath, rcode_text, config, rcode)
+    filepath = os.path.join(args.output, "unparsed.png")
+    histogram_by_rcode(data, filepath, "unparsed queries", config, None)
 
 
 if __name__ == '__main__':
