@@ -85,8 +85,8 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]], title, config=No
 
 
 def create_histogram(data: Dict[str, List[float]], filename, title, config=None):
-    nonempty_resolvers = {k: d for (k, d) in data.items() if d}
-    if nonempty_resolvers:
+    # don't plot graphs which don't contain any finite time
+    if any(any(time < float('+inf') for time in d) for d in data.values()):
         plot_log_percentile_histogram(data, title, config)
         # save to file
         plt.savefig(filename, dpi=300)
