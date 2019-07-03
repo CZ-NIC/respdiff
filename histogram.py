@@ -48,7 +48,11 @@ def load_data(
     return data
 
 
-def plot_log_percentile_histogram(data: Dict[str, List[float]], title, config=None):
+def plot_log_percentile_histogram(
+            data: Dict[str, List[float]],
+            title: str,
+            config=None
+        ) -> None:
     """
     For graph explanation, see
     https://blog.powerdns.com/2017/11/02/dns-performance-metrics-the-logarithmic-percentile-histogram/
@@ -88,7 +92,12 @@ def plot_log_percentile_histogram(data: Dict[str, List[float]], title, config=No
     plt.legend()
 
 
-def create_histogram(data: Dict[str, List[float]], filename, title, config=None):
+def create_histogram(
+            data: Dict[str, List[float]],
+            filename: str,
+            title: str,
+            config=None
+        ) -> None:
     # don't plot graphs which don't contain any finite time
     if any(any(time < float('+inf') for time in d) for d in data.values()):
         plot_log_percentile_histogram(data, title, config)
