@@ -6,7 +6,7 @@ JOBNAME=j$1.$2
 # HACK (condor): ensure files for transfer exist to avoid held jobs
 touch ${JOBNAME}_report{,.diffrepro}.json
 touch ${JOBNAME}_report{,.diffrepro}.txt
-touch ${JOBNAME}_histogram.png
+touch ${JOBNAME}_histogram.tar.gz
 if [ -f "stats.json" ]; then
     touch ${JOBNAME}_report.noref.json
     touch ${JOBNAME}_report.noref.txt
@@ -111,4 +111,5 @@ if [ -f "stats.json" ]; then
     #     gzip -f ${JOBNAME}_dnsviz.json
     # fi
 fi
-time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram.png .
+time "{{ respdiff['srcdir'] }}/histogram.py" -o ${JOBNAME}_histogram .
+tar cf ${JOBNAME}_histogram.tar.gz ${JOBNAME}_histogram

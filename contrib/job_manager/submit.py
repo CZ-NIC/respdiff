@@ -37,7 +37,7 @@ def condor_submit(txn, priority: int) -> int:
             'j$(Cluster).$(Process)_report.diffrepro.json',
             'j$(Cluster).$(Process)_report.txt',
             'j$(Cluster).$(Process)_report.diffrepro.txt',
-            'j$(Cluster).$(Process)_histogram.png',
+            'j$(Cluster).$(Process)_histogram.tar.gz',
             'j$(Cluster).$(Process)_logs.tar.gz']
         if 'stats.json' in input_files:
             output_files.extend([
