@@ -50,8 +50,13 @@ Registry Maintance - new builds
    $ export UNBOUND_VERSION=1.9.1
    $ docker build -t registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
 
+   # dnsperf container build
+   $ export GIT_TAG=v2.2.1
+   $ docker build -t registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsperf
+
    # push containers to registry
    $ docker login registry.labs.nic.cz
    $ docker push registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
    $ docker push registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG
    $ docker push registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION
+   $ docker push registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG
