@@ -44,7 +44,7 @@ def main():
                                                  '1 if not,')
     parser.add_argument('-r', '--reference', type=cli.read_stats,
                         help='json statistics file with reference data')
-    cli.add_arg_report(parser)
+    cli.add_arg_report_filename(parser)
     parser.add_argument('-c', '--coef', type=float,
                         default=DEFAULT_COEF,
                         help=('coeficient for comparation (new belongs to refference if '
