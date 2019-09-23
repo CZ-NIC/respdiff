@@ -51,7 +51,7 @@ def load_data(
 def plot_log_percentile_histogram(
             data: Dict[str, List[float]],
             title: str,
-            config=None
+            config: Optional[dict] = None
         ) -> None:
     """
     For graph explanation, see
