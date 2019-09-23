@@ -80,7 +80,7 @@ def plot_log_percentile_histogram(
         if data[server]:
             try:
                 color = config[server]['graph_color']
-            except KeyError:
+            except (KeyError, TypeError):
                 color = None
 
             # convert to ms and sort
