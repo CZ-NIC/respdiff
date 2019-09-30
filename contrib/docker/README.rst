@@ -6,6 +6,7 @@ for Knot Resolver CI testing.
 
 * ``bind/``: BIND9 compiled from git tag/branch.
 * ``unbound/``: Unbound from latest ``*.tar.gz``.
+* ``powerdns/``: PowerDNS compiled from git tag/branch.
 * ``knot-resolver-buildenv/``: Build environment for Knot Resolver.
 * ``knot-resolver-fedora/``: Experimental Knot Resolver build on Fedora.
 * ``knot-resolver/``: Knot Resolver compiled from specific git sha.
@@ -50,6 +51,10 @@ Registry Maintance - new builds
    $ export UNBOUND_VERSION=1.9.1
    $ docker build -t registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
 
+   # powerdns container build
+   $ export GIT_TAG=rec-4.2.0
+   $ docker build -t registry.labs.nic.cz/knot/respdiff/powerdns:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG powerdns
+
    # dnsperf container build
    $ export GIT_TAG=v2.2.1
    $ docker build -t registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsperf
@@ -59,4 +64,5 @@ Registry Maintance - new builds
    $ docker push registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
    $ docker push registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG
    $ docker push registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION
+   $ docker push registry.labs.nic.cz/knot/respdiff/powerdns:$GIT_TAG
    $ docker push registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG
