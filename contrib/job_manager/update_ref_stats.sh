@@ -31,8 +31,13 @@ if [ -h "${ADDDIR}" ]; then
 
             # match against reference
             set +o errexit
+            ls ${ADDDIR}/${TESTCASE}/*_report.json &>/dev/null
+            [ $? -ne 0 ] && continue
             ${RESPDIFF_SRC}/distrcmp.py -r "${STATFILE}" ${ADDDIR}/${TESTCASE}/*_report.json
             MATCH_STAT=$?
+
+            ls ${ADDDIR}/${TESTCASE}/*_report.diffrepro.json &>/dev/null
+            [ $? -ne 0 ] && continue
             ${RESPDIFF_SRC}/distrcmp.py -r "${STATFILE_D}" ${ADDDIR}/${TESTCASE}/*_report.diffrepro.json
             MATCH_STAT_D=$?
             set -o errexit
