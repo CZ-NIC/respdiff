@@ -11,6 +11,7 @@ import math
 from multiprocessing import pool
 import os
 from typing import Dict, List, Tuple, Optional
+import struct
 import sys
 
 import dns
@@ -40,11 +41,12 @@ def load_data(
     for value in cursor.iternext(keys=False, values=True):
         replies = dnsreplies_factory.parse(value)
         for resolver, reply in replies.items():
-            message = reply.parse_wire()[0]
-            if message:
-                rcode = message.rcode()
-            else:
+            if len(reply.wire) < 12:
+                # 12 is chosen to be consistent with dnspython's ShortHeader exception
                 rcode = None
+            else:
+                (flags, ) = struct.unpack('!H', reply.wire[2:4])
+                rcode = flags & 0x000f
             data.setdefault(resolver, []).append((reply.time, rcode))
     return data
 
