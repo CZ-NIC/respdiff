@@ -66,7 +66,7 @@ def create_file_from_template(
 def load_test_case_config(test_case: str) -> Dict[str, Any]:
     path = os.path.join(TEST_CASE_DIR, test_case + '.yaml')
     with open(path, 'r') as f:
-        return yaml.load(f)
+        return yaml.safe_load(f)
 
 
 def create_resolver_configs(directory: str, config: Dict[str, Any]):
