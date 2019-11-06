@@ -268,7 +268,7 @@ def print_fields_overview(
         sorted(rows, key=lambda data: data[1], reverse=True),  # type: ignore
         headers,
         tablefmt='simple',
-        floatfmt=('s', 'd', '.2f', 's', '+.2f')))
+        floatfmt=('s', 'd', '.2f', 's', '+.2f')))  # type: ignore
     print('')
 
 
@@ -299,7 +299,7 @@ def print_field_mismatch_stats(
         sorted(rows, key=lambda data: data[2], reverse=True),  # type: ignore
         headers,
         tablefmt='simple',
-        floatfmt=('s', 's', 'd', '.2f', 's', '+.2f')))
+        floatfmt=('s', 's', 'd', '.2f', 's', '+.2f')))  # type: ignore
     print('')
 
 
