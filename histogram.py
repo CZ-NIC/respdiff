@@ -8,6 +8,7 @@
 import argparse
 import logging
 import math
+from multiprocessing import pool
 import os
 from typing import Dict, List, Tuple, Optional
 import sys
@@ -165,10 +166,13 @@ def main():
                      get_filepath('all'), 'all', config)
 
     # rcode-specific queries
-    for rcode in range(HISTOGRAM_RCODE_MAX + 1):
-        rcode_text = dns.rcode.to_text(rcode)
-        filepath = get_filepath(rcode_text)
-        histogram_by_rcode(data, filepath, rcode_text, config, rcode)
+    with pool.Pool() as p:
+        fargs = []
+        for rcode in range(HISTOGRAM_RCODE_MAX + 1):
+            rcode_text = dns.rcode.to_text(rcode)
+            filepath = get_filepath(rcode_text)
+            fargs.append((data, filepath, rcode_text, config, rcode))
+        p.starmap(histogram_by_rcode, fargs)
     filepath = get_filepath('unparsed')
     histogram_by_rcode(data, filepath, 'unparsed queries', config, None)
 
