@@ -20,7 +20,7 @@ RUN \
 	(git checkout "${GIT_SHA}" -- && git submodule update) || (\
 		cd /var/opt; \
 		rm -rf /var/opt/knot-resolver; \
-		git clone --recursive -j8 git@gitlab.labs.nic.cz:knot/knot-resolver-security.git /var/opt/knot-resolver; \
+		git clone --recursive -j8 git@gitlab.labs.nic.cz:knot/security/knot-resolver.git /var/opt/knot-resolver; \
 		cd /var/opt/knot-resolver; \
 		git checkout "${GIT_SHA}" --; \
 		git submodule update)
