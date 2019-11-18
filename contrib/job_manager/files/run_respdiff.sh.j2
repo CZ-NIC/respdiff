@@ -68,7 +68,8 @@ cleanup() {
     docker-compose --no-ansi logs &>>${JOBNAME}_docker.txt || :
     docker-compose --no-ansi rm -fsv || :
     for coredump in logs/kresd*/core*; do
-        docker run --entrypoint /bin/bash --network host -v "$PWD/logs:/log:ro" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "apt-get install -y gdb; gdb -ex 'bt' -batch -core $coredump /var/opt/knot-resolver/.install/sbin/kresd"
+        test -r $coredump || continue
+        docker run --entrypoint /bin/bash --network host -v "$PWD/logs:/log:ro" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "gdb -ex 'bt' -batch -core $coredump /var/opt/knot-resolver/.install/sbin/kresd"
     done
 
     tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :

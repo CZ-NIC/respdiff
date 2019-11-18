@@ -21,8 +21,6 @@ services:
         MESONARGS: {{ '-Db_sanitize=address' if asan else "''" }}
     image: knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }}
     {%- if asan %}
-    environment:
-      ASAN_OPTIONS: disable_coredump=0,abort_on_error=1
     cap_add:
       - SYS_PTRACE
     {%- endif %}
