@@ -65,6 +65,13 @@ set -o errexit
 cleanup() {
     docker-compose --no-ansi ps
     docker-compose --no-ansi rm -fsv || :
+    pushd logs
+    for coredump in kresd*/core*; do
+        test -f $coredump || continue
+        docker run --entrypoint /bin/bash --network host -v "$PWD:/log:rw" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "chmod +r /log/$coredump && gdb -ex 'bt' -batch -core /log/$coredump /var/opt/knot-resolver/.install/sbin/kresd"
+    done
+    popd
+
     tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
 {%if database['remove_after'] %}
     rm -rf ./*.mdb || :
