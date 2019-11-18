@@ -4,6 +4,7 @@ set -o xtrace
 JOBNAME=j$1.$2
 
 # HACK (condor): ensure files for transfer exist to avoid held jobs
+touch ${JOBNAME}_docker.txt
 touch ${JOBNAME}_report{,.diffrepro}.json
 touch ${JOBNAME}_report{,.diffrepro}.txt
 touch ${JOBNAME}_histogram.tar.gz
@@ -64,6 +65,7 @@ set -o errexit
 
 cleanup() {
     docker-compose --no-ansi ps
+    docker-compose --no-ansi logs &>>${JOBNAME}_docker.txt || :
     docker-compose --no-ansi rm -fsv || :
     pushd logs
     for coredump in kresd*/core*; do
