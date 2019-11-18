@@ -19,6 +19,9 @@ services:
         SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY}
         KNOT_BRANCH: ${KNOT_BRANCH}
         MESONARGS: {{ '-Db_sanitize=address' if asan else "''" }}
+	  {%- if asan %}
+	  ASAN_OPTIONS: disable_coredump=0,abort_on_error=1
+	  {%- endif %}
     image: knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }}
     {%- if asan %}
     cap_add:
