@@ -41,23 +41,23 @@ Registry Maintance - new builds
 
    # knot-resolver-buildenv container build
    $ export KNOT_BRANCH=2.9
-   $ docker build -t registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH --build-arg KNOT_BRANCH=$KNOT_BRANCH knot-resolver-buildenv
+   $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH --build-arg KNOT_BRANCH=$KNOT_BRANCH knot-resolver-buildenv
 
    # bind container build
    $ export GIT_TAG=v9_14_1
-   $ docker build -t registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG bind
+   $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG bind
 
    # unbound container build
    $ export UNBOUND_VERSION=1.9.1
-   $ docker build -t registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
+   $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
 
    # powerdns container build
    $ export GIT_TAG=rec-4.2.0
-   $ docker build -t registry.labs.nic.cz/knot/respdiff/powerdns:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG powerdns
+   $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/powerdns:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG powerdns
 
    # dnsperf container build
    $ export GIT_TAG=v2.2.1
-   $ docker build -t registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsperf
+   $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsperf
 
    # push containers to registry
    $ docker login registry.labs.nic.cz
