@@ -33,6 +33,7 @@ def condor_submit(txn, priority: int) -> int:
     if 'run_respdiff.sh' in input_files:
         executable = 'run_respdiff.sh'
         output_files = [
+            'j$(Cluster).$(Process)_docker.txt',
             'j$(Cluster).$(Process)_report.json',
             'j$(Cluster).$(Process)_report.diffrepro.json',
             'j$(Cluster).$(Process)_report.txt',
@@ -51,7 +52,7 @@ def condor_submit(txn, priority: int) -> int:
         executable = 'run_resperf.sh'
         output_files = [
             'j$(Cluster).$(Process)_exitcode',
-            'j$(Cluster).$(Process)_kresd.docker.txt',
+            'j$(Cluster).$(Process)_docker.txt',
             'j$(Cluster).$(Process)_resperf.txt',
             'j$(Cluster).$(Process)_logs.tar.gz']
     elif 'run_distrotest.sh' in input_files:

@@ -5,14 +5,14 @@ JOBNAME=j$1.$2
 
 exit_handler() {
     exitcode=$?
-    docker-compose --no-ansi logs &>>${JOBNAME}_kresd.docker.txt || :
+    docker-compose --no-ansi logs &>>${JOBNAME}_docker.txt || :
     docker-compose --no-ansi rm -fsv || :
     echo "$exitcode" > ${JOBNAME}_exitcode
 }
 trap exit_handler EXIT
 
 # HACK (condor): ensure files for transfer exist to avoid held jobs
-touch ${JOBNAME}_kresd.docker.txt
+touch ${JOBNAME}_docker.txt
 touch ${JOBNAME}_resperf.txt
 echo '1' > ${JOBNAME}_exitcode  # failed unless job exits with 0
 mkdir logs
