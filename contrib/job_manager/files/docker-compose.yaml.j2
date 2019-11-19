@@ -29,6 +29,8 @@ services:
       - type: tmpfs
         target: /dev/shm
       - "./logs/{{ name }}:/log:rw"
+    ulimits:
+      core: 99999999999
     {%- endif -%}
 
     {%- if resolver['type'] == 'bind' %}
