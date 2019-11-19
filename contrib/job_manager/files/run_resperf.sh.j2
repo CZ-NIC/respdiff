@@ -11,7 +11,7 @@ exit_handler() {
     pushd logs
     for coredump in kresd*/core*; do
         test -f $coredump || continue
-        docker run --entrypoint /bin/bash --network host -v "$PWD:/log:rw" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "chmod +r /log/$coredump && gdb -ex 'bt' -batch -core /log/$coredump /var/opt/knot-resolver/.install/sbin/kresd"
+        docker run --entrypoint /bin/bash --network host -v "$PWD:/log:rw" knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "chmod +r /log/$coredump && gdb -ex 'bt' -batch -core /log/$coredump /var/opt/knot-resolver/.install/sbin/kresd" >&2
     done
     popd
 
