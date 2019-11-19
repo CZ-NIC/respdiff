@@ -8,6 +8,14 @@ exit_handler() {
     docker-compose --no-ansi logs &>>${JOBNAME}_docker.txt || :
     docker-compose --no-ansi rm -fsv || :
     echo "$exitcode" > ${JOBNAME}_exitcode
+    pushd logs
+    for coredump in kresd*/core*; do
+        test -f $coredump || continue
+        docker run --entrypoint /bin/bash --network host -v "$PWD:/log:rw" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "chmod +r /log/$coredump && gdb -ex 'bt' -batch -core /log/$coredump /var/opt/knot-resolver/.install/sbin/kresd"
+    done
+    popd
+
+    tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
 }
 trap exit_handler EXIT
 
