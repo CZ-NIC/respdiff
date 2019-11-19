@@ -69,8 +69,8 @@ cleanup() {
     docker-compose --no-ansi rm -fsv || :
     pushd logs
     for coredump in kresd*/core*; do
-        test -r $coredump || continue
-        docker run --entrypoint /bin/bash --network host -v "$PWD:/log:ro" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "gdb -ex 'bt' -batch -core /log/$coredump /var/opt/knot-resolver/.install/sbin/kresd"
+        test -f $coredump || continue
+        docker run --entrypoint /bin/bash --network host -v "$PWD:/log:rw" -ti knot-resolver:{{ git_sha }}{{ '-asan' if asan else '' }} -c "chmod +r /log/$coredump && gdb -ex 'bt' -batch -core /log/$coredump /var/opt/knot-resolver/.install/sbin/kresd"
     done
     popd
 
