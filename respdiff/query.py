@@ -22,7 +22,10 @@ def get_query_iterator(
 
 
 def qwire_to_qname(qwire: WireFormat) -> str:
-    qmsg = dns.message.from_wire(qwire)
+    try:
+        qmsg = dns.message.from_wire(qwire)
+    except dns.exception.DNSException as exc:
+        raise ValueError('unable to parse qname from wire format') from exc
     if not qmsg.question:
         raise ValueError('no qname in wire format')
     return qmsg.question[0].name
@@ -30,7 +33,10 @@ def qwire_to_qname(qwire: WireFormat) -> str:
 
 def qwire_to_qname_qtype(qwire: WireFormat) -> str:
     """Get text representation of DNS wire format query"""
-    qmsg = dns.message.from_wire(qwire)
+    try:
+        qmsg = dns.message.from_wire(qwire)
+    except dns.exception.DNSException as exc:
+        raise ValueError('unable to parse qname from wire format') from exc
     if not qmsg.question:
         raise ValueError('no qname in wire format')
     return '{} {}'.format(
