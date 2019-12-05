@@ -298,8 +298,7 @@ def _send_recv_parallel(
                     reinit = True
                     selector.unregister(sock)
                     continue  # receive answers from other parties
-                else:  # no reply -> raise error
-                    raise
+                raise  # no reply -> raise error
             # assert len(wire) > 14
             if dgram[0:2] != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
