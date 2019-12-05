@@ -1,6 +1,6 @@
 respdiff:
   srcdir: /var/opt/respdiff
-  jobs: 256
+  jobs: 192
   target: kresd
 
 database:
@@ -12,8 +12,7 @@ resolvers:
 
   unbound:
     type: unbound
-    port: &unbound_port 53301
-    listen_ipv6: true
+    port: &unbound_port 53701
     respdiff:
       ip: 127.0.0.1
       port: *unbound_port
@@ -22,10 +21,10 @@ resolvers:
 
   bind:
     type: bind
-    port: &bind_port 53311
+    port: &bind_port 53711
     depends_on: unbound
     forward: &fwd_unbound
-      ip: '::1'
+      ip: 127.0.0.1
       port: *unbound_port
     respdiff:
       ip: 127.0.0.1
@@ -33,12 +32,23 @@ resolvers:
       transport: udp
       graph_color: '#e2a000'
 
-  kresd:
+  kresd_fwd_target:
     type: knot-resolver
-    port: &kresd_port 53321
-    listen_ipv6: true
+    port: 53722
+    tls_port: &kresd_fwd_target_port 53729
     depends_on: unbound
     forward: *fwd_unbound
+    listen_ipv6: true
+
+  kresd:
+    type: knot-resolver
+    port: &kresd_port 53721
+    listen_ipv6: true
+    depends_on: kresd_fwd_target
+    forward:
+      ip: '::1'
+      port: *kresd_fwd_target_port
+      tls: true
     respdiff:
       ip: '::1'
       port: *kresd_port

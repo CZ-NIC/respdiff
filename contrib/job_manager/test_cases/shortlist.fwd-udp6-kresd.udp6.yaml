@@ -1,6 +1,6 @@
 respdiff:
   srcdir: /var/opt/respdiff
-  jobs: 384
+  jobs: 256
   target: kresd
 
 database:
