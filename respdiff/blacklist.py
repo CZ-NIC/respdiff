@@ -5,7 +5,8 @@ from dns.message import Message
 # dotnxdomain.net and dashnxdomain.net are used by APNIC for ephemeral
 # single-query tests so there is no point in asking these repeatedly
 _BLACKLIST_SUBDOMAINS = [dns.name.from_text(name) for name in
-                         ['dotnxdomain.net.', 'dashnxdomain.net.']]
+                         ['dotnxdomain.net.', 'dashnxdomain.net.',
+                          'local.']]
 
 
 def is_blacklisted(dnsmsg: Message) -> bool:

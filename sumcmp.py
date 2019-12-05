@@ -29,7 +29,7 @@ def check_usable_answers(report: DiffReport, ref_report: DiffReport):
             report.summary.usable_answers - ref_report.summary.usable_answers
         ) / ref_report.summary.usable_answers
     if answers_difference >= ANSWERS_DIFFERENCE_THRESHOLD_WARNING:
-        logging.warning('Number of usable answers changed by {:d} %!'.format(
+        logging.warning('Number of usable answers changed by {:.1f} %!'.format(
             answers_difference * 100.0))
 
 
