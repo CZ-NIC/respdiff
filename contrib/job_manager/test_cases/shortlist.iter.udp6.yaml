@@ -4,7 +4,7 @@ respdiff:
   target: kresd
 
 database:
-  url: https://gitlab.labs.nic.cz/knot/respdiff/uploads/f113be43534b37c60dd3628d42b2b5e6/shortlist3.mdb
+  url: https://gitlab.labs.nic.cz/knot/respdiff/uploads/1cbf15e24dcbaf76b1446484623ed48f/shortlist5e.mdb
   dest: data.mdb
   remove_after: true
 
@@ -12,8 +12,7 @@ resolvers:
 
   unbound:
     type: unbound
-    port: &unbound_port 53301
-    listen_ipv6: true
+    port: &unbound_port 53101
     respdiff:
       ip: 127.0.0.1
       port: *unbound_port
@@ -22,11 +21,7 @@ resolvers:
 
   bind:
     type: bind
-    port: &bind_port 53311
-    depends_on: unbound
-    forward: &fwd_unbound
-      ip: '::1'
-      port: *unbound_port
+    port: &bind_port 53111
     respdiff:
       ip: 127.0.0.1
       port: *bind_port
@@ -35,10 +30,8 @@ resolvers:
 
   kresd:
     type: knot-resolver
-    port: &kresd_port 53321
+    port: &kresd_port 53121
     listen_ipv6: true
-    depends_on: unbound
-    forward: *fwd_unbound
     respdiff:
       ip: '::1'
       port: *kresd_port
