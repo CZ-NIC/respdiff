@@ -28,8 +28,6 @@ class Stats(JSONDataObject):
         'threshold': (None, None),
     }
 
-    MAX_NUMBINS = 50  # maximum amount of bins in histogram
-
     class SamplePosition(Enum):
         """Position of a single sample against the rest of the distribution."""
         ABOVE_REF = 1
@@ -86,50 +84,16 @@ class Stats(JSONDataObject):
             return Stats.SamplePosition.ABOVE_THRESHOLD
         return Stats.SamplePosition.NORMAL
 
-    # TODO: this is a very magical detection of the threshold
-    def calculate_threshold(
-                self,
-                change_cutoff: float = -0.3,  # to detect cutoff in histogram; value < 0
-                minimum: float = 0.9,  # relative point where to start looking for cutoff
-            ) -> float:
-        """Detect uppper cutoff value in histogram to ignore outliers"""
-        # choose number of bins in histogram
-        numbins = max(self.samples) - min(self.samples) + 1  # separate bins for all values
-        if numbins > self.MAX_NUMBINS:
-            numbins = self.MAX_NUMBINS
-        hist, _ = numpy.histogram(
-            numpy.array(self.samples), numbins)
-        hist_cumulative_rel = (numpy.cumsum(hist) / len(self.samples)).tolist()
-
-        # traverse the histogram and find unique thresholds and calculate efficiency
-        # efficiency: how_much_of_the_distribution_is_covered / how_many_bins_are_needed
-        Threshold = collections.namedtuple('Threshold', ['threshold', 'efficiency'])
-        thresholds = []
-        last_thr = None
-        for i, thr in enumerate(hist_cumulative_rel):
-            if thr < minimum:
-                continue  # skip until start
-            if thr == last_thr:
-                continue  # skip non-unique
-            thresholds.append(Threshold(thr, thr / (i+1)))
-            last_thr = thr
-
-        # calculate change efficiency ratio and find cutoff point in change ratio
-        for i, _ in enumerate(thresholds):
-            if i == 0:
-                continue
-            curr = thresholds[i]
-            prev = thresholds[i-1]
-            eff_change = (curr.efficiency - prev.efficiency) / (curr.threshold - prev.threshold)
-            if eff_change < change_cutoff:
-                cutoff_threshold = prev.threshold
-                break
-        else:
-            cutoff_threshold = thresholds[-1].threshold
-
-        # find the cutoff value
-        icutoff = int(round(len(self.samples) * cutoff_threshold)) - 1
-        return sorted(self.samples)[icutoff]
+    def calculate_threshold(self) -> float:
+        """Return upper threshold for data using modified IQR outlier detection"""
+        # This algorhitm is based on inter-quartile range outlier detection
+        # See https://en.wikipedia.org/wiki/Interquartile_range#Outliers
+        # Differences:
+        #   - 20th percentile and 80th percentile is used instead of 25/75
+        #   - threshold is capped at maximum sample in the data
+        pctl20, pctl80 = numpy.percentile(self.samples, [20, 80])
+        inpctl = pctl80 - pctl20
+        return min(pctl80 + inpctl * 1.5, self.max)
 
 
 class MismatchStatistics(dict, JSONDataObject):
