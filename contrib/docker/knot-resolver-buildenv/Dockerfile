@@ -9,11 +9,11 @@ RUN apt-get upgrade -y -qqq
 # Install Knot DNS from sources
 RUN apt-get -y -qqq install git-core make gcc libtool autoconf pkg-config \
 	liburcu-dev liblmdb-dev libgnutls28-dev libjansson-dev libedit-dev \
-	libidn11-dev
+	libidn11-dev libelf-dev
 RUN git clone -b $KNOT_BRANCH --depth=1 https://gitlab.nic.cz/knot/knot-dns.git /tmp/knot
 WORKDIR /tmp/knot
 RUN autoreconf -if
-RUN ./configure --disable-static --disable-fastparser --disable-documentation
+RUN ./configure --disable-static --disable-fastparser --disable-documentation --enable-xdp=yes
 RUN make
 RUN make install
 RUN ldconfig
