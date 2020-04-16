@@ -100,7 +100,7 @@ def main():
             with LMDB(args.envdir, readonly=True) as lmdb:
                 lmdb.open_db(LMDB.QUERIES)
 
-                if args.format == 'text':
+                if args.format == 'query':
                     export_qids_to_qname_qtype(qids, lmdb, fh)
                 elif args.format == 'domain':
                     export_qids_to_qname(qids, lmdb, fh)
