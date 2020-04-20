@@ -31,6 +31,11 @@ def get_qids_to_export(
                     "Report {} is missing other disagreements!".format(report.fileorigin))
             unstable_qids = report.other_disagreements.queries
             qids.update(unstable_qids)
+    if args.qidlist:
+        with open(args.qidlist) as qidlist_file:
+            qids.update(int(qid.strip())
+                        for qid in qidlist_file
+                        if qid.strip())
     return qids
 
 
@@ -80,6 +85,7 @@ def main():
     parser.add_argument('-o', '--output', type=str, help='output file')
     parser.add_argument('--failing', action='store_true', help="get target disagreements")
     parser.add_argument('--unstable', action='store_true', help="get upstream unstable")
+    parser.add_argument('--qidlist', type=str, help='path to file with list of QIDs to export')
 
     args = parser.parse_args()
 
@@ -87,7 +93,7 @@ def main():
         logging.critical("--envdir required when output format isn't 'qid'")
         sys.exit(1)
 
-    if not args.failing and not args.unstable:
+    if not args.failing and not args.unstable and not args.qidlist:
         logging.critical('No filter selected!')
         sys.exit(1)
 
