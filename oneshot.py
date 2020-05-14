@@ -4,6 +4,8 @@ import argparse
 import base64
 import collections
 import logging
+import os
+from pathlib import Path
 import sys
 
 import dns.name
@@ -12,95 +14,128 @@ import dns.message
 
 from respdiff import cli, sendrecv
 from respdiff.database import DNSRepliesFactory, DNSReply
-from respdiff.match import diff_pair
+from respdiff.match import diff_pair, match
 
-OneResult = collections.namedtuple('OneResult', ['server', 'time', 'msg', 'txt'])
+
+class OneResult:
+    def __init__(self, server: str, dnsreply: DNSReply):
+        self.server = server
+        self.replyobj = dnsreply
+        if not dnsreply.wire:
+            self.msg = None
+            self.txt = '<timeout>'
+        else:
+            try:
+                self.msg = dns.message.from_wire(dnsreply.wire)
+                self.txt = str(self.msg)
+            except Exception as ex:
+                self.msg = None
+                self.txt = 'failed to parse DNS message: {}'.format(ex)
+
+    def __str__(self):
+        return self.txt
+
+    def export(self, outdir):
+        with open(Path(outdir) / Path(f'{self.server}.txt') , 'w') as f_txt:
+            f_txt.write(self.txt)
+        if self.replyobj.wire:
+            with open(Path(outdir) / Path(f'{self.server}.wire'), 'wb') as f_w:
+                f_w.write(self.replyobj.wire)
+
+class OneGroup:
+    def __init__(self, criteria, first_result):
+        self.criteria = criteria
+        self.equivalent = [first_result]
+
+    @property
+    def servers(self):
+        return ', '.join(result.server for result in self.equivalent)
+
+    def __str__(self):
+        out = []
+        out.append('=== servers {} '.format(self.servers))
+        out.append(str(self.equivalent[0]))
+        return '\n'.join(out)
+
+    def append_if_equivalent(self, other: OneResult):
+        # match() actually returns mismatches ...
+        if any(match(self.equivalent[0].replyobj,
+                     other.replyobj,
+                     self.criteria)):
+            return False
+        else:  # equivalent
+            self.equivalent.append(other)
+            return True
+
+    def export(self, outdir):
+        for result in self.equivalent:
+            result.export(outdir)
 
 class GroupedAnswers:
     """
     Groups of equivalent DNS messages.
     """
-    @staticmethod
-    def eval_reply(server_name, dnsreply):
-        """Prepare representation suitable for grouping."""
-        if not dnsreply.wire:
-            msg = None
-            txt = '<timeout>'
-        else:
-            try:
-                msg = dns.message.from_wire(dnsreply.wire)
-                txt = str(msg)
-            except Exception as ex:
-                msg = None
-                txt = 'failed to parse DNS message: {}'.format(ex)
-        return OneResult(server_name, dnsreply.time, msg, txt)
-
     def __init__(self, criteria, answers):
         self.criteria = criteria
-        self.answers = answers
-        self.groups = []  # groups of equivalent messages # type: List[List[OneResult]]
+        self.groups = []  # groups of equivalent messages # type: List[OneGroup]
         # O(n^2) but n should be fairly small
-        for name, dnsreply in self.answers.items():
-            reply = self.eval_reply(name, dnsreply)
+        from IPython.core.debugger import set_trace
+        for name, dnsreply in answers.items():
+            #set_trace()
+            new_result = OneResult(name, dnsreply)
             match_found = False
             for match_group in self.groups:
-                logging.debug('enter group, len(%d)', len(match_group))
-                in_group = match_group[0].server
-                candidate = reply.server
-                diffs = list(diff_pair(self.answers, self.criteria, in_group, candidate))
-                if diffs:
-                    logging.debug('diff between %s and %s: %s', candidate, in_group, diffs)
+                if not match_group.append_if_equivalent(new_result):
                     continue  # try next group
-                logging.debug('equivalent answer, append')
-                match_group.append(reply)  # found equivalent, done
                 match_found = True
                 break
             if not match_found:
                 # no group matched, create a new one
-                self.groups.append([reply])
+                self.groups.append(OneGroup(criteria, new_result))
 
     def __str__(self):
         groups_txt = []
         for group_idx in range(0, len(self.groups)):
-            grp_out = []
             group = self.groups[group_idx]
-            servers = ', '.join(server.server for server in group)
-            grp_out.append('=== group #{} servers {} '.format(group_idx, servers).ljust(78, '='))
-            if group_idx != 0:
-                grp_out.append('diff against group #0:')
-                for diff in diff_pair(
-                        self.answers,
-                        self.criteria,
-                        self.groups[0][0].server, group[0].server):
-                    first_val = diff[1].exp_val
-                    this_val = diff[1].got_val
-                    #if isinstance(this_val, list):
-                    #    this_set = set(this_val)
-                    #    first_set = set(first_val)
-                    #    extra = this_set.difference(first_set)
-                    #    missing = first_set.difference(this_set)
-                    #    this_val = ''
-                    #    for val in extra:
-                    #        grp_out.append('+ ' + str(val))
-                    #    for val in missing:
-                    #        grp_out.append('- ' + str(val))
-                    #grp_out.append(' - {field} first={first} this={this}'.format(field=diff[0], first=first_val, this=this_val))
-                    if isinstance(this_val, list):
-                        first_val = '{} rrs'.format(len(first_val))
-                        this_val = '{} rrs'.format(len(this_val))
-                    grp_out.append(
-                        ' - {field} first={first} this={this}'.format(
-                            field=diff[0], first=first_val, this=this_val))
-            grp_out.append(group[0].txt)
-            groups_txt.append(grp_out)
-        return '\n'.join('\n'.join(grp) for grp in groups_txt)
+            #if group_idx != 0:
+            #    # TODO
+            #    grp_out.append('diff against group #0:')
+            #    for diff in diff_pair(
+            #            self.answers,
+            #            self.criteria,
+            #            self.groups[0][0].server, group[0].server):
+            #        first_val = diff[1].exp_val
+            #        this_val = diff[1].got_val
+            #        #if isinstance(this_val, list):
+            #        #    this_set = set(this_val)
+            #        #    first_set = set(first_val)
+            #        #    extra = this_set.difference(first_set)
+            #        #    missing = first_set.difference(this_set)
+            #        #    this_val = ''
+            #        #    for val in extra:
+            #        #        grp_out.append('+ ' + str(val))
+            #        #    for val in missing:
+            #        #        grp_out.append('- ' + str(val))
+            #        #grp_out.append(' - {field} first={first} this={this}'.format(field=diff[0], first=first_val, this=this_val))
+            #        if isinstance(this_val, list):
+            #            first_val = '{} rrs'.format(len(first_val))
+            #            this_val = '{} rrs'.format(len(this_val))
+            #        grp_out.append(
+            #            ' - {field} first={first} this={this}'.format(
+            #                field=diff[0], first=first_val, this=this_val))
+            groups_txt.append(str(group))
+        return '\n'.join(groups_txt)
 
+    def export(self, outdir):
+        for group in self.groups:
+            group.export(outdir)
 
 def main(inargs=None):
     parser = argparse.ArgumentParser(
         description='send one query in parallel to multiple servers, '
                     'receive and compare answers')
     cli.add_arg_config(parser)
+    parser.add_argument('--output-dir')
     subparsers = parser.add_subparsers(dest='cmd', required=True)
 
     parser_text = subparsers.add_parser('text',
@@ -113,6 +148,9 @@ def main(inargs=None):
     parser_b64.add_argument('base64url')
 
     args = parser.parse_args(inargs)
+
+    if args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
 
     if args.cmd == 'text':
         qname = dns.name.from_text(args.qname)
@@ -132,6 +170,9 @@ def main(inargs=None):
     _, packet_blobs = sendrecv.worker_perform_single_query((1, qwire))
     answers = dnsreplies_factory.parse(packet_blobs)
     groups = GroupedAnswers(criteria, answers)
+
+    if args.output_dir:
+        groups.export(args.output_dir)
     return groups
 
 if __name__ == "__main__":
