@@ -53,23 +53,53 @@ class OneGroup:
 
     def __str__(self):
         out = []
-        out.append('=== servers {} '.format(self.servers))
+        out.append('servers {} '.format(self.servers))
         out.append(str(self.equivalent[0]))
         return '\n'.join(out)
 
-    def append_if_equivalent(self, other: OneResult):
+    def diff(self, outgroup_result):
+        yield from match(self.equivalent[0].replyobj,
+                         outgroup_result.replyobj,
+                         self.criteria)
+
+    #out.append('= diff against group #0:')
+    def diff_str(self, outgroup_result):
+        out = []
+        for diff in self.diff(outgroup_result):
+            first_val = diff[1].exp_val
+            this_val = diff[1].got_val
+            #if isinstance(this_val, list):
+            #    this_set = set(this_val)
+            #    first_set = set(first_val)
+            #    extra = this_set.difference(first_set)
+            #    missing = first_set.difference(this_set)
+            #    this_val = ''
+            #    for val in extra:
+            #        grp_out.append('+ ' + str(val))
+            #    for val in missing:
+            #        grp_out.append('- ' + str(val))
+            #grp_out.append(' - {field} first={first} this={this}'.format(field=diff[0], first=first_val, this=this_val))
+            if isinstance(this_val, list):
+                first_val = '{} rrs'.format(len(first_val))
+                this_val = '{} rrs'.format(len(this_val))
+            out.append(
+                ' - {field} first={first} this={this}'.format(
+                    field=diff[0], first=first_val, this=this_val))
+        return '\n'.join(out)
+
+
+    def append_if_equivalent(self, new_result: OneResult):
         # match() actually returns mismatches ...
-        if any(match(self.equivalent[0].replyobj,
-                     other.replyobj,
-                     self.criteria)):
+        if any(self.diff(new_result)):
             return False
         else:  # equivalent
-            self.equivalent.append(other)
+            self.equivalent.append(new_result)
             return True
 
     def export(self, outdir):
         for result in self.equivalent:
             result.export(outdir)
+
 
 class GroupedAnswers:
     """
@@ -94,37 +124,18 @@ class GroupedAnswers:
                 self.groups.append(OneGroup(criteria, new_result))
 
     def __str__(self):
-        groups_txt = []
+        out = []
+        base_group = self.groups[0]
         for group_idx in range(0, len(self.groups)):
             group = self.groups[group_idx]
-            #if group_idx != 0:
-            #    # TODO
-            #    grp_out.append('diff against group #0:')
-            #    for diff in diff_pair(
-            #            self.answers,
-            #            self.criteria,
-            #            self.groups[0][0].server, group[0].server):
-            #        first_val = diff[1].exp_val
-            #        this_val = diff[1].got_val
-            #        #if isinstance(this_val, list):
-            #        #    this_set = set(this_val)
-            #        #    first_set = set(first_val)
-            #        #    extra = this_set.difference(first_set)
-            #        #    missing = first_set.difference(this_set)
-            #        #    this_val = ''
-            #        #    for val in extra:
-            #        #        grp_out.append('+ ' + str(val))
-            #        #    for val in missing:
-            #        #        grp_out.append('- ' + str(val))
-            #        #grp_out.append(' - {field} first={first} this={this}'.format(field=diff[0], first=first_val, this=this_val))
-            #        if isinstance(this_val, list):
-            #            first_val = '{} rrs'.format(len(first_val))
-            #            this_val = '{} rrs'.format(len(this_val))
-            #        grp_out.append(
-            #            ' - {field} first={first} this={this}'.format(
-            #                field=diff[0], first=first_val, this=this_val))
-            groups_txt.append(str(group))
-        return '\n'.join(groups_txt)
+            if group != base_group:
+                diff_str = base_group.diff_str(group.equivalent[0])
+                out.append(f'=== group #{group_idx} differs in:')
+                out.append(diff_str)
+            else:
+                out.append(f'=== group #{group_idx}:')
+            out.append(str(group))
+        return '\n'.join(out)
 
     def export(self, outdir):
         for group in self.groups:
