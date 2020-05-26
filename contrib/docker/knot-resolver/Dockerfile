@@ -2,6 +2,7 @@ ARG KNOT_BRANCH=2.9
 
 # first build stage, it will not persist in the final image
 FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH as intermediate
+ENV DEBIAN_FRONTEND=noninteractive
 
 # https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
 ARG SSH_PRIVATE_KEY
@@ -31,6 +32,7 @@ FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 ARG MESONARGS
 ARG CFLAGS
+ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --from=intermediate /var/opt/knot-resolver /var/opt/knot-resolver
 WORKDIR /var/opt/knot-resolver
