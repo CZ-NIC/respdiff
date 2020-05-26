@@ -1,6 +1,7 @@
-FROM ubuntu:latest
+FROM ubuntu:rolling
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 ARG UNBOUND_VERSION
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -qq
 RUN apt-get upgrade -y -qqq
