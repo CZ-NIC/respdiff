@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:focal
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 
 RUN apt-get update
