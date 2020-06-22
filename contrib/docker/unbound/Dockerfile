@@ -1,4 +1,4 @@
-FROM ubuntu:rolling
+FROM ubuntu:focal
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 ARG UNBOUND_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
