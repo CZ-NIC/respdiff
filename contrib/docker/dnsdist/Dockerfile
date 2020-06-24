@@ -13,6 +13,6 @@ RUN git clone --depth 1 --branch=$GIT_TAG https://github.com/PowerDNS/pdns.git /
 WORKDIR /var/opt/powerdns/pdns/dnsdistdist
 RUN autoreconf -vi
 RUN ./configure --enable-dns-over-tls --enable-dns-over-https
-RUN make
+RUN make -j8
 
 ENTRYPOINT ["/var/opt/powerdns/pdns/dnsdistdist/dnsdist", "-C", "/etc/dnsdist/dnsdist.conf", "--supervised"]
