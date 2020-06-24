@@ -55,6 +55,10 @@ Registry Maintance - new builds
    $ export GIT_TAG=rec-4.2.0
    $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/powerdns:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG powerdns
 
+   # dnsdist container build
+   $ export GIT_TAG=dnsdist-1.5.0-rc3
+   $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/dnsdist:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsdist
+
    # dnsperf container build
    $ export GIT_TAG=v2.2.1
    $ docker build --no-cache -t registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsperf
@@ -65,4 +69,5 @@ Registry Maintance - new builds
    $ docker push registry.labs.nic.cz/knot/respdiff/bind:$GIT_TAG
    $ docker push registry.labs.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION
    $ docker push registry.labs.nic.cz/knot/respdiff/powerdns:$GIT_TAG
+   $ docker push registry.labs.nic.cz/knot/respdiff/dnsdist:$GIT_TAG
    $ docker push registry.labs.nic.cz/knot/respdiff/dnsperf:$GIT_TAG
