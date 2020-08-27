@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import logging
 import sys
 from typing import Sequence, Set
@@ -30,6 +31,11 @@ def get_qids_to_export(
                     "Report {} is missing other disagreements!".format(report.fileorigin))
             unstable_qids = report.other_disagreements.queries
             qids.update(unstable_qids)
+    if args.qidlist:
+        with open(args.qidlist) as qidlist_file:
+            qids.update(int(qid.strip())
+                        for qid in qidlist_file
+                        if qid.strip())
     return qids
 
 
@@ -61,24 +67,34 @@ def export_qids_to_qname(qids: Set[QID], lmdb, file=sys.stdout):
                 domains.add(qname)
 
 
+def export_qids_to_base64url(qids: Set[QID], lmdb, file=sys.stdout):
+    wires = set()  # type: Set[bytes]
+    for _, qwire in get_query_iterator(lmdb, qids):
+        if qwire not in wires:
+            print(base64.urlsafe_b64encode(qwire).decode('ascii'), file=file)
+            wires.add(qwire)
+
+
 def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(description="export queries from reports' summaries")
     cli.add_arg_report_filename(parser, nargs='+')
     parser.add_argument('--envdir', type=str,
                         help="LMDB environment (required when output format isn't 'qid')")
-    parser.add_argument('-f', '--format', type=str, choices=['query', 'qid', 'domain'],
+    parser.add_argument('-f', '--format', type=str, choices=['query', 'qid', 'domain', 'base64url'],
                         default='domain', help="output data format")
     parser.add_argument('-o', '--output', type=str, help='output file')
     parser.add_argument('--failing', action='store_true', help="get target disagreements")
     parser.add_argument('--unstable', action='store_true', help="get upstream unstable")
+    parser.add_argument('--qidlist', type=str, help='path to file with list of QIDs to export')
+
     args = parser.parse_args()
 
     if args.format != 'qid' and not args.envdir:
         logging.critical("--envdir required when output format isn't 'qid'")
         sys.exit(1)
 
-    if not args.failing and not args.unstable:
+    if not args.failing and not args.unstable and not args.qidlist:
         logging.critical('No filter selected!')
         sys.exit(1)
 
@@ -100,10 +116,14 @@ def main():
             with LMDB(args.envdir, readonly=True) as lmdb:
                 lmdb.open_db(LMDB.QUERIES)
 
-                if args.format == 'text':
+                if args.format == 'query':
                     export_qids_to_qname_qtype(qids, lmdb, fh)
                 elif args.format == 'domain':
                     export_qids_to_qname(qids, lmdb, fh)
+                elif args.format == 'base64url':
+                    export_qids_to_base64url(qids, lmdb, fh)
+                else:
+                    raise ValueError('unsupported output format')
 
 
 if __name__ == '__main__':
