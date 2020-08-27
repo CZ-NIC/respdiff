@@ -96,17 +96,10 @@ class LMDB:
         return db
 
     def exists_db(self, dbname: bytes) -> bool:
-        config = LMDB.ENV_DEFAULTS.copy()
-        config.update({
-            'path': self.path,
-            'readonly': True,
-            'create': False
-        })
         try:
-            with lmdb.Environment(**config) as env:
-                env.open_db(key=dbname, **LMDB.DB_OPEN_DEFAULTS, create=False)
-                return True
-        except (lmdb.NotFoundError, lmdb.Error):
+            self.env.open_db(key=dbname, create=False, **LMDB.DB_OPEN_DEFAULTS)
+            return True
+        except lmdb.NotFoundError:
             return False
 
     def get_db(self, dbname: bytes):
