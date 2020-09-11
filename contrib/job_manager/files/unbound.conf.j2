@@ -34,6 +34,8 @@ server:
 	private-address: fc00::/7
 	private-address: fe80::/10
 
+	max-udp-size 4096; # reduce TC towards clients (mainly respdiff)
+
 	so-reuseport: yes
 	module-config: "validator iterator"
 	trust-anchor-file: "/usr/local/etc/unbound/root.keys"
