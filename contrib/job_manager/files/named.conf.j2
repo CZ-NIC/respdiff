@@ -12,6 +12,8 @@ options {
 	allow-query     { localhost; };
 	max-cache-size	1048576000;
 
+	max-udp-size 4096; # reduce TC towards clients (mainly respdiff)
+
 	deny-answer-addresses {
 		0.0.0.0/8;
 		::ffff:0.0.0.0/104;
