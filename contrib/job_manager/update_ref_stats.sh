@@ -113,7 +113,7 @@ fi
 
 # get master commit sha
 rm -rf /tmp/knot-resolver
-git clone --depth=1 https://gitlab.labs.nic.cz/knot/knot-resolver.git /tmp/knot-resolver
+git clone --depth=1 https://gitlab.nic.cz/knot/knot-resolver.git /tmp/knot-resolver
 pushd /tmp/knot-resolver
 NEW_VERSION=$(git rev-parse --short origin/master)
 popd

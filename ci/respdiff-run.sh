@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -o errexit -o nounset -o xtrace
-time wget https://gitlab.labs.nic.cz/knot/respdiff/snippets/238/raw?inline=false -O - | head -n 1000 > /tmp/queries.txt
+time wget https://gitlab.nic.cz/knot/respdiff/snippets/238/raw?inline=false -O - | head -n 1000 > /tmp/queries.txt
 CONFIG="respdiff.cfg"
 
 rm -r /tmp/respdiff.db ||:
