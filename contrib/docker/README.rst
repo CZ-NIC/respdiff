@@ -40,7 +40,7 @@ Registry Maintance - new builds
 .. code-block:: console
 
    # knot-resolver-buildenv container build
-   $ export KNOT_BRANCH=2.9
+   $ export KNOT_BRANCH=3.0
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH --build-arg KNOT_BRANCH=$KNOT_BRANCH knot-resolver-buildenv
 
    # bind container build
