@@ -25,7 +25,7 @@ RUN dnf install -y \
 	'pkgconfig(lmdb)'
 
 # Make Knot DNS
-RUN git clone -b 2.6 --depth=1 https://gitlab.labs.nic.cz/knot/knot-dns.git /tmp/knot
+RUN git clone -b 2.6 --depth=1 https://gitlab.nic.cz/knot/knot-dns.git /tmp/knot
 WORKDIR /tmp/knot
 RUN autoreconf -if
 RUN ./configure --disable-static --enable-fastparser --disable-documentation
@@ -34,7 +34,7 @@ RUN make install
 RUN ldconfig
 
 # Make Knot Resolver
-RUN git clone --recursive -j8 https://gitlab.labs.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
+RUN git clone --recursive -j8 https://gitlab.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
 WORKDIR /var/opt/knot-resolver
 RUN git checkout v2.4.0
 RUN mkdir .install
