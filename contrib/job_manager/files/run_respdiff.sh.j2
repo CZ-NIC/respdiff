@@ -112,7 +112,7 @@ if [ -f "stats.json" ]; then
     time "{{ respdiff['srcdir'] }}/diffsum.py" -s stats.json --without-ref-failing --without-ref-unstable \
         -l 0 -d ${JOBNAME}_report.diffrepro.noref.json . > ${JOBNAME}_report.diffrepro.noref.txt
     # TODO: turn on once dnsviz is usable and safe to use in CI
-    # https://gitlab.labs.nic.cz/knot/respdiff/issues/31
+    # https://gitlab.nic.cz/knot/respdiff/issues/31
     # "{{ respdiff['srcdir'] }}/qexport.py" --envdir . -f domain -o domains --failing ${JOBNAME}_report.noref.json
     # if [[ $(wc -l <domains) -le 1000 ]]; then
     #     time "{{ respdiff['srcdir'] }}/dnsviz.py" domains --dnsviz ${JOBNAME}_dnsviz.json

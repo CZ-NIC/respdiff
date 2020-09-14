@@ -41,5 +41,5 @@ Testing data
 
 Feel free to use the following text query datasets:
 
-* Top 10k DNS domains (A queries): https://gitlab.labs.nic.cz/knot/respdiff/snippets/238/raw
-* 100k unique DNS queries: https://gitlab.labs.nic.cz/knot/respdiff/snippets/237/raw
+* Top 10k DNS domains (A queries): https://gitlab.nic.cz/knot/respdiff/snippets/238/raw
+* 100k unique DNS queries: https://gitlab.nic.cz/knot/respdiff/snippets/237/raw

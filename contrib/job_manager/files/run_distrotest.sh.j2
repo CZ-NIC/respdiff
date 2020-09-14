@@ -15,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-git clone https://gitlab.labs.nic.cz/knot/{{ package }}.git
+git clone https://gitlab.nic.cz/knot/{{ package }}.git
 pushd {{ package }}
 
 git checkout -q {{ git_sha }}
