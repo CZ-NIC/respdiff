@@ -10,7 +10,7 @@ Installation
 
 .. code-block:: console
 
-   $ git clone https://gitlab.labs.nic.cz/knot/respdiff.git
+   $ git clone https://gitlab.nic.cz/knot/respdiff.git
    $ cd respdiff
    $ pip3 install -r requirements.txt
 
