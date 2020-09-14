@@ -1,7 +1,7 @@
 """
 Test the respdiff toolchain by mocking DNS traffic using Deckard as a mock server.
 
-https://gitlab.labs.nic.cz/knot/deckard
+https://gitlab.nic.cz/knot/deckard
 """
 import os
 import subprocess

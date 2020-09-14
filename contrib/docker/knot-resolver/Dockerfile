@@ -1,7 +1,7 @@
 ARG KNOT_BRANCH=2.9
 
 # first build stage, it will not persist in the final image
-FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH as intermediate
+FROM registry.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH as intermediate
 ENV DEBIAN_FRONTEND=noninteractive
 
 # https://docs.docker.com/engine/reference/builder/#understand-how-arg-and-from-interact
@@ -13,22 +13,22 @@ RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
 RUN chmod 0600 /root/.ssh/id_rsa
 
 RUN touch /root/.ssh/known_hosts
-RUN ssh-keyscan gitlab.labs.nic.cz >> /root/.ssh/known_hosts
+RUN ssh-keyscan gitlab.nic.cz >> /root/.ssh/known_hosts
 
-RUN git clone --recursive -j8 https://gitlab.labs.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
+RUN git clone --recursive -j8 https://gitlab.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
 RUN \
 	cd /var/opt/knot-resolver; \
 	(git checkout "${GIT_SHA}" -- && git submodule update) || (\
 		cd /var/opt; \
 		rm -rf /var/opt/knot-resolver; \
-		git clone --recursive -j8 git@gitlab.labs.nic.cz:knot/security/knot-resolver.git /var/opt/knot-resolver; \
+		git clone --recursive -j8 git@gitlab.nic.cz:knot/security/knot-resolver.git /var/opt/knot-resolver; \
 		cd /var/opt/knot-resolver; \
 		git checkout "${GIT_SHA}" --; \
 		git submodule update)
 
 
 # actual image
-FROM registry.labs.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
+FROM registry.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 ARG MESONARGS
 ARG CFLAGS
