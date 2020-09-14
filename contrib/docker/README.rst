@@ -48,7 +48,7 @@ Registry Maintance - new builds
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/bind:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG bind
 
    # unbound container build
-   $ export UNBOUND_VERSION=1.11.0
+   $ export UNBOUND_VERSION=1.10.1
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
 
    # powerdns container build
