@@ -15,6 +15,10 @@ net.listen('::1', {{ tls_port }}, {tls = true})
 -- essential for TLS_FORWARD in Docker with lots of respdiff jobs
 net.tcp_pipeline(65535)
 
+-- avoid TC flags returned to respdiff
+local _, up_bs = net.bufsize()
+net.bufsize(4096, up_bs)
+
 {% if forward %}
 -- forwarding
 policy.add(policy.all(
