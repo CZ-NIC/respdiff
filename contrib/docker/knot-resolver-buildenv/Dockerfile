@@ -20,5 +20,5 @@ RUN ldconfig
 
 # Knot Resolver dependencies
 RUN apt-get install -y -qqq git bsdmainutils build-essential pkg-config \
-	libgnutls28-dev liblmdb-dev libluajit-5.1-dev libuv1-dev luajit meson \
-	gdb
+	libgnutls28-dev liblmdb-dev libluajit-5.1-dev libuv1-dev libnghttp2-dev \
+	luajit meson gdb
