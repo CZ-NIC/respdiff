@@ -52,11 +52,11 @@ Registry Maintance - new builds
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/unbound:$UNBOUND_VERSION --build-arg UNBOUND_VERSION=$UNBOUND_VERSION unbound
 
    # powerdns container build
-   $ export GIT_TAG=rec-4.2.0
+   $ export GIT_TAG=rec-4.3.4
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/powerdns:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG powerdns
 
    # dnsdist container build
-   $ export GIT_TAG=dnsdist-1.5.0-rc3
+   $ export GIT_TAG=dnsdist-1.5.0
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/dnsdist:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsdist
 
    # dnsperf container build
