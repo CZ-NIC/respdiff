@@ -48,6 +48,7 @@ services:
       - "./root.keys:/usr/local/etc/unbound/root.keys:ro"
       - "./cert.pem:/usr/local/etc/unbound/cert.pem:ro"
       - "./key.pem:/usr/local/etc/unbound/key.pem:ro"
+      - "./logs/{{ name }}:/log:rw"
     {%- endif -%}
 
 {%- endfor -%}
