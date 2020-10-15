@@ -15,6 +15,15 @@ server:
 	ssl-service-pem: "/usr/local/etc/unbound/cert.pem"
 {%- endif %}
 
+	chroot: ""
+	username: ""
+
+{% if verbose %}
+	logfile: "/log/unbound.log"
+	val-log-level: 2
+	log-servfail: yes
+{%- endif %}
+
 	private-address: 0.0.0.0/8
 	private-address: ::ffff:0.0.0.0/104
 	private-address: 10.0.0.0/8
@@ -44,6 +53,5 @@ server:
 	rrset-cache-size: 400m
 	rrset-cache-slabs: 1
 	infra-cache-numhosts: 100000
-	val-log-level: 2
 	key-cache-size: 100m
 	neg-cache-size: 100m
