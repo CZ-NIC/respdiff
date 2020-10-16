@@ -25,6 +25,9 @@ server:
 	verbosity: 3
 {%- endif %}
 
+	outgoing-range: 10000
+	num-queries-per-thread: 4096
+
 	private-address: 0.0.0.0/8
 	private-address: ::ffff:0.0.0.0/104
 	private-address: 10.0.0.0/8
