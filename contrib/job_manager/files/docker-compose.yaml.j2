@@ -31,6 +31,10 @@ services:
       - "./logs/{{ name }}:/log:rw"
     ulimits:
       core: 99999999999
+    {%- if log_keys %}
+    environment:
+      - SSLKEYLOGFILE=/log/gnutls.keys
+    {%- endif -%}
     {%- endif -%}
 
     {%- if resolver['type'] == 'bind' %}
