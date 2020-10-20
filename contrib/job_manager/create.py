@@ -206,7 +206,7 @@ def main() -> None:
         help="Build knot-resolver against selected Knot DNS branch")
     parser.add_argument(
         '-v', '--verbose', action='store_true',
-        help="Capture verbose logs from kresd")
+        help="Capture verbose logs (kresd, unbound)")
     parser.add_argument(
         '--asan', action='store_true',
         help="Build with Address Sanitizer")
