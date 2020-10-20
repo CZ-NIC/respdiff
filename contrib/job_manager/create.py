@@ -167,6 +167,7 @@ def create_jobs(args: argparse.Namespace) -> None:
         config['knot_branch'] = args.knot_branch
         config['verbose'] = args.verbose
         config['asan'] = args.asan
+        config['log_keys'] = args.log_keys
         config['respdiff_stats'] = args.respdiff_stats
         config['obs_repo'] = args.obs_repo
         config['package'] = args.package
@@ -210,6 +211,9 @@ def main() -> None:
     parser.add_argument(
         '--asan', action='store_true',
         help="Build with Address Sanitizer")
+    parser.add_argument(
+        '--log-keys', action='store_true',
+        help="Log TLS session keys (kresd)")
     parser.add_argument(
         '--respdiff-stats', type=str, default='',
         help=("Statistics file to generate extra respdiff report(s) with omitted "
