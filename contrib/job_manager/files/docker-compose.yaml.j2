@@ -46,7 +46,7 @@ services:
     {%- endif -%}
 
     {%- if resolver['type'] == 'unbound' %}
-    image: registry.nic.cz/knot/respdiff/unbound:f81d0ac
+    image: registry.nic.cz/knot/respdiff/unbound:release-1.13.0
     volumes:
       - "./{{ name }}.conf:/usr/local/etc/unbound/unbound.conf:ro"
       - "./root.keys:/usr/local/etc/unbound/root.keys:ro"
