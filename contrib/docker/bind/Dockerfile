@@ -1,16 +1,44 @@
-FROM ubuntu:focal
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
-ARG GIT_TAG
-ENV DEBIAN_FRONTEND=noninteractive
+FROM ubuntu:20.04
+MAINTAINER Petr Špaček <pspacek@isc.org>
 
-RUN apt-get update -qq
-RUN apt-get upgrade -y -qqq
+ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get install -y -qqq git build-essential make libssl-dev python3 python3-ply python3-dnspython pkg-config libuv1-dev
+# list of depedencies copied from https://github.com/google/oss-fuzz/blob/8ac93098b91494264f57771b84f84d65433a9281/projects/bind9/Dockerfile
+RUN apt-get -y update && apt-get -y dist-upgrade
+RUN apt-get -y install		\
+	autoconf		\
+	automake		\
+	autotools-dev		\
+	bison			\
+	build-essential		\
+	git			\
+	libnghttp2-dev		\
+	libssl-dev		\
+	libtool			\
+	libtool-bin		\
+	libuv1-dev		\
+	pkg-config		\
+	zip
 
-RUN git clone --depth 1 --branch=$GIT_TAG https://gitlab.isc.org/isc-projects/bind9.git /var/opt/bind9
+RUN apt-get install -y -qq psmisc linux-tools-generic google-perftools libgoogle-perftools-dev
+
+# guard against pulling in named binary accidentally
+RUN which named && exit 1 || echo "Ok, no named binary found"
+
+ARG GITLAB_TOKEN
+ARG GIT_TAG=main
+RUN git clone --depth=1 --single-branch --recurse-submodules --shallow-submodules --branch=$GIT_TAG https://gitlab.isc.org/isc-projects/bind9.git /var/opt/bind9 \
+	|| git clone --depth=1 --single-branch --recurse-submodules --shallow-submodules --branch=$GIT_TAG https://oauth2:$GITLAB_TOKEN@gitlab.isc.org/isc-private/bind9.git /var/opt/bind9
+
+
 WORKDIR /var/opt/bind9
-RUN ./configure --disable-backtrace --disable-symtable --with-libtool --enable-full-report --without-lmdb --without-zlib --without-gssapi --without-libxml2 --without-dlopen --disable-linux-caps --without-python
-RUN make
 
-ENTRYPOINT ["/var/opt/bind9/bin/named/named", "-c", "/etc/bind9/named.conf", "-f"]
+RUN autoreconf -fiv
+
+ARG CONFIGUREARGS
+ARG CFLAGS
+RUN ./configure --without-python --disable-linux-caps --prefix=/usr $CONFIGUREARGS
+RUN make -j$(nproc)
+RUN make install
+
+RUN mkdir /log
