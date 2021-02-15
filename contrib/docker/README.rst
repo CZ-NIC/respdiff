@@ -60,7 +60,7 @@ Registry Maintance - new builds
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/dnsdist:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsdist
 
    # dnsperf container build
-   $ export GIT_TAG=v2.2.1
+   $ export GIT_TAG=v2.4.1
    $ docker build --no-cache -t registry.nic.cz/knot/respdiff/dnsperf:$GIT_TAG --build-arg GIT_TAG=$GIT_TAG dnsperf
 
    # push containers to registry
