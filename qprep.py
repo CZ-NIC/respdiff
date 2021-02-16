@@ -139,8 +139,8 @@ def msg_from_text(text):
     """
     try:
         qname, qtype = text.split()
-    except ValueError:
-        raise ValueError('space is only allowed as separator between qname qtype')
+    except ValueError as e:
+        raise ValueError('space is only allowed as separator between qname qtype') from e
     qname = dns.name.from_text(qname.encode('ascii'))
     qtype = int_or_fromtext(qtype, dns.rdatatype.from_text)
     msg = dns.message.make_query(qname, qtype, dns.rdataclass.IN,

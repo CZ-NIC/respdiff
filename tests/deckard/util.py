@@ -21,7 +21,7 @@ RESPDIFF_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.
 
 class MockServer(tempfile.TemporaryDirectory):
     def __init__(self, deckard_path: str, scenario_path: str) -> None:
-        super(MockServer, self).__init__()
+        super().__init__()
         self.deckard_path = deckard_path
         self.scenario_path = scenario_path
         self.tmpdir = ''
@@ -32,7 +32,7 @@ class MockServer(tempfile.TemporaryDirectory):
             "Scenario {} not found!".format(self.scenario_path)
         assert os.path.exists(os.path.join(self.deckard_path, 'env.sh')), \
             "env.sh file missing in deckard dir; was it compiled?"
-        self.tmpdir = super(MockServer, self).__enter__()
+        self.tmpdir = super().__enter__()
         assert self.tmpdir is not None
 
         cmd = (
@@ -52,8 +52,8 @@ class MockServer(tempfile.TemporaryDirectory):
 
         # run and wait for server to get initialized
         while True:
-            output = self.deckard.stderr.readline()
-            if b'server running' in output:
+            out = self.deckard.stderr
+            if out is not None and b'server running' in out.readline():
                 break
             if self.deckard.poll() is not None:
                 raise RuntimeError("Deckard didn't start properly!")
@@ -64,7 +64,7 @@ class MockServer(tempfile.TemporaryDirectory):
         assert self.deckard is not None
         self.deckard.terminate()
         self.deckard.wait()
-        return super(MockServer, self).__exit__(exc_type, exc_value, traceback)
+        return super().__exit__(exc_type, exc_value, traceback)
 
     def execute(self, cmd: str) -> subprocess.Popen:
         my_env = os.environ.copy()

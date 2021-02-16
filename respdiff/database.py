@@ -105,8 +105,8 @@ class LMDB:
     def get_db(self, dbname: bytes):
         try:
             return self.dbs[dbname]
-        except KeyError:
-            raise ValueError("Database {} isn't open!".format(dbname.decode('utf-8')))
+        except KeyError as e:
+            raise ValueError("Database {} isn't open!".format(dbname.decode('utf-8'))) from e
 
     def key_stream(self, dbname: bytes) -> Iterator[bytes]:
         """yield all keys from given db"""
@@ -222,8 +222,8 @@ class DNSRepliesFactory:
         for server in self.servers:
             try:
                 reply = replies[server]
-            except KeyError:
-                raise ValueError('Missing reply for server "{}"!'.format(server))
+            except KeyError as e:
+                raise ValueError('Missing reply for server "{}"!'.format(server)) from e
             else:
                 data.append(reply.binary)
         return b''.join(data)
@@ -249,7 +249,7 @@ class Database(ABC):
                 try:
                     self.db = self.lmdb.open_db(self.DB_NAME, create=self.create)
                 except lmdb.Error as exc:
-                    raise RuntimeError('Failed to open LMDB database: {}'.format(exc))
+                    raise RuntimeError('Failed to open LMDB database: {}'.format(exc)) from exc
 
         with self.lmdb.env.begin(self.db, write=write) as txn:
             yield txn
