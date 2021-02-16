@@ -30,7 +30,7 @@ test:pylint:
 test:pytest:
   <<: *debian
   script:
-    - python3 -m pytest tests/
+    - python3 -m pytest -rxXs tests/
 
 test:respdiff:
   <<: *debian
