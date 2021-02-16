@@ -35,8 +35,8 @@ class JSONDataObject:
         try:
             with open(filename) as f:
                 restore_dict = json.load(f)
-        except json.decoder.JSONDecodeError:
-            raise InvalidFileFormat("Couldn't parse JSON file: {}".format(filename))
+        except json.decoder.JSONDecodeError as e:
+            raise InvalidFileFormat("Couldn't parse JSON file: {}".format(filename)) from e
         inst = cls(_restore_dict=restore_dict)
         inst.fileorigin = filename
         return inst

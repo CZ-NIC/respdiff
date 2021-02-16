@@ -92,11 +92,11 @@ def cfg2dict_convert(fmt, cparser):
             except ValueError as ex:
                 raise ValueError('config section [{}] key "{}" has invalid format: '
                                  '{}; expected format: {}'.format(
-                                     sectname, valname, ex, valfmt))
-            except KeyError:
+                                     sectname, valname, ex, valfmt)) from ex
+            except KeyError as ex:
                 if valreq:
                     raise KeyError('config section [{}] key "{}" not found'.format(
-                        sectname, valname))
+                        sectname, valname)) from ex
         unsupported_keys = set(cparser[sectname].keys()) - set(sectfmt.keys())
         if unsupported_keys:
             raise ValueError('unexpected keys {} in section [{}]'.format(
@@ -178,7 +178,7 @@ def read_cfg(filename):
         cfg2dict_check_fields(cdict)
     except Exception as exc:
         logging.critical('Failed to parse config: %s', exc)
-        raise ValueError(exc)
+        raise ValueError(exc) from exc
 
     return cdict
 
