@@ -31,7 +31,7 @@ def read_stats(filename: str) -> SummaryStatistics:
     try:
         return SummaryStatistics.from_json(filename)
     except (FileNotFoundError, InvalidFileFormat) as exc:
-        raise ValueError(exc)
+        raise ValueError(exc) from exc
 
 
 def _handle_empty_report(exc: Exception, skip_empty: bool):

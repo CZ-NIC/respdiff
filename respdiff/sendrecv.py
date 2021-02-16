@@ -221,10 +221,10 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
                 sock = ctx.wrap_socket(sock)
             try:
                 sock.connect(destination)
-            except ConnectionRefusedError:  # TCP socket is closed
+            except ConnectionRefusedError as e:  # TCP socket is closed
                 raise RuntimeError(
                     "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
-                        dest=destination))
+                        dest=destination)) from e
             except OSError as exc:
                 if exc.errno != 0 and not isinstance(exc, ConnectionResetError):
                     raise
@@ -235,7 +235,7 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
                 if attempt > retry:
                     raise RuntimeError(
                         "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
-                            dest=destination))
+                            dest=destination)) from exc
             else:
                 break
         sock.setblocking(False)
@@ -250,8 +250,8 @@ def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
     if isstream:  # parse preambule
         try:
             blength = sock.recv(2)
-        except ssl.SSLWantReadError:
-            raise TcpDnsLengthError('failed to recv DNS packet length')
+        except ssl.SSLWantReadError as e:
+            raise TcpDnsLengthError('failed to recv DNS packet length') from e
         else:
             if len(blength) != 2:  # FIN / RST
                 raise TcpDnsLengthError('failed to recv DNS packet length')
@@ -321,9 +321,9 @@ def send_recv_parallel(
         try:  # get sockets and selector
             selector = __worker_state.selector
             sockets = __worker_state.sockets
-        except AttributeError:
+        except AttributeError as e:
             # handle improper initialization
-            raise __worker_state.exception
+            raise __worker_state.exception from e
 
         try:
             replies, reinit = _send_recv_parallel(dgram, selector, sockets, timeout)

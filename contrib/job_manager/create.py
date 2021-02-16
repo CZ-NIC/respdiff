@@ -26,10 +26,10 @@ def prepare_dir(directory: str, clean: bool = False) -> None:
             pass
     try:
         os.makedirs(directory)
-    except FileExistsError:
+    except FileExistsError as e:
         raise RuntimeError(
             'Directory "{}" already exists! Use -l label / --clean or (re)move the '
-            'directory manually to resolve the issue.'.format(directory))
+            'directory manually to resolve the issue.'.format(directory)) from e
 
 
 def copy_file(name: str, destdir: str, destname: str = ''):
@@ -123,8 +123,9 @@ def create_respdiff_files(directory: str, config: Dict[str, Any]):
     if config['respdiff_stats']:  # copy optional stats file
         try:
             shutil.copyfile(config['respdiff_stats'], os.path.join(directory, 'stats.json'))
-        except FileNotFoundError:
-            raise RuntimeError("Statistics file not found: {}".format(config['respdiff_stats']))
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                "Statistics file not found: {}".format(config['respdiff_stats'])) from e
 
 
 def create_template_files(directory: str, config: Dict[str, Any]):
