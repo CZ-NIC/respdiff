@@ -36,7 +36,15 @@ policy.add(policy.all(
 -- records will be paged out
 cache.size = 1000 * MB
 
-verbose({{ 'true' if verbose else 'false' }})
+{% if verbose %}
+verbose(true)
+{% else %}
+verbose(false)
+policy.add(policy.all(policy.DEBUG_IF(
+	function (req)
+		return req.answer:rcode() == kres.rcode.SERVFAIL
+	end)))
+{% endif %}
 
 -- Load Useful modules
 modules = {
