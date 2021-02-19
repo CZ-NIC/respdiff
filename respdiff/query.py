@@ -44,6 +44,20 @@ def qwire_to_qname_qtype(qwire: WireFormat) -> str:
         dns.rdatatype.to_text(qmsg.question[0].rdtype))
 
 
+def qwire_to_msgid_qname_qtype(qwire: WireFormat) -> str:
+    """Get text representation of DNS wire format query"""
+    try:
+        qmsg = dns.message.from_wire(qwire)
+    except dns.exception.DNSException as exc:
+        raise ValueError('unable to parse qname from wire format') from exc
+    if not qmsg.question:
+        raise ValueError('no qname in wire format')
+    return '[{:05d}] {} {}'.format(
+        qmsg.id,
+        qmsg.question[0].name,
+        dns.rdatatype.to_text(qmsg.question[0].rdtype))
+
+
 def convert_queries(
             query_iterator: Iterator[Tuple[QID, WireFormat]],
             qwire_to_text_func: Callable[[WireFormat], str] = qwire_to_qname_qtype
