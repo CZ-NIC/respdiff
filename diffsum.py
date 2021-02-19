@@ -13,7 +13,7 @@ from respdiff.database import LMDB
 from respdiff.dataformat import DiffReport, Summary
 from respdiff.dnsviz import DnsvizGrok
 from respdiff.query import (
-    convert_queries, get_printable_queries_format, get_query_iterator)
+    convert_queries, get_printable_queries_format, get_query_iterator, qwire_to_msgid_qname_qtype)
 
 
 def parse_args() -> argparse.Namespace:
@@ -120,7 +120,8 @@ def main():
             for field in field_weights:
                 if field in report.summary.field_labels:
                     for mismatch, qids in report.summary.get_field_mismatches(field):
-                        queries = convert_queries(get_query_iterator(lmdb, qids))
+                        queries = convert_queries(get_query_iterator(lmdb, qids),
+                                                  qwire_to_msgid_qname_qtype)
                         cli.print_mismatch_queries(
                             field,
                             mismatch,
