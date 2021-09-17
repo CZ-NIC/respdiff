@@ -7,4 +7,4 @@ FILES=$(find . \
 	-path './.git' -prune -o \
 	-name '*.py' -print)
 
-python3 -m mypy --ignore-missing-imports ${FILES}
+python3 -m mypy --install-types --non-interactive --ignore-missing-imports ${FILES}

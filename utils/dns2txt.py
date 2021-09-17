@@ -4,5 +4,6 @@ import sys
 
 import dns.message
 
-m = dns.message.from_wire(open(sys.argv[1], 'rb').read())
+with open(sys.argv[1], 'rb') as f:
+    m = dns.message.from_wire(f.read())
 print(str(m))
