@@ -1,6 +1,14 @@
 Msgdiff
 =======
 
+Notice
+------
+
+This tool has a more performant alternative written in Rust. The new tool is an
+order of magnitude faster, which is significant for larger datasets. It is not
+as feature-complete as the Python version, but it should work for most use
+cases. See https://gitlab.nic.cz/knot/respdiff-rs.
+
 Usage
 -----
 

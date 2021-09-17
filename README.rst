@@ -42,6 +42,8 @@ Advanced usage
 - Queries and answeres can be gathered with a different tool
   (e.g. `dnsjit <https://github.com/DNS-OARC/dnsjit>`__) and read from LMDB
   (see `doc/lmdb_format.rst <doc/lmdb_format.rst>`__ for description of the used binary format.
+- Some tools have a more performant alternative, see
+  `respdiff-rs <https://gitlab.nic.cz/knot/respdiff-rs>`__.
 
 Overview
 --------

@@ -2,9 +2,9 @@ FROM ubuntu:focal
 MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
 
 RUN apt-get update
-RUN apt-get install -y -qqq git wget build-essential bind9utils libbind-dev libssl-dev libkrb5-dev libcap-dev libxml2-dev libjson-c-dev libgeoip-dev
+RUN apt-get install -y -qqq git wget build-essential bind9utils libbind-dev libssl-dev libkrb5-dev libcap-dev libxml2-dev libjson-c-dev libgeoip-dev libnghttp2-dev
 
-RUN cd /var/opt; git clone https://github.com/akamai/dnsperf.git
+RUN cd /var/opt; git clone https://github.com/DNS-OARC/dnsperf.git
 
 WORKDIR /var/opt/dnsperf
 RUN ./configure && make && make install

@@ -99,7 +99,7 @@ time docker-compose --no-ansi up --no-start >&2
 # Run respdiff toolchain
 time "{{ respdiff['srcdir'] }}/orchestrator.py" .
 docker-compose --no-ansi stop  # give lingering connections time to close
-time "{{ respdiff['srcdir'] }}/msgdiff.py" -d ${JOBNAME}_report.json .
+time "respdiff-msgdiff" -d ${JOBNAME}_report.json .
 cp ${JOBNAME}_report{,.diffrepro}.json
 time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.diffrepro.json .
 time "{{ respdiff['srcdir'] }}/diffsum.py" --without-diffrepro -d ${JOBNAME}_report.json . > ${JOBNAME}_report.txt
