@@ -27,13 +27,13 @@ class JSONDataObject:
 
     def export_json(self, filename: str) -> None:
         json_string = json.dumps(self.save(), indent=2)
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding='UTF-8') as f:
             f.write(json_string)
 
     @classmethod
     def from_json(cls, filename: str):
         try:
-            with open(filename) as f:
+            with open(filename, encoding='UTF-8') as f:
                 restore_dict = json.load(f)
         except json.decoder.JSONDecodeError as e:
             raise InvalidFileFormat("Couldn't parse JSON file: {}".format(filename)) from e

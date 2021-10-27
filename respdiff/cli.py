@@ -156,7 +156,7 @@ def check_metadb_servers_version(lmdb, servers: Sequence[str]) -> None:
 @contextlib.contextmanager
 def smart_open(filename=None):
     if filename and filename != '-':
-        fh = open(filename, 'w')
+        fh = open(filename, 'w', encoding='UTF-8')
     else:
         fh = sys.stdout
 

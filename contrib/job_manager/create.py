@@ -55,7 +55,7 @@ def create_file_from_template(
         assert name[-3:] == '.j2'
         destname = os.path.basename(name)[:-3]
     dest = os.path.join(destdir, destname)
-    with open(dest, 'w') as fh:
+    with open(dest, 'w', encoding='UTF-8') as fh:
         fh.write(rendered)
 
     if executable:
@@ -65,7 +65,7 @@ def create_file_from_template(
 
 def load_test_case_config(test_case: str) -> Dict[str, Any]:
     path = os.path.join(TEST_CASE_DIR, test_case + '.yaml')
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='UTF-8') as f:
         return yaml.safe_load(f)
 
 
@@ -204,7 +204,7 @@ def main() -> None:
         '--jobs-dir', default='/var/tmp/respdiff-jobs',
         help="Directory with job collections (default: /var/tmp/respdiff-jobs)")
     parser.add_argument(
-        '--knot-branch', type=str, default='3.0',
+        '--knot-branch', type=str, default='3.1',
         help="Build knot-resolver against selected Knot DNS branch")
     parser.add_argument(
         '-v', '--verbose', action='store_true',
