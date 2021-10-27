@@ -32,7 +32,7 @@ def get_qids_to_export(
             unstable_qids = report.other_disagreements.queries
             qids.update(unstable_qids)
     if args.qidlist:
-        with open(args.qidlist) as qidlist_file:
+        with open(args.qidlist, encoding='UTF-8') as qidlist_file:
             qids.update(int(qid.strip())
                         for qid in qidlist_file
                         if qid.strip())

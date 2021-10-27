@@ -67,7 +67,7 @@ class DnsvizGrok(dict):
 
     @staticmethod
     def from_json(filename: str) -> 'DnsvizGrok':
-        with open(filename) as f:
+        with open(filename, encoding='UTF-8') as f:
             grok_data = json.load(f)
         if not isinstance(grok_data, dict):
             raise RuntimeError(

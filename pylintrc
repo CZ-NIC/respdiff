@@ -16,6 +16,7 @@ disable=
     global-statement,
     no-else-return,
     duplicate-code,
+    consider-using-f-string,
 
 
 [SIMILARITIES]
