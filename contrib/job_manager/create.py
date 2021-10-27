@@ -204,7 +204,7 @@ def main() -> None:
         '--jobs-dir', default='/var/tmp/respdiff-jobs',
         help="Directory with job collections (default: /var/tmp/respdiff-jobs)")
     parser.add_argument(
-        '--knot-branch', type=str, default='3.0',
+        '--knot-branch', type=str, default='3.1',
         help="Build knot-resolver against selected Knot DNS branch")
     parser.add_argument(
         '-v', '--verbose', action='store_true',
