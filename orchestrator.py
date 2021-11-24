@@ -38,8 +38,8 @@ def main():
                     processes=args.cfg['sendrecv']['jobs'],
                     initializer=sendrecv.worker_init) as p:
                 i = 0
-                for qkey, blob in p.imap(sendrecv.worker_perform_query, qstream,
-                                         chunksize=100):
+                for qkey, blob in p.imap_unordered(
+                        sendrecv.worker_perform_query, qstream, chunksize=100):
                     i += 1
                     if i % 10000 == 0:
                         logging.info('Received {:d} answers'.format(i))
