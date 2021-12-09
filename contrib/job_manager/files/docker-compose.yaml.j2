@@ -38,7 +38,7 @@ services:
     {%- endif -%}
 
     {%- if resolver['type'] == 'bind' %}
-    image: registry.nic.cz/knot/respdiff/bind:v9_16_6
+    image: registry.nic.cz/knot/respdiff/bind:v9_16_23
     volumes:
       - "./{{ name }}.conf:/etc/bind9/named.conf:ro"
       - "./rfc1912.zones:/etc/bind9/rfc1912.zones:ro"
@@ -46,7 +46,7 @@ services:
     {%- endif -%}
 
     {%- if resolver['type'] == 'unbound' %}
-    image: registry.nic.cz/knot/respdiff/unbound:release-1.13.0
+    image: registry.nic.cz/knot/respdiff/unbound:release-1.13.2
     volumes:
       - "./{{ name }}.conf:/usr/local/etc/unbound/unbound.conf:ro"
       - "./root.keys:/usr/local/etc/unbound/root.keys:ro"
