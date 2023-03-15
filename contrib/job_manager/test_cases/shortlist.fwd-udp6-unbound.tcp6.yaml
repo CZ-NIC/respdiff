@@ -4,7 +4,7 @@ respdiff:
   target: kresd
 
 database:
-  url: https://gitlab.nic.cz/knot/respdiff/uploads/1cbf15e24dcbaf76b1446484623ed48f/shortlist5e.mdb
+  url: https://gitlab.nic.cz/knot/respdiff/uploads/955d08d5bf8ffc2812a0aae4ef4f0221/shortlist5f.mdb
   dest: data.mdb
   remove_after: true
 
