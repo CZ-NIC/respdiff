@@ -86,6 +86,7 @@ def query_stream_from_disagreements(
     qids = report.target_disagreements.keys()  # type: Union[Sequence[QID], AbstractSet[QID]]
     if shuffle:
         # create a new, randomized list from disagreements
+        qids = list(qids)
         qids = random.sample(qids, len(qids))
     queries = get_query_iterator(lmdb, qids)
     for qid, qwire in queries:
