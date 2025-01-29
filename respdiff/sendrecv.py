@@ -10,6 +10,7 @@ threads or processes. Make sure not to break this compatibility.
 
 
 from argparse import Namespace
+import logging
 import random
 import signal
 import selectors
@@ -18,7 +19,7 @@ import ssl
 import struct
 import time
 import threading
-from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple  # noqa: type hints
 
 import dns.inet
 import dns.message
@@ -54,6 +55,15 @@ CONN_RESET_RETRIES = 2
 
 class TcpDnsLengthError(ConnectionError):
     pass
+
+
+class ResolverConnectionError(ConnectionError):
+    def __init__(self, resolver: ResolverID, message: str):
+        super().__init__(message)
+        self.resolver = resolver
+
+    def __str__(self):
+        return f"[{self.resolver}] {super().__str__()}"
 
 
 def module_init(args: Namespace) -> None:
@@ -261,27 +271,39 @@ def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
     return sock.recv(length)
 
 
-def _send_recv_parallel(
-            dgram: WireFormat,  # DNS message suitable for UDP transport
+def _create_sendbuf(dnsdata: WireFormat, isstream: IsStreamFlag) -> bytes:
+    if isstream:  # prepend length, RFC 1035 section 4.2.2
+        length = len(dnsdata)
+        return struct.pack('!H', length) + dnsdata
+    return dnsdata
+
+
+def _get_resolver_from_sock(sockets: ResolverSockets, sock: Socket) -> Optional[ResolverID]:
+    for resolver, resolver_sock, _ in sockets:
+        if sock == resolver_sock:
+            return resolver
+    return None
+
+
+def _recv_from_resolvers(
             selector: Selector,
             sockets: ResolverSockets,
+            msgid: bytes,
             timeout: float
-        ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
-    replies = {}  # type: Dict[ResolverID, DNSReply]
-    streammsg = None
+        ) -> Tuple[Dict[ResolverID, DNSReply], bool]:
+
+    def raise_resolver_exc(sock, exc):
+        resolver = _get_resolver_from_sock(sockets, sock)
+        if resolver is not None:
+            raise ResolverConnectionError(resolver, str(exc)) from exc
+        raise exc
+
+
     start_time = time.perf_counter()
     end_time = start_time + timeout
-    for _, sock, isstream in sockets:
-        if isstream:  # prepend length, RFC 1035 section 4.2.2
-            if not streammsg:
-                length = len(dgram)
-                streammsg = struct.pack('!H', length) + dgram
-            sock.sendall(streammsg)
-        else:
-            sock.sendall(dgram)
-
-    # receive replies
+    replies = {}  # type: Dict[ResolverID, DNSReply]
     reinit = False
+
     while len(replies) != len(sockets):
         remaining_time = end_time - time.perf_counter()
         if remaining_time <= 0:
@@ -293,16 +315,39 @@ def _send_recv_parallel(
             sock = key.fileobj
             try:
                 wire = _recv_msg(sock, isstream)
-            except TcpDnsLengthError:
+            except TcpDnsLengthError as exc:
                 if name in replies:  # we have a reply already, most likely TCP FIN
                     reinit = True
                     selector.unregister(sock)
                     continue  # receive answers from other parties
-                raise  # no reply -> raise error
-            # assert len(wire) > 14
-            if dgram[0:2] != wire[0:2]:
+                # no reply -> raise error
+                raise_resolver_exc(sock, exc)
+            except ConnectionError as exc:
+                raise_resolver_exc(sock, exc)
+            if msgid != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
             replies[name] = DNSReply(wire, time.perf_counter() - start_time)
+
+    return replies, reinit
+
+
+def _send_recv_parallel(
+            dgram: WireFormat,  # DNS message suitable for UDP transport
+            selector: Selector,
+            sockets: ResolverSockets,
+            timeout: float
+        ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
+    # send queries
+    for resolver, sock, isstream in sockets:
+        sendbuf = _create_sendbuf(dgram, isstream)
+        try:
+            sock.sendall(sendbuf)
+        except ConnectionError as exc:
+            raise ResolverConnectionError(resolver, str(exc)) from exc
+
+    # receive replies
+    msgid = dgram[0:2]
+    replies, reinit = _recv_from_resolvers(selector, sockets, msgid, timeout)
 
     # set missing replies as timeout
     for resolver, *_ in sockets:  # type: ignore  # python/mypy#465
@@ -317,6 +362,7 @@ def send_recv_parallel(
             timeout: float,
             reinit_on_tcpfin: bool = True
         ) -> Mapping[ResolverID, DNSReply]:
+    problematic = []
     for _ in range(CONN_RESET_RETRIES + 1):
         try:  # get sockets and selector
             selector = __worker_state.selector
@@ -331,9 +377,17 @@ def send_recv_parallel(
                 worker_deinit()
                 worker_reinit()
             return replies
-        except (TcpDnsLengthError, ConnectionError):  # most likely TCP RST
+        # The following exception handling is typically triggered by TCP RST,
+        # but it could also indicate some issue with one of the resolvers.
+        except ResolverConnectionError as exc:
+            problematic.append(exc.resolver)
+            logging.debug(exc)
+            worker_deinit()  # re-establish connection
+            worker_reinit()
+        except ConnectionError as exc:  # most likely TCP RST
+            logging.debug(exc)
             worker_deinit()  # re-establish connection
             worker_reinit()
     raise RuntimeError(
-        'ConnectionError received {} times in a row, exiting!'.format(
-            CONN_RESET_RETRIES + 1))
+        'ConnectionError received {} times in a row ({}), exiting!'.format(
+            CONN_RESET_RETRIES + 1, ', '.join(problematic)))
