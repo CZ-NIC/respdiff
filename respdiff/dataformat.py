@@ -4,8 +4,20 @@ from collections import Counter
 import collections.abc
 import json
 from typing import (  # noqa
-    Any, Callable, Dict, Hashable, ItemsView, Iterator, KeysView, Mapping,
-    Optional, Set, Sequence, Tuple, Union)
+    Any,
+    Callable,
+    Dict,
+    Hashable,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Mapping,
+    Optional,
+    Set,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from .match import DataMismatch
 from .typing import FieldLabel, QID
@@ -20,23 +32,26 @@ class InvalidFileFormat(Exception):
 
 class JSONDataObject:
     """Object class for (de)serialization into JSON-compatible dictionary."""
+
     _ATTRIBUTES = {}  # type: Mapping[str, Tuple[RestoreFunction, SaveFunction]]
 
     def __init__(self, **kwargs):  # pylint: disable=unused-argument
-        self.fileorigin = ''
+        self.fileorigin = ""
 
     def export_json(self, filename: str) -> None:
         json_string = json.dumps(self.save(), indent=2)
-        with open(filename, 'w', encoding='UTF-8') as f:
+        with open(filename, "w", encoding="UTF-8") as f:
             f.write(json_string)
 
     @classmethod
     def from_json(cls, filename: str):
         try:
-            with open(filename, encoding='UTF-8') as f:
+            with open(filename, encoding="UTF-8") as f:
                 restore_dict = json.load(f)
         except json.decoder.JSONDecodeError as e:
-            raise InvalidFileFormat("Couldn't parse JSON file: {}".format(filename)) from e
+            raise InvalidFileFormat(
+                "Couldn't parse JSON file: {}".format(filename)
+            ) from e
         inst = cls(_restore_dict=restore_dict)
         inst.fileorigin = filename
         return inst
@@ -54,11 +69,11 @@ class JSONDataObject:
         return restore_dict
 
     def _restore_attr(
-                self,
-                restore_dict: Mapping[str, Any],
-                key: str,
-                restore_func: RestoreFunction = None
-            ) -> None:
+        self,
+        restore_dict: Mapping[str, Any],
+        key: str,
+        restore_func: RestoreFunction = None,
+    ) -> None:
         """
         Restore attribute from key in dictionary.
         If it's missing or None, don't call restore_func() and leave attribute's value default.
@@ -72,11 +87,7 @@ class JSONDataObject:
                 value = restore_func(value)
             setattr(self, key, value)
 
-    def _save_attr(
-                self,
-                key: str,
-                save_func: SaveFunction = None
-            ) -> Mapping[str, Any]:
+    def _save_attr(self, key: str, save_func: SaveFunction = None) -> Mapping[str, Any]:
         """
         Save attribute as a key in dictionary.
         If the attribute is None, save it as such (without calling save_func()).
@@ -89,6 +100,7 @@ class JSONDataObject:
 
 class Diff(collections.abc.Mapping):
     """Read-only representation of mismatches in each field for a single query"""
+
     __setitem__ = None
     __delitem__ = None
 
@@ -107,19 +119,17 @@ class Diff(collections.abc.Mapping):
         return iter(self._mismatches)
 
     def get_significant_field(
-                self,
-                field_weights: Sequence[FieldLabel]
-            ) -> Tuple[Optional[FieldLabel], Optional[DataMismatch]]:
+        self, field_weights: Sequence[FieldLabel]
+    ) -> Tuple[Optional[FieldLabel], Optional[DataMismatch]]:
         for significant_field in field_weights:
             if significant_field in self:
                 return significant_field, self[significant_field]
         return None, None
 
     def __repr__(self) -> str:
-        return 'Diff({})'.format(
-            ', '.join([
-                repr(mismatch) for mismatch in self.values()
-            ]))
+        return "Diff({})".format(
+            ", ".join([repr(mismatch) for mismatch in self.values()])
+        )
 
     def __eq__(self, other) -> bool:
         if len(self) != len(other):
@@ -142,9 +152,9 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
     """
 
     def __init__(
-                self,
-                _restore_dict: Optional[Mapping[str, Any]] = None,
-            ) -> None:
+        self,
+        _restore_dict: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         """
         `_restore_dict` is used to restore from JSON, minimal format:
             "fields": {
@@ -161,40 +171,44 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
         """
         super().__init__()
         self._fields = collections.defaultdict(
-                lambda: collections.defaultdict(set)
-            )  # type: Dict[FieldLabel, Dict[DataMismatch, Set[QID]]]
+            lambda: collections.defaultdict(set)
+        )  # type: Dict[FieldLabel, Dict[DataMismatch, Set[QID]]]
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
     def restore(self, restore_dict: Mapping[str, Any]) -> None:
         super().restore(restore_dict)
-        for field_label, field_data in restore_dict['fields'].items():
-            for mismatch_data in field_data['mismatches']:
+        for field_label, field_data in restore_dict["fields"].items():
+            for mismatch_data in field_data["mismatches"]:
                 mismatch = DataMismatch(
-                    mismatch_data['exp_val'],
-                    mismatch_data['got_val'])
-                self._fields[field_label][mismatch] = set(mismatch_data['queries'])
+                    mismatch_data["exp_val"], mismatch_data["got_val"]
+                )
+                self._fields[field_label][mismatch] = set(mismatch_data["queries"])
 
     def save(self) -> Dict[str, Any]:
         fields = {}
         for field, field_data in self._fields.items():
             mismatches = []
             for mismatch, mismatch_data in field_data.items():
-                mismatches.append({
-                    'count': len(mismatch_data),
-                    'exp_val': mismatch.exp_val,
-                    'got_val': mismatch.got_val,
-                    'queries': list(mismatch_data),
-                })
+                mismatches.append(
+                    {
+                        "count": len(mismatch_data),
+                        "exp_val": mismatch.exp_val,
+                        "got_val": mismatch.got_val,
+                        "queries": list(mismatch_data),
+                    }
+                )
             fields[field] = {
-                'count': len(mismatches),
-                'mismatches': mismatches,
+                "count": len(mismatches),
+                "mismatches": mismatches,
             }
         restore_dict = super().save() or {}
-        restore_dict.update({
-            'count': self.count,
-            'fields': fields,
-        })
+        restore_dict.update(
+            {
+                "count": self.count,
+                "fields": fields,
+            }
+        )
         return restore_dict
 
     def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
@@ -205,9 +219,8 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
         return self._fields.keys()
 
     def get_field_mismatches(
-                self,
-                field: FieldLabel
-            ) -> ItemsView[DataMismatch, Set[QID]]:
+        self, field: FieldLabel
+    ) -> ItemsView[DataMismatch, Set[QID]]:
         return self._fields[field].items()
 
     @property
@@ -239,7 +252,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
 
 class DisagreementsCounter(JSONDataObject):
     _ATTRIBUTES = {
-        'queries': (set, list),
+        "queries": (set, list),
     }
 
     def __init__(self, _restore_dict: Mapping[str, int] = None) -> None:
@@ -257,17 +270,17 @@ class DisagreementsCounter(JSONDataObject):
 
 class Summary(Disagreements):
     """Disagreements, where each query has no more than one mismatch."""
+
     _ATTRIBUTES = {
-        'upstream_unstable': (None, None),
-        'usable_answers': (None, None),
-        'not_reproducible': (None, None),
-        'manual_ignore': (None, None),
+        "upstream_unstable": (None, None),
+        "usable_answers": (None, None),
+        "not_reproducible": (None, None),
+        "manual_ignore": (None, None),
     }
 
     def __init__(
-                self,
-                _restore_dict: Optional[Mapping[FieldLabel, Mapping[str, Any]]] = None
-            ) -> None:
+        self, _restore_dict: Optional[Mapping[FieldLabel, Mapping[str, Any]]] = None
+    ) -> None:
         self.usable_answers = 0
         self.upstream_unstable = 0
         self.not_reproducible = 0
@@ -276,17 +289,17 @@ class Summary(Disagreements):
 
     def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
         if qid in self.keys():
-            raise ValueError('QID {} already exists in Summary!'.format(qid))
+            raise ValueError("QID {} already exists in Summary!".format(qid))
         self._fields[field][mismatch].add(qid)
 
     @staticmethod
     def from_report(
-                report: 'DiffReport',
-                field_weights: Sequence[FieldLabel],
-                reproducibility_threshold: float = 1,
-                without_diffrepro: bool = False,
-                ignore_qids: Optional[Set[QID]] = None
-            ) -> 'Summary':
+        report: "DiffReport",
+        field_weights: Sequence[FieldLabel],
+        reproducibility_threshold: float = 1,
+        without_diffrepro: bool = False,
+        ignore_qids: Optional[Set[QID]] = None,
+    ) -> "Summary":
         """
         Get summary of disagreements above the specified reproduciblity
         threshold [0, 1].
@@ -294,9 +307,11 @@ class Summary(Disagreements):
         Optionally, provide a list of known unstable and/or failing QIDs which
         will be ignored.
         """
-        if (report.other_disagreements is None
-                or report.target_disagreements is None
-                or report.total_answers is None):
+        if (
+            report.other_disagreements is None
+            or report.target_disagreements is None
+            or report.total_answers is None
+        ):
             raise RuntimeError("Report has insufficient data to create Summary")
 
         if ignore_qids is None:
@@ -315,7 +330,9 @@ class Summary(Disagreements):
                     if reprocounter.retries != reprocounter.upstream_stable:
                         summary.upstream_unstable += 1
                         continue  # filter unstable upstream
-                    reproducibility = float(reprocounter.verified) / reprocounter.retries
+                    reproducibility = (
+                        float(reprocounter.verified) / reprocounter.retries
+                    )
                     if reproducibility < reproducibility_threshold:
                         summary.not_reproducible += 1
                         continue  # filter less reproducible than threshold
@@ -324,7 +341,8 @@ class Summary(Disagreements):
             summary.add_mismatch(field, mismatch, qid)
 
         summary.usable_answers = (
-            report.total_answers - summary.upstream_unstable - summary.not_reproducible)
+            report.total_answers - summary.upstream_unstable - summary.not_reproducible
+        )
         return summary
 
     def get_field_counters(self) -> Mapping[FieldLabel, Counter]:
@@ -339,20 +357,23 @@ class Summary(Disagreements):
 
 class ReproCounter(JSONDataObject):
     _ATTRIBUTES = {
-        'retries': (None, None),  # total amount of attempts to reproduce
-        'upstream_stable': (None, None),  # number of cases, where others disagree
-        'verified': (None, None),  # the query fails, and the diff is same (reproduced)
-        'different_failure': (None, None)  # the query fails, but the diff doesn't match
+        "retries": (None, None),  # total amount of attempts to reproduce
+        "upstream_stable": (None, None),  # number of cases, where others disagree
+        "verified": (None, None),  # the query fails, and the diff is same (reproduced)
+        "different_failure": (
+            None,
+            None,
+        ),  # the query fails, but the diff doesn't match
     }
 
     def __init__(
-                self,
-                retries: int = 0,
-                upstream_stable: int = 0,
-                verified: int = 0,
-                different_failure: int = 0,
-                _restore_dict: Optional[Mapping[str, int]] = None
-            ) -> None:
+        self,
+        retries: int = 0,
+        upstream_stable: int = 0,
+        verified: int = 0,
+        different_failure: int = 0,
+        _restore_dict: Optional[Mapping[str, int]] = None,
+    ) -> None:
         super().__init__()
         self.retries = retries
         self.upstream_stable = upstream_stable
@@ -371,13 +392,16 @@ class ReproCounter(JSONDataObject):
             self.retries == other.retries
             and self.upstream_stable == other.upstream_stable
             and self.verified == other.verified
-            and self.different_failure == other.different_failure)
+            and self.different_failure == other.different_failure
+        )
 
 
 class ReproData(collections.abc.Mapping, JSONDataObject):
     def __init__(self, _restore_dict: Optional[Mapping[str, Any]] = None) -> None:
         super().__init__()
-        self._counters = collections.defaultdict(ReproCounter)  # type: Dict[QID, ReproCounter]
+        self._counters = collections.defaultdict(
+            ReproCounter
+        )  # type: Dict[QID, ReproCounter]
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
@@ -406,41 +430,41 @@ class ReproData(collections.abc.Mapping, JSONDataObject):
         yield from self._counters.keys()
 
 
-QueryData = collections.namedtuple('QueryData', 'total, others_disagree, target_disagrees')
+QueryData = collections.namedtuple(
+    "QueryData", "total, others_disagree, target_disagrees"
+)
 
 
 class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attributes
     _ATTRIBUTES = {
-        'start_time': (None, None),
-        'end_time': (None, None),
-        'total_queries': (None, None),
-        'total_answers': (None, None),
-        'other_disagreements': (
+        "start_time": (None, None),
+        "end_time": (None, None),
+        "total_queries": (None, None),
+        "total_answers": (None, None),
+        "other_disagreements": (
             lambda x: DisagreementsCounter(_restore_dict=x),
-            lambda x: x.save()),
-        'target_disagreements': (
+            lambda x: x.save(),
+        ),
+        "target_disagreements": (
             lambda x: Disagreements(_restore_dict=x),
-            lambda x: x.save()),
-        'summary': (
-            lambda x: Summary(_restore_dict=x),
-            lambda x: x.save()),
-        'reprodata': (
-            lambda x: ReproData(_restore_dict=x),
-            lambda x: x.save()),
+            lambda x: x.save(),
+        ),
+        "summary": (lambda x: Summary(_restore_dict=x), lambda x: x.save()),
+        "reprodata": (lambda x: ReproData(_restore_dict=x), lambda x: x.save()),
     }
 
     def __init__(
-                self,
-                start_time: Optional[int] = None,
-                end_time: Optional[int] = None,
-                total_queries: Optional[int] = None,
-                total_answers: Optional[int] = None,
-                other_disagreements: Optional[DisagreementsCounter] = None,
-                target_disagreements: Optional[Disagreements] = None,
-                summary: Optional[Summary] = None,
-                reprodata: Optional[ReproData] = None,
-                _restore_dict: Optional[Mapping[str, Any]] = None
-            ) -> None:
+        self,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        total_queries: Optional[int] = None,
+        total_answers: Optional[int] = None,
+        other_disagreements: Optional[DisagreementsCounter] = None,
+        target_disagreements: Optional[Disagreements] = None,
+        summary: Optional[Summary] = None,
+        reprodata: Optional[ReproData] = None,
+        _restore_dict: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         super().__init__()
         self.start_time = start_time
         self.end_time = end_time

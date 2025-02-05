@@ -4,32 +4,43 @@ import json
 import pytest
 
 from respdiff.dataformat import (
-    Diff, DiffReport, Disagreements, DisagreementsCounter, JSONDataObject, ReproCounter,
-    ReproData, Summary)
+    Diff,
+    DiffReport,
+    Disagreements,
+    DisagreementsCounter,
+    JSONDataObject,
+    ReproCounter,
+    ReproData,
+    Summary,
+)
 from respdiff.match import DataMismatch
 
 
 MISMATCH_DATA = [
-    ('timeout', 'answer'),
-    (['A'], ['A', 'CNAME']),
-    (['A'], ['A', 'RRSIG(A)']),
+    ("timeout", "answer"),
+    (["A"], ["A", "CNAME"]),
+    (["A"], ["A", "RRSIG(A)"]),
 ]
 
 DIFF_DATA = [
-    ('timeout', MISMATCH_DATA[0]),
-    ('answertypes', MISMATCH_DATA[1]),
-    ('answerrrsigs', MISMATCH_DATA[2]),
-    ('answerrrsigs', MISMATCH_DATA[1]),
+    ("timeout", MISMATCH_DATA[0]),
+    ("answertypes", MISMATCH_DATA[1]),
+    ("answerrrsigs", MISMATCH_DATA[2]),
+    ("answerrrsigs", MISMATCH_DATA[1]),
 ]
 
-QUERY_DIFF_DATA = list(enumerate([
-    (),
-    (DIFF_DATA[0],),
-    (DIFF_DATA[0], DIFF_DATA[1]),
-    (DIFF_DATA[1], DIFF_DATA[0]),
-    (DIFF_DATA[0], DIFF_DATA[1], DIFF_DATA[2]),
-    (DIFF_DATA[0], DIFF_DATA[3], DIFF_DATA[1]),
-]))
+QUERY_DIFF_DATA = list(
+    enumerate(
+        [
+            (),
+            (DIFF_DATA[0],),
+            (DIFF_DATA[0], DIFF_DATA[1]),
+            (DIFF_DATA[1], DIFF_DATA[0]),
+            (DIFF_DATA[0], DIFF_DATA[1], DIFF_DATA[2]),
+            (DIFF_DATA[0], DIFF_DATA[3], DIFF_DATA[1]),
+        ]
+    )
+)
 
 QUERY_DIFF_JSON = """
 {
@@ -143,11 +154,17 @@ def test_data_mismatch_init():
         DataMismatch(1, 1)
 
 
-@pytest.mark.parametrize('mismatch_data, expected_key', zip(MISMATCH_DATA, [
-    ('timeout', 'answer'),
-    (('A',), ('A', 'CNAME')),
-    (('A',), ('A', 'RRSIG(A)')),
-]))
+@pytest.mark.parametrize(
+    "mismatch_data, expected_key",
+    zip(
+        MISMATCH_DATA,
+        [
+            ("timeout", "answer"),
+            (("A",), ("A", "CNAME")),
+            (("A",), ("A", "RRSIG(A)")),
+        ],
+    ),
+)
 def test_data_mismatch(mismatch_data, expected_key):
     mismatch1 = DataMismatch(*mismatch_data)
     mismatch2 = DataMismatch(*mismatch_data)
@@ -162,8 +179,9 @@ def test_data_mismatch(mismatch_data, expected_key):
     assert mismatch1.key == expected_key
 
 
-@pytest.mark.parametrize('mismatch1_data, mismatch2_data',
-                         itertools.combinations(MISMATCH_DATA, 2))
+@pytest.mark.parametrize(
+    "mismatch1_data, mismatch2_data", itertools.combinations(MISMATCH_DATA, 2)
+)
 def test_data_mismatch_differnet_key_hash(mismatch1_data, mismatch2_data):
     if mismatch1_data == mismatch2_data:
         return
@@ -181,35 +199,38 @@ def test_json_data_object():
     assert empty.save() is None
 
     # simple scalar, list or dict -- no restore/save callbacks
-    attrs = {'a': (None, None)}
+    attrs = {"a": (None, None)}
     basic = JSONDataObject()
     basic.a = 1
     basic._ATTRIBUTES = attrs
     data = basic.save()
-    assert data['a'] == 1
+    assert data["a"] == 1
     restored = JSONDataObject()
     restored._ATTRIBUTES = attrs
     restored.restore(data)
     assert restored.a == basic.a
 
     # with save/restore callback
-    attrs = {'b': (lambda x: x + 1, lambda x: x - 1)}
+    attrs = {"b": (lambda x: x + 1, lambda x: x - 1)}
     complex_obj = JSONDataObject()
     complex_obj.b = 1
     complex_obj._ATTRIBUTES = attrs
     data = complex_obj.save()
-    assert data['b'] == 0
+    assert data["b"] == 0
     restored = JSONDataObject()
     restored._ATTRIBUTES = attrs
     restored.restore(data)
     assert restored.b == complex_obj.b
+
+
 # pylint: enable=protected-access
 
 
-@pytest.mark.parametrize('qid, diff_data', QUERY_DIFF_DATA)
+@pytest.mark.parametrize("qid, diff_data", QUERY_DIFF_DATA)
 def test_diff(qid, diff_data):
-    mismatches = {field: DataMismatch(*mismatch_data)
-                  for field, mismatch_data in diff_data}
+    mismatches = {
+        field: DataMismatch(*mismatch_data) for field, mismatch_data in diff_data
+    }
     diff = Diff(qid, mismatches)
     fields = []
 
@@ -224,28 +245,38 @@ def test_diff(qid, diff_data):
         if not field_weights:
             continue
         field_weights = list(field_weights)
-        assert diff.get_significant_field(field_weights) == \
-            (field_weights[0], mismatches[field_weights[0]])
-        field_weights.append('custom')
-        assert diff.get_significant_field(field_weights) == \
-            (field_weights[0], mismatches[field_weights[0]])
-        field_weights.insert(0, 'custom2')
-        assert diff.get_significant_field(field_weights) == \
-            (field_weights[1], mismatches[field_weights[1]])
-    assert diff.get_significant_field(['non_existent']) == (None, None)
+        assert diff.get_significant_field(field_weights) == (
+            field_weights[0],
+            mismatches[field_weights[0]],
+        )
+        field_weights.append("custom")
+        assert diff.get_significant_field(field_weights) == (
+            field_weights[0],
+            mismatches[field_weights[0]],
+        )
+        field_weights.insert(0, "custom2")
+        assert diff.get_significant_field(field_weights) == (
+            field_weights[1],
+            mismatches[field_weights[1]],
+        )
+    assert diff.get_significant_field(["non_existent"]) == (None, None)
 
     # adding or removing items isn't possible
     with pytest.raises(Exception):
-        diff['non_existent'] = None  # pylint: disable=unsupported-assignment-operation
+        diff["non_existent"] = None  # pylint: disable=unsupported-assignment-operation
     with pytest.raises(Exception):
         del diff[list(diff.keys())[0]]  # pylint: disable=unsupported-delete-operation
 
 
 def test_diff_equality():
-    mismatches_tuple = {'timeout': DataMismatch('answer', 'timeout'),
-                        'answertypes': DataMismatch(('A',), ('CNAME',))}
-    mismatches_list = {'timeout': DataMismatch('answer', 'timeout'),
-                       'answertypes': DataMismatch(['A'], ['CNAME'])}
+    mismatches_tuple = {
+        "timeout": DataMismatch("answer", "timeout"),
+        "answertypes": DataMismatch(("A",), ("CNAME",)),
+    }
+    mismatches_list = {
+        "timeout": DataMismatch("answer", "timeout"),
+        "answertypes": DataMismatch(["A"], ["CNAME"]),
+    }
 
     # tuple or list doesn't matter
     assert Diff(1, mismatches_tuple) == Diff(1, mismatches_list)
@@ -254,7 +285,7 @@ def test_diff_equality():
     assert Diff(1, mismatches_tuple) == Diff(2, mismatches_tuple)
 
     # different mismatches
-    mismatches_tuple['answerrrsigs'] = DataMismatch(('RRSIG(A)',), ('',))
+    mismatches_tuple["answerrrsigs"] = DataMismatch(("RRSIG(A)",), ("",))
     assert Diff(1, mismatches_tuple) != Diff(1, mismatches_list)
 
 
@@ -327,8 +358,8 @@ def test_diff_report():
 
     # report with some missing fields
     partial_data = report.save()
-    del partial_data['other_disagreements']
-    del partial_data['target_disagreements']
+    del partial_data["other_disagreements"]
+    del partial_data["target_disagreements"]
     partial_report = DiffReport(_restore_dict=partial_data)
     assert partial_report.other_disagreements is None
     assert partial_report.target_disagreements is None
@@ -337,7 +368,7 @@ def test_diff_report():
 
 
 def test_summary():
-    field_weights = ['timeout', 'answertypes', 'aswerrrsigs']
+    field_weights = ["timeout", "answertypes", "aswerrrsigs"]
     report = DiffReport(_restore_dict=json.loads(DIFF_REPORT_JSON))
 
     # no reprodata -- no queries are missing
@@ -390,17 +421,17 @@ def test_repro_counter():
     assert rc.verified == 1
     assert rc.different_failure == 1
 
-    rc = ReproCounter(_restore_dict={'retries': 4})
+    rc = ReproCounter(_restore_dict={"retries": 4})
     assert rc.retries == 4
     assert rc.upstream_stable == 0
     assert rc.verified == 0
     assert rc.different_failure == 0
 
     data = rc.save()
-    assert data['retries'] == 4
-    assert data['upstream_stable'] == 0
-    assert data['verified'] == 0
-    assert data['different_failure'] == 0
+    assert data["retries"] == 4
+    assert data["upstream_stable"] == 0
+    assert data["verified"] == 0
+    assert data["different_failure"] == 0
 
     assert ReproCounter().save() is None
 

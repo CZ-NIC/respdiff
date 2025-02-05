@@ -7,8 +7,12 @@ from .dataformat import DiffReport, JSONDataObject, QueryData
 from .typing import QID
 
 
-UPSTREAM_UNSTABLE_THRESHOLD = 0.1  # consider query unstable when 10 % of results are unstable
-ALLOWED_FAIL_THRESHOLD = 0.05  # ignore up to 5 % of FAIL results for a given query (as noise)
+UPSTREAM_UNSTABLE_THRESHOLD = (
+    0.1  # consider query unstable when 10 % of results are unstable
+)
+ALLOWED_FAIL_THRESHOLD = (
+    0.05  # ignore up to 5 % of FAIL results for a given query (as noise)
+)
 
 
 class QueryStatus(Enum):
@@ -27,16 +31,16 @@ def get_query_status(query_data: QueryData) -> QueryStatus:
 
 class QueryStatistics(JSONDataObject):
     _ATTRIBUTES = {
-        'failing': (set, list),
-        'unstable': (set, list),
+        "failing": (set, list),
+        "unstable": (set, list),
     }
 
     def __init__(
-                self,
-                failing: Optional[Set[QID]] = None,
-                unstable: Optional[Set[QID]] = None,
-                _restore_dict: Optional[Mapping[str, Any]] = None
-            ) -> None:
+        self,
+        failing: Optional[Set[QID]] = None,
+        unstable: Optional[Set[QID]] = None,
+        _restore_dict: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         super().__init__()
         self.failing = failing if failing is not None else set()
         self.unstable = unstable if unstable is not None else set()
@@ -51,9 +55,9 @@ class QueryStatistics(JSONDataObject):
             self.unstable.add(qid)
 
     @staticmethod
-    def from_reports(reports: Sequence[DiffReport]) -> 'QueryStatistics':
+    def from_reports(reports: Sequence[DiffReport]) -> "QueryStatistics":
         """Create query statistics from multiple reports - usually used as a reference"""
-        others_disagree = collections.Counter()   # type: collections.Counter
+        others_disagree = collections.Counter()  # type: collections.Counter
         target_disagrees = collections.Counter()  # type: collections.Counter
         reprodata_present = False
 
@@ -68,7 +72,9 @@ class QueryStatistics(JSONDataObject):
             for qid in report.target_disagreements:
                 target_disagrees[qid] += 1
         if reprodata_present:
-            logging.warning("reprodata ignored when creating query stability statistics")
+            logging.warning(
+                "reprodata ignored when creating query stability statistics"
+            )
 
         # evaluate
         total = len(reports)
@@ -77,5 +83,6 @@ class QueryStatistics(JSONDataObject):
         suspect_queries.update(target_disagrees.keys())
         for qid in suspect_queries:
             query_statistics.add_query(
-                qid, QueryData(total, others_disagree[qid], target_disagrees[qid]))
+                qid, QueryData(total, others_disagree[qid], target_disagrees[qid])
+            )
         return query_statistics

@@ -7,25 +7,31 @@ import pytest
 from qprep import wrk_process_line
 
 
-@pytest.mark.parametrize('line', [
-    '',
-    'x'*256 + ' A',
-    '\123x.test. 65536',
-    '\321.test. 1',
-    'test. A,AAAA',
-    'test. A, AAAA',
-])
+@pytest.mark.parametrize(
+    "line",
+    [
+        "",
+        "x" * 256 + " A",
+        "\123x.test. 65536",
+        "\321.test. 1",
+        "test. A,AAAA",
+        "test. A, AAAA",
+    ],
+)
 def test_text_input_invalid(line):
     assert wrk_process_line((1, line, line)) == (None, None)
 
 
-@pytest.mark.parametrize('qname, qtype', [
-    ('x', 'A'),
-    ('x', 1),
-    ('blabla.test.', 'TSIG'),
-])
+@pytest.mark.parametrize(
+    "qname, qtype",
+    [
+        ("x", "A"),
+        ("x", 1),
+        ("blabla.test.", "TSIG"),
+    ],
+)
 def test_text_input_valid(qname, qtype):
-    line = '{} {}'.format(qname, qtype)
+    line = "{} {}".format(qname, qtype)
 
     if isinstance(qtype, int):
         rdtype = qtype
@@ -39,12 +45,15 @@ def test_text_input_valid(qname, qtype):
     assert qid == 1
 
 
-@pytest.mark.parametrize('line', [
-    'test. ANY',
-    'test. RRSIG',
-    'dotnxdomain.net. 28',
-    'something.dotnxdomain.net. A',
-    'something.dashnxdomain.net. AAAA',
-])
+@pytest.mark.parametrize(
+    "line",
+    [
+        "test. ANY",
+        "test. RRSIG",
+        "dotnxdomain.net. 28",
+        "something.dotnxdomain.net. A",
+        "something.dashnxdomain.net. AAAA",
+    ],
+)
 def test_text_input_blacklist(line):
     assert wrk_process_line((1, line, line)) == (None, None)

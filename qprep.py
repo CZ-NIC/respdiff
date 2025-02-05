@@ -26,7 +26,7 @@ def read_lines(instream):
     i = 1
     for line in instream:
         if i % REPORT_CHUNKS == 0:
-            logging.info('Read %d lines', i)
+            logging.info("Read %d lines", i)
         line = line.strip()
         if line:
             yield (i, line, line)
@@ -62,14 +62,14 @@ def parse_pcap(pcap_file):
     pcap_file = dpkt.pcap.Reader(pcap_file)
     for _, frame in pcap_file:
         if i % REPORT_CHUNKS == 0:
-            logging.info('Read %d frames', i)
-        yield (i, frame, 'frame no. {}'.format(i))
+            logging.info("Read %d frames", i)
+        yield (i, frame, "frame no. {}".format(i))
         i += 1
 
 
 def wrk_process_line(
-            args: Tuple[int, str, str]
-        ) -> Tuple[Optional[int], Optional[bytes]]:
+    args: Tuple[int, str, str]
+) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: parse input line, creates a packet in binary format
 
@@ -80,16 +80,19 @@ def wrk_process_line(
     try:
         msg = msg_from_text(line)
         if blacklist.is_blacklisted(msg):
-            logging.debug('Blacklisted query "%s", skipping QID %d',
-                          log_repr, qid)
+            logging.debug('Blacklisted query "%s", skipping QID %d', log_repr, qid)
             return None, None
         return qid, msg.to_wire()
     except (ValueError, struct.error, dns.exception.DNSException) as ex:
-        logging.error('Invalid query specification "%s": %s, skipping QID %d', line, ex, qid)
+        logging.error(
+            'Invalid query specification "%s": %s, skipping QID %d', line, ex, qid
+        )
         return None, None
 
 
-def wrk_process_frame(args: Tuple[int, bytes, str]) -> Tuple[Optional[int], Optional[bytes]]:
+def wrk_process_frame(
+    args: Tuple[int, bytes, str]
+) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: convert packet from pcap to binary data
     """
@@ -99,10 +102,8 @@ def wrk_process_frame(args: Tuple[int, bytes, str]) -> Tuple[Optional[int], Opti
 
 
 def wrk_process_wire_packet(
-            qid: int,
-            wire_packet: bytes,
-            log_repr: str
-        ) -> Tuple[Optional[int], Optional[bytes]]:
+    qid: int, wire_packet: bytes, log_repr: str
+) -> Tuple[Optional[int], Optional[bytes]]:
     """
     Worker: Return packet's data if it's not blacklisted
 
@@ -117,8 +118,7 @@ def wrk_process_wire_packet(
         pass
     else:
         if blacklist.is_blacklisted(msg):
-            logging.debug('Blacklisted query "%s", skipping QID %d',
-                          log_repr, qid)
+            logging.debug('Blacklisted query "%s", skipping QID %d', log_repr, qid)
             return None, None
     return qid, wire_packet
 
@@ -140,11 +140,14 @@ def msg_from_text(text):
     try:
         qname, qtype = text.split()
     except ValueError as e:
-        raise ValueError('space is only allowed as separator between qname qtype') from e
-    qname = dns.name.from_text(qname.encode('ascii'))
+        raise ValueError(
+            "space is only allowed as separator between qname qtype"
+        ) from e
+    qname = dns.name.from_text(qname.encode("ascii"))
     qtype = int_or_fromtext(qtype, dns.rdatatype.from_text)
-    msg = dns.message.make_query(qname, qtype, dns.rdataclass.IN,
-                                 want_dnssec=True, payload=4096)
+    msg = dns.message.make_query(
+        qname, qtype, dns.rdataclass.IN, want_dnssec=True, payload=4096
+    )
     return msg
 
 
@@ -152,22 +155,31 @@ def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,
-        description='Convert queries data from standard input and store '
-                    'wire format into LMDB "queries" DB.')
+        description="Convert queries data from standard input and store "
+        'wire format into LMDB "queries" DB.',
+    )
     cli.add_arg_envdir(parser)
-    parser.add_argument('-f', '--in-format', type=str, choices=['text', 'pcap'], default='text',
-                        help='define format for input data, default value is text\n'
-                             'Expected input for "text" is: "<qname> <RR type>", '
-                             'one query per line.\n'
-                             'Expected input for "pcap" is content of the pcap file.')
-    parser.add_argument('--pcap-file', type=argparse.FileType('rb'))
+    parser.add_argument(
+        "-f",
+        "--in-format",
+        type=str,
+        choices=["text", "pcap"],
+        default="text",
+        help="define format for input data, default value is text\n"
+        'Expected input for "text" is: "<qname> <RR type>", '
+        "one query per line.\n"
+        'Expected input for "pcap" is content of the pcap file.',
+    )
+    parser.add_argument("--pcap-file", type=argparse.FileType("rb"))
 
     args = parser.parse_args()
 
-    if args.in_format == 'text' and args.pcap_file:
-        logging.critical("Argument --pcap-file can be use only in combination with -f pcap")
+    if args.in_format == "text" and args.pcap_file:
+        logging.critical(
+            "Argument --pcap-file can be use only in combination with -f pcap"
+        )
         sys.exit(1)
-    if args.in_format == 'pcap' and not args.pcap_file:
+    if args.in_format == "pcap" and not args.pcap_file:
         logging.critical("Missing path to pcap file, use argument --pcap-file")
         sys.exit(1)
 
@@ -176,12 +188,12 @@ def main():
         txn = lmdb.env.begin(qdb, write=True)
         try:
             with pool.Pool(
-                    initializer=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN)
-                    ) as workers:
-                if args.in_format == 'text':
+                initializer=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN)
+            ) as workers:
+                if args.in_format == "text":
                     data_stream = read_lines(sys.stdin)
                     method = wrk_process_line
-                elif args.in_format == 'pcap':
+                elif args.in_format == "pcap":
                     data_stream = parse_pcap(args.pcap_file)
                     method = wrk_process_frame
                 else:
@@ -192,16 +204,16 @@ def main():
                         key = qid2key(qid)
                         txn.put(key, wire)
         except KeyboardInterrupt:
-            logging.info('SIGINT received, exiting...')
+            logging.info("SIGINT received, exiting...")
             sys.exit(130)
         except RuntimeError as err:
             logging.error(err)
             sys.exit(1)
         finally:
             # attempt to preserve data if something went wrong (or not)
-            logging.debug('Comitting LMDB transaction...')
+            logging.debug("Comitting LMDB transaction...")
             txn.commit()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
