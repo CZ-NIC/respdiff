@@ -21,7 +21,6 @@ import threading
 from typing import (
     Any,
     Dict,
-    List,
     Mapping,
     Optional,
     Sequence,
@@ -281,9 +280,8 @@ def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
             blength = sock.recv(2)
         except ssl.SSLWantReadError as e:
             raise TcpDnsLengthError("failed to recv DNS packet length") from e
-        else:
-            if len(blength) != 2:  # FIN / RST
-                raise TcpDnsLengthError("failed to recv DNS packet length")
+        if len(blength) != 2:  # FIN / RST
+            raise TcpDnsLengthError("failed to recv DNS packet length")
         (length,) = struct.unpack("!H", blength)
     else:
         length = 65535  # max. UDP message size, no IPv6 jumbograms

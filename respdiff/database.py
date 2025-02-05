@@ -199,7 +199,7 @@ class DNSReply:
         offset += cls.SIZEOF_INT
         (length,) = struct.unpack_from("<H", buff, offset)
         offset += cls.SIZEOF_SHORT
-        wire = buff[offset : (offset + length)]
+        wire = buff[offset:(offset + length)]
         offset += length
 
         if len(wire) != length:
@@ -246,8 +246,7 @@ class DNSRepliesFactory:
                 reply = replies[server]
             except KeyError as e:
                 raise ValueError('Missing reply for server "{}"!'.format(server)) from e
-            else:
-                data.append(reply.binary)
+            data.append(reply.binary)
         return b"".join(data)
 
 

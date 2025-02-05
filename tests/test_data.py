@@ -151,7 +151,7 @@ REPRODATA_JSON = """
 
 def test_data_mismatch_init():
     with pytest.raises(Exception):
-        DataMismatch(1, 1)
+        DataMismatch(1, 1)  # pylint: disable=pointless-exception-statement
 
 
 @pytest.mark.parametrize(
