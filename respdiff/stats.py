@@ -23,24 +23,26 @@ class Stats(JSONDataObject):
 
     Example: samples = [1540, 1613, 1489]
     """
+
     _ATTRIBUTES = {
-        'samples': (None, None),
-        'threshold': (None, None),
+        "samples": (None, None),
+        "threshold": (None, None),
     }
 
     class SamplePosition(Enum):
         """Position of a single sample against the rest of the distribution."""
+
         ABOVE_REF = 1
         ABOVE_THRESHOLD = 2
         NORMAL = 3
         BELOW_REF = 4
 
     def __init__(
-                self,
-                samples: Sequence[float] = None,
-                threshold: Optional[float] = None,
-                _restore_dict: Optional[Mapping[str, float]] = None
-            ) -> None:
+        self,
+        samples: Sequence[float] = None,
+        threshold: Optional[float] = None,
+        _restore_dict: Optional[Mapping[str, float]] = None,
+    ) -> None:
         """
         samples contain the entire data set of reference values of this parameter.
         If no custom threshold is provided, it is calculated automagically.
@@ -73,9 +75,9 @@ class Stats(JSONDataObject):
         return max(self.samples)
 
     def get_percentile_rank(self, sample: float) -> float:
-        return scipy.stats.percentileofscore(self.samples, sample, kind='weak')
+        return scipy.stats.percentileofscore(self.samples, sample, kind="weak")
 
-    def evaluate_sample(self, sample: float) -> 'Stats.SamplePosition':
+    def evaluate_sample(self, sample: float) -> "Stats.SamplePosition":
         if sample < self.min:
             return Stats.SamplePosition.BELOW_REF
         elif sample > self.max:
@@ -107,17 +109,15 @@ class MismatchStatistics(dict, JSONDataObject):
     """
 
     _ATTRIBUTES = {
-        'total': (
-            lambda x: Stats(_restore_dict=x),
-            lambda x: x.save()),
+        "total": (lambda x: Stats(_restore_dict=x), lambda x: x.save()),
     }
 
     def __init__(
-                self,
-                mismatch_counters_list: Optional[Sequence[Counter]] = None,
-                sample_size: Optional[int] = None,
-                _restore_dict: Optional[Mapping[str, Any]] = None
-            ) -> None:
+        self,
+        mismatch_counters_list: Optional[Sequence[Counter]] = None,
+        sample_size: Optional[int] = None,
+        _restore_dict: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         super().__init__()
         self.total = None
         if mismatch_counters_list is not None and sample_size is not None:
@@ -128,15 +128,15 @@ class MismatchStatistics(dict, JSONDataObject):
                     n += count
                     mismatch_key = str(mismatch.key)
                     samples[mismatch_key].append(count)
-                samples['total'].append(n)
+                samples["total"].append(n)
 
             # fill in missing samples
             for seq in samples.values():
                 seq.extend([0] * (sample_size - len(seq)))
 
             # create stats from samples
-            self.total = Stats(samples['total'])
-            del samples['total']
+            self.total = Stats(samples["total"])
+            del samples["total"]
             for mismatch_key, stats_seq in samples.items():
                 self[mismatch_key] = Stats(stats_seq)
         elif _restore_dict is not None:
@@ -166,17 +166,18 @@ class FieldStatistics(dict, JSONDataObject):
     """
 
     def __init__(
-                self,
-                summaries_list: Optional[Sequence[Summary]] = None,
-                _restore_dict: Optional[Mapping[str, Any]] = None
-            ) -> None:
+        self,
+        summaries_list: Optional[Sequence[Summary]] = None,
+        _restore_dict: Optional[Mapping[str, Any]] = None,
+    ) -> None:
         super().__init__()
         if summaries_list is not None:
             field_counters_list = [d.get_field_counters() for d in summaries_list]
             for field in ALL_FIELDS:
                 mismatch_counters_list = [fc[field] for fc in field_counters_list]
                 self[field] = MismatchStatistics(
-                    mismatch_counters_list, len(summaries_list))
+                    mismatch_counters_list, len(summaries_list)
+                )
         elif _restore_dict is not None:
             self.restore(_restore_dict)
 
@@ -194,32 +195,20 @@ class FieldStatistics(dict, JSONDataObject):
 
 class SummaryStatistics(JSONDataObject):
     _ATTRIBUTES = {
-        'sample_size': (None, None),
-        'upstream_unstable': (
-            lambda x: Stats(_restore_dict=x),
-            lambda x: x.save()),
-        'usable_answers': (
-            lambda x: Stats(_restore_dict=x),
-            lambda x: x.save()),
-        'not_reproducible': (
-            lambda x: Stats(_restore_dict=x),
-            lambda x: x.save()),
-        'target_disagreements': (
-            lambda x: Stats(_restore_dict=x),
-            lambda x: x.save()),
-        'fields': (
-            lambda x: FieldStatistics(_restore_dict=x),
-            lambda x: x.save()),
-        'queries': (
-            lambda x: QueryStatistics(_restore_dict=x),
-            lambda x: x.save()),
+        "sample_size": (None, None),
+        "upstream_unstable": (lambda x: Stats(_restore_dict=x), lambda x: x.save()),
+        "usable_answers": (lambda x: Stats(_restore_dict=x), lambda x: x.save()),
+        "not_reproducible": (lambda x: Stats(_restore_dict=x), lambda x: x.save()),
+        "target_disagreements": (lambda x: Stats(_restore_dict=x), lambda x: x.save()),
+        "fields": (lambda x: FieldStatistics(_restore_dict=x), lambda x: x.save()),
+        "queries": (lambda x: QueryStatistics(_restore_dict=x), lambda x: x.save()),
     }
 
     def __init__(
-                self,
-                reports: Sequence[DiffReport] = None,
-                _restore_dict: Mapping[str, Any] = None
-            ) -> None:
+        self,
+        reports: Sequence[DiffReport] = None,
+        _restore_dict: Mapping[str, Any] = None,
+    ) -> None:
         super().__init__()
         self.sample_size = None
         self.upstream_unstable = None
@@ -233,15 +222,18 @@ class SummaryStatistics(JSONDataObject):
             usable_reports = []
             for report in reports:
                 if report.summary is None:
-                    logging.warning('Empty diffsum in %s Omitting...', report.fileorigin)
+                    logging.warning(
+                        "Empty diffsum in %s Omitting...", report.fileorigin
+                    )
                 else:
                     usable_reports.append(report)
 
             summaries = [
-                report.summary for report in reports if report.summary is not None]
+                report.summary for report in reports if report.summary is not None
+            ]
             assert len(summaries) == len(usable_reports)
             if not summaries:
-                raise ValueError('No summaries found in reports!')
+                raise ValueError("No summaries found in reports!")
 
             self.sample_size = len(summaries)
             self.upstream_unstable = Stats([s.upstream_unstable for s in summaries])

@@ -8,8 +8,8 @@ The entire module keeps a global state, which enables its easy use with both
 threads or processes. Make sure not to break this compatibility.
 """
 
-
 from argparse import Namespace
+import logging
 import random
 import signal
 import selectors
@@ -18,7 +18,14 @@ import ssl
 import struct
 import time
 import threading
-from typing import Any, Dict, List, Mapping, Sequence, Tuple  # noqa: type hints
+from typing import (
+    Any,
+    Dict,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)  # noqa: type hints
 
 import dns.inet
 import dns.message
@@ -40,7 +47,9 @@ ResolverSockets = Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]
 # module-wide state variables
 __resolvers = []  # type: Sequence[Tuple[ResolverID, IP, Protocol, Port]]
 __worker_state = threading.local()
-__max_timeouts = 10  # crash when N consecutive timeouts are received from a single resolver
+__max_timeouts = (
+    10  # crash when N consecutive timeouts are received from a single resolver
+)
 __ignore_timeout = False
 __timeout = 16
 __time_delay_min = 0
@@ -56,6 +65,15 @@ class TcpDnsLengthError(ConnectionError):
     pass
 
 
+class ResolverConnectionError(ConnectionError):
+    def __init__(self, resolver: ResolverID, message: str):
+        super().__init__(message)
+        self.resolver = resolver
+
+    def __str__(self):
+        return f"[{self.resolver}] {super().__str__()}"
+
+
 def module_init(args: Namespace) -> None:
     global __resolvers
     global __max_timeouts
@@ -66,11 +84,11 @@ def module_init(args: Namespace) -> None:
     global __dnsreplies_factory
 
     __resolvers = get_resolvers(args.cfg)
-    __timeout = args.cfg['sendrecv']['timeout']
-    __time_delay_min = args.cfg['sendrecv']['time_delay_min']
-    __time_delay_max = args.cfg['sendrecv']['time_delay_max']
+    __timeout = args.cfg["sendrecv"]["timeout"]
+    __time_delay_min = args.cfg["sendrecv"]["time_delay_min"]
+    __time_delay_max = args.cfg["sendrecv"]["time_delay_max"]
     try:
-        __max_timeouts = args.cfg['sendrecv']['max_timeouts']
+        __max_timeouts = args.cfg["sendrecv"]["max_timeouts"]
     except KeyError:
         pass
     try:
@@ -125,7 +143,9 @@ def worker_perform_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBl
     return qkey, blob
 
 
-def worker_perform_single_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, RepliesBlob]:
+def worker_perform_single_query(
+    args: Tuple[QKey, WireFormat]
+) -> Tuple[QKey, RepliesBlob]:
     """Perform a single DNS query with setup and teardown of sockets. Used by diffrepro."""
     qkey, qwire = args
     worker_reinit()
@@ -140,12 +160,12 @@ def worker_perform_single_query(args: Tuple[QKey, WireFormat]) -> Tuple[QKey, Re
 
 
 def get_resolvers(
-            config: Mapping[str, Any]
-        ) -> Sequence[Tuple[ResolverID, IP, Protocol, Port]]:
+    config: Mapping[str, Any]
+) -> Sequence[Tuple[ResolverID, IP, Protocol, Port]]:
     resolvers = []
-    for resname in config['servers']['names']:
+    for resname in config["servers"]["names"]:
         rescfg = config[resname]
-        resolvers.append((resname, rescfg['ip'], rescfg['transport'], rescfg['port']))
+        resolvers.append((resname, rescfg["ip"], rescfg["transport"], rescfg["port"]))
     return resolvers
 
 
@@ -160,7 +180,9 @@ def _check_timeout(replies: Mapping[ResolverID, DNSReply]) -> None:
                 raise RuntimeError(
                     "Resolver '{}' timed-out {:d} times in a row. "
                     "Use '--ignore-timeout' to supress this error.".format(
-                        resolver, __max_timeouts))
+                        resolver, __max_timeouts
+                    )
+                )
 
 
 def make_ssl_context():
@@ -169,19 +191,19 @@ def make_ssl_context():
     # https://docs.python.org/3/library/ssl.html#tls-1-3
 
     # NOTE forcing TLS v1.2 is hacky, because of different py3/openssl versions...
-    if getattr(ssl, 'PROTOCOL_TLS', None) is not None:
+    if getattr(ssl, "PROTOCOL_TLS", None) is not None:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS)  # pylint: disable=no-member
     else:
         context = ssl.SSLContext()
 
-    if getattr(ssl, 'maximum_version', None) is not None:
+    if getattr(ssl, "maximum_version", None) is not None:
         context.maximum_version = ssl.TLSVersion.TLSv1_2  # pylint: disable=no-member
     else:
         context.options |= ssl.OP_NO_SSLv2
         context.options |= ssl.OP_NO_SSLv3
         context.options |= ssl.OP_NO_TLSv1
         context.options |= ssl.OP_NO_TLSv1_1
-        if getattr(ssl, 'OP_NO_TLSv1_3', None) is not None:
+        if getattr(ssl, "OP_NO_TLSv1_3", None) is not None:
             context.options |= ssl.OP_NO_TLSv1_3  # pylint: disable=no-member
 
     # turn off certificate verification
@@ -191,7 +213,9 @@ def make_ssl_context():
     return context
 
 
-def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]]:
+def sock_init(
+    retry: int = 3,
+) -> Tuple[Selector, Sequence[Tuple[ResolverID, Socket, IsStreamFlag]]]:
     sockets = []
     selector = selectors.DefaultSelector()
     for name, ipaddr, transport, port in __resolvers:
@@ -201,22 +225,22 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
         elif af == dns.inet.AF_INET6:
             destination = (ipaddr, port, 0, 0)
         else:
-            raise NotImplementedError('AF')
+            raise NotImplementedError("AF")
 
-        if transport in {'tcp', 'tls'}:
+        if transport in {"tcp", "tls"}:
             socktype = socket.SOCK_STREAM
             isstream = True
-        elif transport == 'udp':
+        elif transport == "udp":
             socktype = socket.SOCK_DGRAM
             isstream = False
         else:
-            raise NotImplementedError('transport: {}'.format(transport))
+            raise NotImplementedError("transport: {}".format(transport))
 
         # attempt to connect to socket
         attempt = 1
         while attempt <= retry:
             sock = socket.socket(af, socktype, 0)
-            if transport == 'tls':
+            if transport == "tls":
                 ctx = make_ssl_context()
                 sock = ctx.wrap_socket(sock)
             try:
@@ -224,7 +248,9 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
             except ConnectionRefusedError as e:  # TCP socket is closed
                 raise RuntimeError(
                     "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
-                        dest=destination)) from e
+                        dest=destination
+                    )
+                ) from e
             except OSError as exc:
                 if exc.errno != 0 and not isinstance(exc, ConnectionResetError):
                     raise
@@ -235,7 +261,9 @@ def sock_init(retry: int = 3) -> Tuple[Selector, Sequence[Tuple[ResolverID, Sock
                 if attempt > retry:
                     raise RuntimeError(
                         "socket: Failed to connect to {dest[0]} port {dest[1]}".format(
-                            dest=destination)) from exc
+                            dest=destination
+                        )
+                    ) from exc
             else:
                 break
         sock.setblocking(False)
@@ -251,37 +279,46 @@ def _recv_msg(sock: Socket, isstream: IsStreamFlag) -> WireFormat:
         try:
             blength = sock.recv(2)
         except ssl.SSLWantReadError as e:
-            raise TcpDnsLengthError('failed to recv DNS packet length') from e
-        else:
-            if len(blength) != 2:  # FIN / RST
-                raise TcpDnsLengthError('failed to recv DNS packet length')
-        (length, ) = struct.unpack('!H', blength)
+            raise TcpDnsLengthError("failed to recv DNS packet length") from e
+        if len(blength) != 2:  # FIN / RST
+            raise TcpDnsLengthError("failed to recv DNS packet length")
+        (length,) = struct.unpack("!H", blength)
     else:
         length = 65535  # max. UDP message size, no IPv6 jumbograms
     return sock.recv(length)
 
 
-def _send_recv_parallel(
-            dgram: WireFormat,  # DNS message suitable for UDP transport
-            selector: Selector,
-            sockets: ResolverSockets,
-            timeout: float
-        ) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
-    replies = {}  # type: Dict[ResolverID, DNSReply]
-    streammsg = None
+def _create_sendbuf(dnsdata: WireFormat, isstream: IsStreamFlag) -> bytes:
+    if isstream:  # prepend length, RFC 1035 section 4.2.2
+        length = len(dnsdata)
+        return struct.pack("!H", length) + dnsdata
+    return dnsdata
+
+
+def _get_resolver_from_sock(
+    sockets: ResolverSockets, sock: Socket
+) -> Optional[ResolverID]:
+    for resolver, resolver_sock, _ in sockets:
+        if sock == resolver_sock:
+            return resolver
+    return None
+
+
+def _recv_from_resolvers(
+    selector: Selector, sockets: ResolverSockets, msgid: bytes, timeout: float
+) -> Tuple[Dict[ResolverID, DNSReply], bool]:
+
+    def raise_resolver_exc(sock, exc):
+        resolver = _get_resolver_from_sock(sockets, sock)
+        if resolver is not None:
+            raise ResolverConnectionError(resolver, str(exc)) from exc
+        raise exc
+
     start_time = time.perf_counter()
     end_time = start_time + timeout
-    for _, sock, isstream in sockets:
-        if isstream:  # prepend length, RFC 1035 section 4.2.2
-            if not streammsg:
-                length = len(dgram)
-                streammsg = struct.pack('!H', length) + dgram
-            sock.sendall(streammsg)
-        else:
-            sock.sendall(dgram)
-
-    # receive replies
+    replies = {}  # type: Dict[ResolverID, DNSReply]
     reinit = False
+
     while len(replies) != len(sockets):
         remaining_time = end_time - time.perf_counter()
         if remaining_time <= 0:
@@ -293,16 +330,39 @@ def _send_recv_parallel(
             sock = key.fileobj
             try:
                 wire = _recv_msg(sock, isstream)
-            except TcpDnsLengthError:
+            except TcpDnsLengthError as exc:
                 if name in replies:  # we have a reply already, most likely TCP FIN
                     reinit = True
                     selector.unregister(sock)
                     continue  # receive answers from other parties
-                raise  # no reply -> raise error
-            # assert len(wire) > 14
-            if dgram[0:2] != wire[0:2]:
+                # no reply -> raise error
+                raise_resolver_exc(sock, exc)
+            except ConnectionError as exc:
+                raise_resolver_exc(sock, exc)
+            if msgid != wire[0:2]:
                 continue  # wrong msgid, this might be a delayed answer - ignore it
             replies[name] = DNSReply(wire, time.perf_counter() - start_time)
+
+    return replies, reinit
+
+
+def _send_recv_parallel(
+    dgram: WireFormat,  # DNS message suitable for UDP transport
+    selector: Selector,
+    sockets: ResolverSockets,
+    timeout: float,
+) -> Tuple[Mapping[ResolverID, DNSReply], ReinitFlag]:
+    # send queries
+    for resolver, sock, isstream in sockets:
+        sendbuf = _create_sendbuf(dgram, isstream)
+        try:
+            sock.sendall(sendbuf)
+        except ConnectionError as exc:
+            raise ResolverConnectionError(resolver, str(exc)) from exc
+
+    # receive replies
+    msgid = dgram[0:2]
+    replies, reinit = _recv_from_resolvers(selector, sockets, msgid, timeout)
 
     # set missing replies as timeout
     for resolver, *_ in sockets:  # type: ignore  # python/mypy#465
@@ -313,10 +373,11 @@ def _send_recv_parallel(
 
 
 def send_recv_parallel(
-            dgram: WireFormat,  # DNS message suitable for UDP transport
-            timeout: float,
-            reinit_on_tcpfin: bool = True
-        ) -> Mapping[ResolverID, DNSReply]:
+    dgram: WireFormat,  # DNS message suitable for UDP transport
+    timeout: float,
+    reinit_on_tcpfin: bool = True,
+) -> Mapping[ResolverID, DNSReply]:
+    problematic = []
     for _ in range(CONN_RESET_RETRIES + 1):
         try:  # get sockets and selector
             selector = __worker_state.selector
@@ -331,9 +392,19 @@ def send_recv_parallel(
                 worker_deinit()
                 worker_reinit()
             return replies
-        except (TcpDnsLengthError, ConnectionError):  # most likely TCP RST
+        # The following exception handling is typically triggered by TCP RST,
+        # but it could also indicate some issue with one of the resolvers.
+        except ResolverConnectionError as exc:
+            problematic.append(exc.resolver)
+            logging.debug(exc)
+            worker_deinit()  # re-establish connection
+            worker_reinit()
+        except ConnectionError as exc:  # most likely TCP RST
+            logging.debug(exc)
             worker_deinit()  # re-establish connection
             worker_reinit()
     raise RuntimeError(
-        'ConnectionError received {} times in a row, exiting!'.format(
-            CONN_RESET_RETRIES + 1))
+        "ConnectionError received {} times in a row ({}), exiting!".format(
+            CONN_RESET_RETRIES + 1, ", ".join(problematic)
+        )
+    )

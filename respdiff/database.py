@@ -4,7 +4,16 @@ import os
 import struct
 import time
 from typing import (  # noqa
-    Any, Callable, Dict, Iterator, List, Mapping, Optional, Tuple, Sequence)
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Sequence,
+)
 
 import dns.exception
 import dns.message
@@ -13,53 +22,56 @@ import lmdb
 from .typing import ResolverID, QID, QKey, WireFormat
 
 
-BIN_FORMAT_VERSION = '2018-05-21'
+BIN_FORMAT_VERSION = "2018-05-21"
 
 
 def qid2key(qid: QID) -> QKey:
-    return struct.pack('<I', qid)
+    return struct.pack("<I", qid)
 
 
 def key2qid(key: QKey) -> QID:
-    return struct.unpack('<I', key)[0]
+    return struct.unpack("<I", key)[0]
 
 
 class LMDB:
-    ANSWERS = b'answers'
-    DIFFS = b'diffs'
-    QUERIES = b'queries'
-    META = b'meta'
+    ANSWERS = b"answers"
+    DIFFS = b"diffs"
+    QUERIES = b"queries"
+    META = b"meta"
 
     ENV_DEFAULTS = {
-        'map_size': 10 * 1024**3,  # 10 G
-        'max_readers': 384,
-        'max_dbs': 5,
-        'max_spare_txns': 64,
+        "map_size": 10 * 1024**3,  # 10 G
+        "max_readers": 384,
+        "max_dbs": 5,
+        "max_spare_txns": 64,
     }  # type: Dict[str, Any]
 
     DB_OPEN_DEFAULTS = {
-        'integerkey': False,
+        "integerkey": False,
         # surprisingly, optimal configuration seems to be
         # native integer as database key *without*
         # integerkey support in LMDB
     }  # type: Dict[str, Any]
 
-    def __init__(self, path: str, create: bool = False,
-                 readonly: bool = False, fast: bool = False) -> None:
+    def __init__(
+        self,
+        path: str,
+        create: bool = False,
+        readonly: bool = False,
+        fast: bool = False,
+    ) -> None:
         self.path = path
         self.dbs = {}  # type: Dict[bytes, Any]
         self.config = LMDB.ENV_DEFAULTS.copy()
-        self.config.update({
-            'path': path,
-            'create': create,
-            'readonly': readonly
-        })
+        self.config.update({"path": path, "create": create, "readonly": readonly})
         if fast:  # unsafe on crashes, but faster
-            self.config.update({
-                'writemap': True,
-                'sync': False,
-                'map_async': True,
-            })
+            self.config.update(
+                {
+                    "writemap": True,
+                    "sync": False,
+                    "map_async": True,
+                }
+            )
 
         if not os.path.exists(self.path):
             os.makedirs(self.path)
@@ -71,17 +83,25 @@ class LMDB:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.env.close()
 
-    def open_db(self, dbname: bytes, create: bool = False,
-                check_notexists: bool = False, drop: bool = False):
+    def open_db(
+        self,
+        dbname: bytes,
+        create: bool = False,
+        check_notexists: bool = False,
+        drop: bool = False,
+    ):
         assert self.env is not None, "LMDB wasn't initialized!"
         if not create and not self.exists_db(dbname):
             msg = 'LMDB environment "{}" does not contain DB "{}"! '.format(
-                self.path, dbname.decode('utf-8'))
+                self.path, dbname.decode("utf-8")
+            )
             raise RuntimeError(msg)
         if check_notexists and self.exists_db(dbname):
-            msg = ('LMDB environment "{}" already contains DB "{}"! '
-                   'Overwritting it would invalidate data in the environment, '
-                   'terminating.').format(self.path, dbname.decode('utf-8'))
+            msg = (
+                'LMDB environment "{}" already contains DB "{}"! '
+                "Overwritting it would invalidate data in the environment, "
+                "terminating."
+            ).format(self.path, dbname.decode("utf-8"))
             raise RuntimeError(msg)
         if drop:
             try:
@@ -106,7 +126,9 @@ class LMDB:
         try:
             return self.dbs[dbname]
         except KeyError as e:
-            raise ValueError("Database {} isn't open!".format(dbname.decode('utf-8'))) from e
+            raise ValueError(
+                "Database {} isn't open!".format(dbname.decode("utf-8"))
+            ) from e
 
     def key_stream(self, dbname: bytes) -> Iterator[bytes]:
         """yield all keys from given db"""
@@ -129,70 +151,69 @@ class DNSReply:
     TIMEOUT_INT = 4294967295
     SIZEOF_INT = 4
     SIZEOF_SHORT = 2
-    WIREFORMAT_VALID = 'Valid'
+    WIREFORMAT_VALID = "Valid"
 
     def __init__(self, wire: Optional[WireFormat], time_: float = 0) -> None:
         if wire is None:
-            self.wire = b''
-            self.time = float('+inf')
+            self.wire = b""
+            self.time = float("+inf")
         else:
             self.wire = wire
             self.time = time_
 
     @property
     def timeout(self) -> bool:
-        return self.time == float('+inf')
+        return self.time == float("+inf")
 
     def __eq__(self, other) -> bool:
         if self.timeout and other.timeout:
             return True
         # float equality comparison: use 10^-7 tolerance since it's less than available
         # resoltuion from the time_int integer value (which is 10^-6)
-        return self.wire == other.wire and \
-            abs(self.time - other.time) < 10 ** -7
+        return self.wire == other.wire and abs(self.time - other.time) < 10**-7
 
     @property
     def time_int(self) -> int:
-        if self.time == float('+inf'):
+        if self.time == float("+inf"):
             return self.TIMEOUT_INT
-        value = round(self.time * (10 ** 6))
+        value = round(self.time * (10**6))
         if value > self.TIMEOUT_INT:
             raise ValueError(
                 'Maximum time value exceeded: (value: "{}", max: {})'.format(
-                    value, self.TIMEOUT_INT))
+                    value, self.TIMEOUT_INT
+                )
+            )
         return value
 
     @property
     def binary(self) -> bytes:
         length = len(self.wire)
-        return struct.pack('<I', self.time_int) + struct.pack('<H', length) + self.wire
+        return struct.pack("<I", self.time_int) + struct.pack("<H", length) + self.wire
 
     @classmethod
-    def from_binary(cls, buff: bytes) -> Tuple['DNSReply', bytes]:
+    def from_binary(cls, buff: bytes) -> Tuple["DNSReply", bytes]:
         if len(buff) < (cls.SIZEOF_INT + cls.SIZEOF_SHORT):
-            raise ValueError('Missing data in binary format')
+            raise ValueError("Missing data in binary format")
         offset = 0
-        time_int, = struct.unpack_from('<I', buff, offset)
+        (time_int,) = struct.unpack_from("<I", buff, offset)
         offset += cls.SIZEOF_INT
-        length, = struct.unpack_from('<H', buff, offset)
+        (length,) = struct.unpack_from("<H", buff, offset)
         offset += cls.SIZEOF_SHORT
-        wire = buff[offset:(offset+length)]
+        wire = buff[offset:(offset + length)]
         offset += length
 
         if len(wire) != length:
-            raise ValueError('Missing data in binary format')
+            raise ValueError("Missing data in binary format")
 
         if time_int == cls.TIMEOUT_INT:
-            time_ = float('+inf')
+            time_ = float("+inf")
         else:
-            time_ = time_int / (10 ** 6)
+            time_ = time_int / (10**6)
         reply = DNSReply(wire, time_)
 
         return reply, buff[offset:]
 
-    def parse_wire(
-                self
-            ) -> Tuple[Optional[dns.message.Message], str]:
+    def parse_wire(self) -> Tuple[Optional[dns.message.Message], str]:
         try:
             return dns.message.from_wire(self.wire), self.WIREFORMAT_VALID
         except dns.exception.FormError as exc:
@@ -201,9 +222,10 @@ class DNSReply:
 
 class DNSRepliesFactory:
     """Thread-safe factory to parse DNSReply objects from binary blob."""
+
     def __init__(self, servers: Sequence[ResolverID]) -> None:
         if not servers:
-            raise ValueError('One or more servers have to be specified')
+            raise ValueError("One or more servers have to be specified")
         self.servers = servers
 
     def parse(self, buff: bytes) -> Dict[ResolverID, DNSReply]:
@@ -212,25 +234,24 @@ class DNSRepliesFactory:
             reply, buff = DNSReply.from_binary(buff)
             replies[server] = reply
         if buff:
-            raise ValueError('Trailing data in buffer')
+            raise ValueError("Trailing data in buffer")
         return replies
 
     def serialize(self, replies: Mapping[ResolverID, DNSReply]) -> bytes:
         if len(replies) > len(self.servers):
-            raise ValueError('Extra unexpected data to serialize!')
+            raise ValueError("Extra unexpected data to serialize!")
         data = []
         for server in self.servers:
             try:
                 reply = replies[server]
             except KeyError as e:
                 raise ValueError('Missing reply for server "{}"!'.format(server)) from e
-            else:
-                data.append(reply.binary)
-        return b''.join(data)
+            data.append(reply.binary)
+        return b"".join(data)
 
 
 class Database(ABC):
-    DB_NAME = b''
+    DB_NAME = b""
 
     def __init__(self, lmdb_, create: bool = False) -> None:
         self.lmdb = lmdb_
@@ -242,14 +263,16 @@ class Database(ABC):
         # ensure database is open
         if self.db is None:
             if not self.DB_NAME:
-                raise RuntimeError('No database to initialize!')
+                raise RuntimeError("No database to initialize!")
             try:
                 self.db = self.lmdb.get_db(self.DB_NAME)
             except ValueError:
                 try:
                     self.db = self.lmdb.open_db(self.DB_NAME, create=self.create)
                 except lmdb.Error as exc:
-                    raise RuntimeError('Failed to open LMDB database: {}'.format(exc)) from exc
+                    raise RuntimeError(
+                        "Failed to open LMDB database: {}".format(exc)
+                    ) from exc
 
         with self.lmdb.env.begin(self.db, write=write) as txn:
             yield txn
@@ -258,8 +281,11 @@ class Database(ABC):
         with self.transaction() as txn:
             data = txn.get(key)
         if data is None:
-            raise KeyError("Missing '{}' key in '{}' database!".format(
-                key.decode('ascii'), self.DB_NAME.decode('ascii')))
+            raise KeyError(
+                "Missing '{}' key in '{}' database!".format(
+                    key.decode("ascii"), self.DB_NAME.decode("ascii")
+                )
+            )
         return data
 
     def write_key(self, key: bytes, value: bytes) -> None:
@@ -269,18 +295,15 @@ class Database(ABC):
 
 class MetaDatabase(Database):
     DB_NAME = LMDB.META
-    KEY_VERSION = b'version'
-    KEY_START_TIME = b'start_time'
-    KEY_END_TIME = b'end_time'
-    KEY_SERVERS = b'servers'
-    KEY_NAME = b'name'
+    KEY_VERSION = b"version"
+    KEY_START_TIME = b"start_time"
+    KEY_END_TIME = b"end_time"
+    KEY_SERVERS = b"servers"
+    KEY_NAME = b"name"
 
     def __init__(
-                self,
-                lmdb_,
-                servers: Sequence[ResolverID],
-                create: bool = False
-            ) -> None:
+        self, lmdb_, servers: Sequence[ResolverID], create: bool = False
+    ) -> None:
         super().__init__(lmdb_, create)
         if create:
             self.write_servers(servers)
@@ -291,38 +314,41 @@ class MetaDatabase(Database):
     def read_servers(self) -> List[ResolverID]:
         servers = []
         ndata = self.read_key(self.KEY_SERVERS)
-        n, = struct.unpack('<I', ndata)
+        (n,) = struct.unpack("<I", ndata)
         for i in range(n):
-            key = self.KEY_NAME + str(i).encode('ascii')
+            key = self.KEY_NAME + str(i).encode("ascii")
             server = self.read_key(key)
-            servers.append(server.decode('ascii'))
+            servers.append(server.decode("ascii"))
         return servers
 
     def write_servers(self, servers: Sequence[ResolverID]) -> None:
         if not servers:
             raise ValueError("Empty list of servers!")
-        n = struct.pack('<I', len(servers))
+        n = struct.pack("<I", len(servers))
         self.write_key(self.KEY_SERVERS, n)
         for i, server in enumerate(servers):
-            key = self.KEY_NAME + str(i).encode('ascii')
-            self.write_key(key, server.encode('ascii'))
+            key = self.KEY_NAME + str(i).encode("ascii")
+            self.write_key(key, server.encode("ascii"))
 
     def check_servers(self, servers: Sequence[ResolverID]) -> None:
         db_servers = self.read_servers()
         if not servers == db_servers:
             raise NotImplementedError(
                 'Servers defined in config differ from the ones in "meta" database! '
-                '(config: "{}", meta db: "{}")'.format(servers, db_servers))
+                '(config: "{}", meta db: "{}")'.format(servers, db_servers)
+            )
 
     def write_version(self) -> None:
-        self.write_key(self.KEY_VERSION, BIN_FORMAT_VERSION.encode('ascii'))
+        self.write_key(self.KEY_VERSION, BIN_FORMAT_VERSION.encode("ascii"))
 
     def check_version(self) -> None:
-        version = self.read_key(self.KEY_VERSION).decode('ascii')
+        version = self.read_key(self.KEY_VERSION).decode("ascii")
         if version != BIN_FORMAT_VERSION:
             raise NotImplementedError(
                 'LMDB version mismatch! (expected "{}", got "{}")'.format(
-                    BIN_FORMAT_VERSION, version))
+                    BIN_FORMAT_VERSION, version
+                )
+            )
 
     def write_start_time(self, timestamp: Optional[int] = None) -> None:
         self._write_timestamp(self.KEY_START_TIME, timestamp)
@@ -342,10 +368,10 @@ class MetaDatabase(Database):
         except KeyError:
             return None
         else:
-            return struct.unpack('<I', data)[0]
+            return struct.unpack("<I", data)[0]
 
     def _write_timestamp(self, key: bytes, timestamp: Optional[int]) -> None:
         if timestamp is None:
             timestamp = round(time.time())
-        data = struct.pack('<I', timestamp)
+        data = struct.pack("<I", timestamp)
         self.write_key(key, data)

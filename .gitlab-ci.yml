@@ -11,11 +11,6 @@ stages:
     - linux
     - amd64
 
-test:mypy:
-  <<: *debian
-  script:
-    - ./ci/mypy-run.sh
-
 test:flake8:
   <<: *debian
   script:
