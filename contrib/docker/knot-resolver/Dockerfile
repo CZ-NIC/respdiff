@@ -13,7 +13,7 @@ RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
 RUN chmod 0600 /root/.ssh/id_rsa
 
 RUN touch /root/.ssh/known_hosts
-RUN ssh-keyscan gitlab.nic.cz >> /root/.ssh/known_hosts
+RUN ssh-keyscan -4 gitlab.nic.cz >> /root/.ssh/known_hosts
 
 RUN git clone --recursive -j8 https://gitlab.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
 RUN \
