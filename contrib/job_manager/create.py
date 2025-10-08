@@ -228,7 +228,7 @@ def main() -> None:
     parser.add_argument(
         "--knot-branch",
         type=str,
-        default="3.1",
+        default="3.5",
         help="Build knot-resolver against selected Knot DNS branch",
     )
     parser.add_argument(
