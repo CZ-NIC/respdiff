@@ -1,5 +1,5 @@
 FROM ubuntu:22.04
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 ARG KNOT_BRANCH
 ENV DEBIAN_FRONTEND=noninteractive
 

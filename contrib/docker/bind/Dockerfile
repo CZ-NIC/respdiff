@@ -1,5 +1,5 @@
 FROM ubuntu:20.04
-MAINTAINER Petr Špaček <pspacek@isc.org>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 
 ENV DEBIAN_FRONTEND noninteractive
 

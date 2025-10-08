@@ -29,7 +29,7 @@ RUN \
 
 # actual image
 FROM registry.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 ARG MESONARGS
 ARG CFLAGS
 ENV DEBIAN_FRONTEND=noninteractive
