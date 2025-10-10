@@ -38,7 +38,7 @@ services:
     {%- endif -%}
 
     {%- if resolver['type'] == 'bind' %}
-    image: registry.nic.cz/knot/respdiff/bind:v9_16_6
+    image: registry.nic.cz/knot/respdiff/bind:v9_20_11
     volumes:
       - "./{{ name }}.conf:/etc/bind9/named.conf:ro"
       - "./rfc1912.zones:/etc/bind9/rfc1912.zones:ro"
