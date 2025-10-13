@@ -135,8 +135,7 @@ class LMDB:
         db = self.get_db(dbname)
         with self.env.begin(db) as txn:
             cur = txn.cursor(db)
-            for key in cur.iternext(keys=True, values=False):
-                yield key
+            yield from cur.iternext(keys=True, values=False)
 
     def key_value_stream(self, dbname: bytes) -> Iterator[Tuple[bytes, bytes]]:
         """yield all (key, value) pairs from given db"""
