@@ -120,7 +120,7 @@ popd
 
 # submit new ref jobs to condor
 NEW_LABEL=r$(date +%s)
-${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 0 -c 5 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL})
+${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 0 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL})
 
 # update the ref_additional link
 pushd ${JOBDIR}
