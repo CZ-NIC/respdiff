@@ -64,9 +64,9 @@ set -o xtrace
 set -o errexit
 
 cleanup() {
-    docker-compose --ansi never ps
-    docker-compose --ansi never logs &>>${JOBNAME}_docker.txt || :
-    docker-compose --ansi never rm -fsv || :
+    docker compose --ansi never ps
+    docker compose --ansi never logs &>>${JOBNAME}_docker.txt || :
+    docker compose --ansi never rm -fsv || :
     pushd logs
     for coredump in kresd*/core*; do
         test -f $coredump || continue
@@ -92,13 +92,13 @@ set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
-time docker-compose --ansi never up --no-start >&2
+time docker compose --ansi never up --no-start >&2
 # Start and wait for resolvers to be available
 ./restart-all.sh
 
 # Run respdiff toolchain
 time "{{ respdiff['srcdir'] }}/orchestrator.py" .
-docker-compose --ansi never stop  # give lingering connections time to close
+docker compose --ansi never stop  # give lingering connections time to close
 time "respdiff-msgdiff" -d ${JOBNAME}_report.json .
 cp ${JOBNAME}_report{,.diffrepro}.json
 time "{{ respdiff['srcdir'] }}/diffrepro.py" -d ${JOBNAME}_report.diffrepro.json .
