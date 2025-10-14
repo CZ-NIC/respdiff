@@ -19,6 +19,7 @@ JOB_STATUS_RUNNING = 2
 # Silence pylint
 Submit = None
 Schedd = None
+JobAction = None
 
 
 def get_all_files(directory: str) -> List[str]:
@@ -30,7 +31,7 @@ def get_all_files(directory: str) -> List[str]:
     return files
 
 
-def condor_submit(txn, priority: int) -> int:
+def condor_submit(priority: int) -> int:
     directory = os.getcwd()
     input_files = get_all_files(directory)
 
@@ -97,7 +98,7 @@ def condor_submit(txn, priority: int) -> int:
             "transfer_output_files": ", ".join(output_files),
         }
     )
-    return submit.queue(txn)
+    return submit
 
 
 @contextlib.contextmanager
@@ -125,7 +126,7 @@ def condor_wait_for(schedd, job_ids: Sequence[int]) -> None:
             or worst_pos != prev_worst_pos
         ):
             logging.info(
-                "  remaning: %2d (running: %2d)     worst queue position: %2d",
+                "  remaining: %2d (running: %2d)     worst queue position: %2d",
                 remaining,
                 running,
                 worst_pos + 1,
@@ -191,12 +192,23 @@ def main() -> None:
     job_ids = collections.defaultdict(list)  # type: Dict[str, List[int]]
     schedd = Schedd()
 
-    with schedd.transaction() as txn:
-        # submit jobs one-by-one to ensure round-robin job execution (instead of seq)
+    try:
         for _ in range(args.count):
             for directory in args.job_dir:
                 with pushd(directory):
-                    job_ids[directory].append(condor_submit(txn, args.priority))
+                    submit_result = schedd.submit(condor_submit(args.priority))
+                    job_ids[directory].append(submit_result.cluster())
+    except Exception as e:
+        # Manual rollback since Schedd.transaction was deprecated in htcondor 10.7.0
+        print(f"Error: {e}. Rolling back submissions...")
+        for directory, jobs in job_ids.items():
+            for job in jobs:
+                try:
+                    schedd.act(JobAction.Remove, f"ClusterId == {job}")
+                    print(f"Removed cluster {job}")
+                except Exception as cleanup_err:
+                    print(f"Failed to remove cluster {job}: {cleanup_err}")
+        raise
 
     for directory, jobs in job_ids.items():
         logging.info("%s JOB ID(s): %s", directory, ", ".join(str(j) for j in jobs))
@@ -224,7 +236,7 @@ if __name__ == "__main__":
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # trigger UserWarning which causes ImportError
         try:
-            from htcondor import Submit, Schedd
+            from htcondor2 import Submit, Schedd, JobAction
         except (ImportError, UserWarning):
             logging.error("HTCondor not detected. Use this script on a submit machine.")
             sys.exit(1)
