@@ -16,6 +16,10 @@ import warnings
 WAIT_POLLING_PERIOD = 30
 JOB_STATUS_RUNNING = 2
 
+# Silence pylint
+Submit = None
+Schedd = None
+
 
 def get_all_files(directory: str) -> List[str]:
     files = []

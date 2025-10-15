@@ -1,7 +1,7 @@
 #!/bin/bash
 # define common variables for image build scripts
 
-KNOT_BRANCH="${KNOT_BRANCH:-3.1}"
+KNOT_BRANCH="${KNOT_BRANCH:-3.5}"
 
 REGISTRY="registry.nic.cz/knot/respdiff"
 IMAGE=$1

@@ -126,6 +126,7 @@ def reproduce_queries(
     dnsreplies_factory: DNSRepliesFactory,
     criteria: Sequence[FieldLabel],
     target: ResolverID,
+    *,
     restart_scripts: Optional[Mapping[ResolverID, str]] = None,
     nproc: int = 1,
 ) -> None:

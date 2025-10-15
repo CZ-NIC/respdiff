@@ -1,11 +1,11 @@
-FROM ubuntu:focal
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+FROM ubuntu:22.04
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 ARG GIT_TAG
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update -qq
 RUN apt-get upgrade -y -qqq
-RUN apt-get install -y -qqq build-essential git make wget libssl-dev libexpat1-dev libevent-dev libnghttp2-dev
+RUN apt-get install -y -qqq build-essential git make wget libssl-dev libexpat1-dev libevent-dev libnghttp2-dev flex bison
 
 RUN git clone --depth 1 --branch=$GIT_TAG https://github.com/NLnetLabs/unbound.git /var/opt/unbound
 WORKDIR /var/opt/unbound

@@ -1,5 +1,5 @@
 FROM ubuntu:focal
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 
 RUN apt-get update
 RUN apt-get install -y -qqq git wget build-essential bind9utils libbind-dev libssl-dev libkrb5-dev libcap-dev libxml2-dev libjson-c-dev libgeoip-dev libnghttp2-dev

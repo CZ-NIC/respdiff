@@ -1,5 +1,5 @@
 FROM ubuntu:focal
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 ENV DEBIAN_FRONTEND=noninteractive
 ARG GIT_TAG
 

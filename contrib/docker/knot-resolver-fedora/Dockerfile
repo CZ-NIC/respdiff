@@ -1,5 +1,5 @@
 FROM fedora:latest
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 
 # Knot DNS (build), Knot Resolver (build + runtime) dependencies
 RUN dnf install -y \

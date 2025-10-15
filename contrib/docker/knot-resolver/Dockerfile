@@ -1,4 +1,4 @@
-ARG KNOT_BRANCH=3.1
+ARG KNOT_BRANCH=3.5
 
 # first build stage, it will not persist in the final image
 FROM registry.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH as intermediate
@@ -13,7 +13,7 @@ RUN echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa
 RUN chmod 0600 /root/.ssh/id_rsa
 
 RUN touch /root/.ssh/known_hosts
-RUN ssh-keyscan gitlab.nic.cz >> /root/.ssh/known_hosts
+RUN ssh-keyscan -4 gitlab.nic.cz >> /root/.ssh/known_hosts
 
 RUN git clone --recursive -j8 https://gitlab.nic.cz/knot/knot-resolver.git /var/opt/knot-resolver
 RUN \
@@ -29,7 +29,7 @@ RUN \
 
 # actual image
 FROM registry.nic.cz/knot/respdiff/knot-resolver-buildenv:knot-$KNOT_BRANCH
-MAINTAINER Knot Resolver <knot-resolver@labs.nic.cz>
+LABEL org.opencontainers.image.authors="Knot Resolver <knot-resolver@labs.nic.cz>"
 ARG MESONARGS
 ARG CFLAGS
 ENV DEBIAN_FRONTEND=noninteractive

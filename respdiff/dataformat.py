@@ -236,8 +236,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
         return Diff(qid, diff_mismatches)
 
     def __iter__(self) -> Iterator[QID]:
-        for qid in self.keys():
-            yield qid
+        yield from self.keys()
 
     def __len__(self) -> int:
         return len(self.keys())
@@ -453,7 +452,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         "reprodata": (lambda x: ReproData(_restore_dict=x), lambda x: x.save()),
     }
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-positional-arguments
         self,
         start_time: Optional[int] = None,
         end_time: Optional[int] = None,

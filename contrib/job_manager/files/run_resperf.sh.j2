@@ -5,8 +5,8 @@ JOBNAME=j$1.$2
 
 exit_handler() {
     exitcode=$?
-    docker-compose --no-ansi logs &>>${JOBNAME}_docker.txt || :
-    docker-compose --no-ansi rm -fsv || :
+    docker compose --no-ansi logs &>>${JOBNAME}_docker.txt || :
+    docker compose --no-ansi rm -fsv || :
     echo "$exitcode" > ${JOBNAME}_exitcode
     pushd logs
     for coredump in kresd*/core*; do
@@ -30,7 +30,7 @@ tar -czf ${JOBNAME}_logs.tar.gz -T /dev/null  # empty tar by default
 mkdir -p docker-knot-resolver || :
 mv -t docker-knot-resolver/ Dockerfile kresd.entrypoint.sh || :
 
-# HACK (condor): set PATH, otherwise docker-compose exec will fail
+# HACK (condor): set PATH, otherwise docker compose exec will fail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Check no other docker containers are running
@@ -52,7 +52,7 @@ set -o xtrace
 
 # Attempt to build containers (to have stdout/err logs in case of failure)
 export KNOT_BRANCH={{ knot_branch }}
-time docker-compose --no-ansi up --no-start
+time docker compose --no-ansi up --no-start
 
 # Run resperf test repeatedly
 for i in $(seq 3); do
@@ -87,8 +87,8 @@ for i in $(seq 3); do
     set -o xtrace
 
     # Execute resperf
-    docker-compose --no-ansi up -d
+    docker compose --no-ansi up -d
     docker run --network host registry.nic.cz/knot/respdiff/resperf:shortlist3 -q 500000 -m 10000 -C 200 -c 30 -d shortlist -t 15 -r 0 -s 127.0.0.1 -p {{ resperf['port'] }} &>>${JOBNAME}_resperf.txt
-    docker-compose --no-ansi stop
-    docker-compose --no-ansi ps | (! grep 'Exit [1-9]')
+    docker compose --no-ansi stop
+    docker compose --no-ansi ps | (! grep 'Exit [1-9]')
 done

@@ -50,8 +50,8 @@ def main():
                 dnsreplies_factory,
                 args.cfg["diff"]["criteria"],
                 args.cfg["diff"]["target"],
-                restart_scripts,
-                nproc,
+                restart_scripts=restart_scripts,
+                nproc=nproc,
             )
         finally:
             # make sure data is saved in case of interrupt
