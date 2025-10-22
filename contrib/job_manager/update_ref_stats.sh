@@ -125,4 +125,10 @@ ${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 0 -c 1 $(${RESPDIFF_SRC}/contri
 # update the ref_additional link
 pushd ${JOBDIR}
 ln -sf "${NEW_VERSION}-${NEW_LABEL}" ref_additional
+find . -maxdepth 1 \
+  -not -name 'master' \
+  -not -name 'buffer' \
+  -not -name 'ref_current' \
+  -not -name 'ref_additional' \
+  -mtime +3 -exec rm -rf {} +
 popd
