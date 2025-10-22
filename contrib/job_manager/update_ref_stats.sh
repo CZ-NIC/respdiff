@@ -75,6 +75,7 @@ if [ -h "${ADDDIR}" ]; then
                         mkdir -p ${MASTERDIR}/${TESTCASE}
                         cp -t ${MASTERDIR}/${TESTCASE}/ ${BUFFDIR}/${TESTCASE}/*.json
                         cp -t ${MASTERDIR}/${TESTCASE}/ ${ADDDIR}/${TESTCASE}/*.json
+                        cp -t ${MASTERDIR}/${TESTCASE}/ ${RESPDIFF_SRC}/respdiff.cfg
 
                         # clear buffer
                         rm -rf ${BUFFDIR}/${TESTCASE} ${BUFFSTATFILE} ${BUFFSTATFILE_D}
@@ -87,6 +88,7 @@ if [ -h "${ADDDIR}" ]; then
                         # create new buffer
                         mkdir -p ${BUFFDIR}/${TESTCASE}
                         cp -ft ${BUFFDIR}/${TESTCASE}/ ${ADDDIR}/${TESTCASE}/*.json
+                        cp -t ${BUFFDIR}/${TESTCASE}/ ${RESPDIFF_SRC}/respdiff.cfg
                     fi
                 else
                     # doesn't match reference, buffer was empty
@@ -96,6 +98,7 @@ if [ -h "${ADDDIR}" ]; then
                     # create new buffer
                     mkdir -p ${BUFFDIR}/${TESTCASE}
                     cp -t ${BUFFDIR}/${TESTCASE}/ ${ADDDIR}/${TESTCASE}/*.json
+                    cp -t ${BUFFDIR}/${TESTCASE}/ ${RESPDIFF_SRC}/respdiff.cfg
                 fi
             fi
         fi
