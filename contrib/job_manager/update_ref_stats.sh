@@ -2,6 +2,8 @@
 # Update and re-generate statistics from latest samples. Queue new jobs.
 set -o errexit -o nounset -o xtrace
 
+TEST_SUITE=odvr
+
 RESPDIFF_SRC=/var/opt/respdiff
 JOBDIR=/var/tmp/respdiff-jobs
 ADDDIR=${JOBDIR}/ref_additional
@@ -123,6 +125,7 @@ popd
 
 # submit new ref jobs to condor
 NEW_LABEL=r$(date +%s)
+${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 1 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL} -a ${TEST_SUITE})
 ${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 0 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL})
 
 # update the ref_additional link
