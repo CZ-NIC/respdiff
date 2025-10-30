@@ -77,12 +77,20 @@ cleanup() {
     tar --use-compress-program=pigz -cf ${JOBNAME}_logs.tar.gz logs &>/dev/null || :
 {%if database['remove_after'] %}
     rm -rf ./*.mdb || :
+    {%if 'token' in database %}
+        rm -rf {{ database['token']['dest'] }}
+    {% endif %}
 {% endif %}
 }
 trap cleanup EXIT
 
 # Get database
-wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
+{%if 'token' in database %}
+    GITLAB_TOKEN=$(cat {{ database['token']['dest'] }})
+    wget --quiet -O {{ database['dest'] }} --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" {{ database['url'] }}
+{% else %}
+    wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
+{% endif %}
 
 # Prepare ssh key for knot-resolver-security
 set +o xtrace
