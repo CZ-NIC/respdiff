@@ -205,7 +205,6 @@ def format_stats_line(
     pct: float = None,
     diff: int = None,
     diff_pct: float = None,
-    *,
     additional: str = None,
 ) -> str:
     s = {}  # type: Dict[str, str]
