@@ -43,6 +43,24 @@ def belongs_to_all(ref: SummaryStatistics, new: SummaryStatistics, coef: float) 
     return True
 
 
+def test_reference_constraints(ref):
+    if ref is None:
+        logging.critical("Reference is missing.")
+        sys.exit(2)
+
+    if ref.sample_size is None:
+        logging.critical("Reference sample size is indeterminate.")
+        sys.exit(2)
+
+    if ref.sample_size < 2:
+        logging.critical(
+            "Reference sample size is insufficient for distribution modeling "
+            "(required > 1, current: %d).",
+            ref.sample_size,
+        )
+        sys.exit(1)
+
+
 def main():
     cli.setup_logging()
     parser = argparse.ArgumentParser(
@@ -69,6 +87,9 @@ def main():
         ),
     )
     args = parser.parse_args()
+
+    test_reference_constraints(args.reference)
+
     reports = cli.get_reports_from_filenames(args)
 
     try:
