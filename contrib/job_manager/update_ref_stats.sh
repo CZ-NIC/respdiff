@@ -2,6 +2,8 @@
 # Update and re-generate statistics from latest samples. Queue new jobs.
 set -o errexit -o nounset -o xtrace
 
+TEST_SUITE=odvr
+
 RESPDIFF_SRC=/var/opt/respdiff
 JOBDIR=/var/tmp/respdiff-jobs
 ADDDIR=${JOBDIR}/ref_additional
@@ -75,6 +77,7 @@ if [ -h "${ADDDIR}" ]; then
                         mkdir -p ${MASTERDIR}/${TESTCASE}
                         cp -t ${MASTERDIR}/${TESTCASE}/ ${BUFFDIR}/${TESTCASE}/*.json
                         cp -t ${MASTERDIR}/${TESTCASE}/ ${ADDDIR}/${TESTCASE}/*.json
+                        cp -t ${MASTERDIR}/${TESTCASE}/ ${RESPDIFF_SRC}/respdiff.cfg
 
                         # clear buffer
                         rm -rf ${BUFFDIR}/${TESTCASE} ${BUFFSTATFILE} ${BUFFSTATFILE_D}
@@ -87,6 +90,7 @@ if [ -h "${ADDDIR}" ]; then
                         # create new buffer
                         mkdir -p ${BUFFDIR}/${TESTCASE}
                         cp -ft ${BUFFDIR}/${TESTCASE}/ ${ADDDIR}/${TESTCASE}/*.json
+                        cp -t ${BUFFDIR}/${TESTCASE}/ ${RESPDIFF_SRC}/respdiff.cfg
                     fi
                 else
                     # doesn't match reference, buffer was empty
@@ -96,6 +100,7 @@ if [ -h "${ADDDIR}" ]; then
                     # create new buffer
                     mkdir -p ${BUFFDIR}/${TESTCASE}
                     cp -t ${BUFFDIR}/${TESTCASE}/ ${ADDDIR}/${TESTCASE}/*.json
+                    cp -t ${BUFFDIR}/${TESTCASE}/ ${RESPDIFF_SRC}/respdiff.cfg
                 fi
             fi
         fi
@@ -120,9 +125,16 @@ popd
 
 # submit new ref jobs to condor
 NEW_LABEL=r$(date +%s)
+${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 1 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL} -a ${TEST_SUITE})
 ${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 0 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL})
 
 # update the ref_additional link
 pushd ${JOBDIR}
 ln -sf "${NEW_VERSION}-${NEW_LABEL}" ref_additional
+find . -maxdepth 1 \
+  -not -name 'master' \
+  -not -name 'buffer' \
+  -not -name 'ref_current' \
+  -not -name 'ref_additional' \
+  -mtime +3 -exec rm -rf {} +
 popd

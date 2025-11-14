@@ -1,0 +1,50 @@
+respdiff:
+  srcdir: /var/opt/respdiff
+  jobs: 128
+  target: kresd
+
+database:
+  url: https://gitlab.nic.cz/api/v4/projects/1469/jobs/artifacts/main/raw/results/odvr-b-01.20251020.160201.583720.mdb?job=mdb
+  dest: data.mdb
+  token:
+    location: /home/respdiff/gitlab_odvr_token_self_rotating
+    dest: gitlab_token
+  remove_after: true
+
+resolvers:
+
+  unbound:
+    type: unbound
+    port: &unbound_port 53401
+    listen_ipv6: true
+    respdiff:
+      ip: 127.0.0.1
+      port: *unbound_port
+      transport: udp
+      graph_color: '#218669'
+
+  bind:
+    type: bind
+    port: &bind_port 53411
+    depends_on: unbound
+    forward: &fwd_unbound
+      ip: '::1'
+      port: *unbound_port
+    respdiff:
+      ip: 127.0.0.1
+      port: *bind_port
+      transport: udp
+      graph_color: '#e2a000'
+
+  kresd:
+    type: knot-resolver
+    port: &kresd_port 53421
+    listen_ipv6: true
+    depends_on: unbound
+    forward: *fwd_unbound
+    respdiff:
+      ip: '::1'
+      port: *kresd_port
+      transport: tcp
+      restart_script: ./restart-all.sh
+      graph_color: '#00a2e2'

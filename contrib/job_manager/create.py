@@ -134,6 +134,12 @@ def create_respdiff_files(directory: str, config: Dict[str, Any]):
                 "Statistics file not found: {}".format(config["respdiff_stats"])
             ) from e
 
+    if "token" in config['database']:
+        shutil.copyfile(
+            config["database"]["token"]["location"],
+            os.path.join(directory, config["database"]["token"]["dest"]),
+        )
+
 
 def create_template_files(directory: str, config: Dict[str, Any]):
     if "respdiff" in config:
