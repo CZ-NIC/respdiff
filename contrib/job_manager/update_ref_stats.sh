@@ -24,6 +24,14 @@ if [ -h "${ADDDIR}" ]; then
     fi
 
     pushd ${MASTERDIR}
+    if [ -z "$( ls -A ./ )" ]; then
+        pushd ${ADDDIR}
+	for TESTCASE in *; do
+              mkdir ${MASTERDIR}/${TESTCASE}
+        done
+	popd
+    fi
+ 
     for TESTCASE in *; do
         if [[ -d "${TESTCASE}" && -d "${ADDDIR}/${TESTCASE}" ]]; then
             STATFILE="master_${TESTCASE}_stats.json"
@@ -71,7 +79,10 @@ if [ -h "${ADDDIR}" ]; then
                         # doesn't match reference, matches buffer
 
                         # clear reference
-                        rm -rf ${MASTERDIR}/${TESTCASE}
+                        # rm -rf ${MASTERDIR}/${TESTCASE}
+                        # delete all but last 20
+                        ls -1tr ${MASTERDIR}/${TESTCASE}/*_report.json | head -n -20 | xargs -d '\n' rm -f --
+                        ls -1tr ${MASTERDIR}/${TESTCASE}/*_report.diffrepro.json | head -n -20 | xargs -d '\n' rm -f --
 
                         # create new reference from buff and new samples
                         mkdir -p ${MASTERDIR}/${TESTCASE}
@@ -125,8 +136,7 @@ popd
 
 # submit new ref jobs to condor
 NEW_LABEL=r$(date +%s)
-${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 1 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL} -a ${TEST_SUITE})
-${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 0 -c 1 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL})
+${RESPDIFF_SRC}/contrib/job_manager/submit.py -p 1 -c 5 $(${RESPDIFF_SRC}/contrib/job_manager/create.py ${NEW_VERSION} -l ${NEW_LABEL} -a ${TEST_SUITE})
 
 # update the ref_additional link
 pushd ${JOBDIR}
