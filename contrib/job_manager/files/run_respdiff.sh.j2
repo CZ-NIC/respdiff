@@ -87,7 +87,21 @@ trap cleanup EXIT
 # Get database
 {%if 'token' in database %}
     GITLAB_TOKEN=$(cat {{ database['token']['dest'] }})
-    wget --quiet -O {{ database['dest'] }} --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" {{ database['url'] }}
+    success=0
+    for i in $(seq 1 10); do
+        if wget --quiet -O {{ database['dest'] }} \
+            --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            {{ database['url'] }}; then
+            success=1
+            break
+        fi
+        echo "Download failed (attempt $i), retrying in 30s..."
+        sleep 30
+    done
+    if [ "$success" -ne 1 ]; then
+        echo "ERROR: database download failed after 10 attempts" >&2
+        exit 1
+    fi
 {% else %}
     wget --quiet -O {{ database['dest'] }} {{ database['url'] }}
 {% endif %}
