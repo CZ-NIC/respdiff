@@ -45,6 +45,7 @@ def main():
         dstream = repro.query_stream_from_disagreements(lmdb, report)
         try:
             repro.reproduce_queries(
+                args,
                 dstream,
                 report,
                 dnsreplies_factory,

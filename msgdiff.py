@@ -3,7 +3,7 @@
 import argparse
 from functools import partial
 import logging
-from multiprocessing import pool
+import multiprocessing.pool
 import os
 import pickle
 from typing import Any, Dict, Iterator, Mapping, Optional, Sequence, Tuple  # noqa
@@ -20,16 +20,15 @@ from respdiff.database import DNSRepliesFactory, DNSReply, key2qid, LMDB, MetaDa
 from respdiff.match import compare
 from respdiff.typing import ResolverID
 
-
-lmdb = None
+wrk_lmdb = None
 
 
 def read_answers_lmdb(
     dnsreplies_factory: DNSRepliesFactory, qid: QID
 ) -> Mapping[ResolverID, DNSReply]:
-    assert lmdb is not None, "LMDB wasn't initialized!"
-    adb = lmdb.get_db(LMDB.ANSWERS)
-    with lmdb.env.begin(adb) as txn:
+    assert wrk_lmdb is not None, "LMDB wasn't initialized!"
+    adb = wrk_lmdb.get_db(LMDB.ANSWERS)
+    with wrk_lmdb.env.begin(adb) as txn:
         replies_blob = txn.get(qid)
     assert replies_blob
     return dnsreplies_factory.parse(replies_blob)
@@ -41,19 +40,18 @@ def compare_lmdb_wrapper(
     dnsreplies_factory: DNSRepliesFactory,
     qid: QID,
 ) -> None:
-    assert lmdb is not None, "LMDB wasn't initialized!"
+    assert wrk_lmdb is not None, "LMDB wasn't initialized!"
     answers = read_answers_lmdb(dnsreplies_factory, qid)
     others_agree, target_diffs = compare(answers, criteria, target)
     if others_agree and not target_diffs:
         return  # all agreed, nothing to write
     blob = pickle.dumps((others_agree, target_diffs))
-    ddb = lmdb.get_db(LMDB.DIFFS)
-    with lmdb.env.begin(ddb, write=True) as txn:
+    ddb = wrk_lmdb.get_db(LMDB.DIFFS)
+    with wrk_lmdb.env.begin(ddb, write=True) as txn:
         txn.put(qid, blob)
 
 
-def export_json(filename: str, report: DiffReport):
-    assert lmdb is not None, "LMDB wasn't initialized!"
+def export_json(lmdb: LMDB, filename: str, report: DiffReport):
     report.other_disagreements = DisagreementsCounter()
     report.target_disagreements = Disagreements()
 
@@ -97,8 +95,17 @@ def prepare_report(lmdb_, servers: Sequence[ResolverID]) -> DiffReport:
     return DiffReport(start_time, end_time, total_queries, total_answers)
 
 
+def wrk_lmdb_init(envdir):
+    """Each worker process has it's own LMDB connection"""
+    global wrk_lmdb
+
+    wrk_lmdb = LMDB(envdir, fast=True)
+    wrk_lmdb.open_db(LMDB.ANSWERS)
+    wrk_lmdb.open_db(LMDB.DIFFS)
+
+
 def main():
-    global lmdb
+    global wrk_lmdb
 
     cli.setup_logging()
     parser = argparse.ArgumentParser(
@@ -114,27 +121,34 @@ def main():
     target = args.cfg["diff"]["target"]
     servers = args.cfg["servers"]["names"]
 
+    multiprocessing.set_start_method("forkserver")
+
     with LMDB(args.envdir) as lmdb_:
         # NOTE: To avoid an lmdb.BadRslotError, probably caused by weird
         # interaction when using multiple transaction / processes, open a separate
         # environment. Also, any dbs have to be opened before using MetaDatabase().
         report = prepare_report(lmdb_, servers)
         cli.check_metadb_servers_version(lmdb_, servers)
+        # sanity check we have some answers
+        lmdb_.open_db(LMDB.ANSWERS)
+        # prepare state shared by all workers
+        lmdb_.open_db(LMDB.DIFFS, create=True, drop=True)
 
-    with LMDB(args.envdir, fast=True) as lmdb_:
-        lmdb = lmdb_
-        lmdb.open_db(LMDB.ANSWERS)
-        lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
-        qid_stream = lmdb.key_stream(LMDB.ANSWERS)
+    with LMDB(args.envdir, readonly=True) as wrk_lmdb:
+        wrk_lmdb.open_db(LMDB.ANSWERS)
+        wrk_lmdb.open_db(LMDB.DIFFS)
+        qid_stream = wrk_lmdb.key_stream(LMDB.ANSWERS)
 
         dnsreplies_factory = DNSRepliesFactory(servers)
         compare_func = partial(
             compare_lmdb_wrapper, criteria, target, dnsreplies_factory
         )
-        with pool.Pool() as p:
+        with multiprocessing.pool.Pool(
+            initializer=wrk_lmdb_init, initargs=(args.envdir,)
+        ) as p:
             for _ in p.imap_unordered(compare_func, qid_stream, chunksize=10):
                 pass
-        export_json(datafile, report)
+        export_json(wrk_lmdb, datafile, report)
 
 
 if __name__ == "__main__":

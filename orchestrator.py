@@ -2,7 +2,7 @@
 
 import argparse
 import logging
-from multiprocessing import pool
+import multiprocessing.pool
 import sys
 
 from respdiff import cli, sendrecv
@@ -22,8 +22,9 @@ def main():
         action="store_true",
         help="continue despite consecutive timeouts from resolvers",
     )
-
     args = parser.parse_args()
+
+    multiprocessing.set_start_method("forkserver")
     sendrecv.module_init(args)
 
     with LMDB(args.envdir) as lmdb:
@@ -38,8 +39,10 @@ def main():
         txn = lmdb.env.begin(adb, write=True)
         try:
             # process queries in parallel
-            with pool.Pool(
-                processes=args.cfg["sendrecv"]["jobs"], initializer=sendrecv.worker_init
+            with multiprocessing.pool.Pool(
+                processes=args.cfg["sendrecv"]["jobs"],
+                initializer=sendrecv.worker_init,
+                initargs=(args,),
             ) as p:
                 i = 0
                 for qkey, blob in p.imap_unordered(
