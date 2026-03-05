@@ -5,8 +5,6 @@ if #arg < 2 then
 end
 
 local dn_limit = 5
-local ip = "127.0.0.1"
-local port = "53121"
 
 local stats = require("stats")
 local psl = assert(require "psl".builtin())
@@ -18,10 +16,6 @@ local label = require("dnsjit.core.object.dns.label")
 
 local labels = require("dnsjit.core.object.dns.label").new(127)
 local q = require("dnsjit.core.object.dns.q").new()
-local output = require("dnsjit.output.udpcli").new()
-
-output:connect(ip, port)
-local orecv, orctx = output:receive()
 
 local unique = {}
 
@@ -96,9 +90,7 @@ for n = 2, #arg do
         if obj == nil then break end
         local pl = obj:cast()
         if obj:type() == "payload" and pl.len > 0 then
-            if process_packet(obj) then
-                orecv(orctx, obj)
-            end
+            process_packet(obj)
         end
     end
 end
