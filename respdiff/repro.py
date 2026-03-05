@@ -28,9 +28,8 @@ from .database import (
 from .dataformat import Diff, DiffReport, FieldLabel
 from .match import compare
 from .query import get_query_iterator
-from .sendrecv import worker_perform_single_query
 from .typing import QID  # noqa
-
+from . import sendrecv
 
 T = TypeVar("T")
 
@@ -121,6 +120,7 @@ def query_stream_from_disagreements(
 
 
 def reproduce_queries(
+    args,
     query_stream: Iterator[Tuple[QKey, WireFormat]],
     report: DiffReport,
     dnsreplies_factory: DNSRepliesFactory,
@@ -131,7 +131,11 @@ def reproduce_queries(
 ) -> None:
     if restart_scripts is None:
         restart_scripts = {}
-    with pool.Pool(processes=nproc) as p:
+    with pool.Pool(
+        processes=nproc,
+        initializer=sendrecv.worker_init,
+        initargs=(args,),
+    ) as p:
         done = 0
         for process_args in chunker(query_stream, nproc):
             # restart resolvers and clear their cache
@@ -143,7 +147,7 @@ def reproduce_queries(
                 qkey,
                 replies_data,
             ) in p.imap_unordered(
-                worker_perform_single_query, process_args, chunksize=1
+                sendrecv.worker_perform_single_query, process_args, chunksize=1
             ):
                 replies = dnsreplies_factory.parse(replies_data)
                 process_answers(qkey, replies, report, criteria, target)

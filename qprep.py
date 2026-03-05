@@ -123,6 +123,10 @@ def wrk_process_wire_packet(
     return qid, wire_packet
 
 
+def wrk_sigint():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 def int_or_fromtext(value, fromtext):
     try:
         return int(value)
@@ -187,9 +191,7 @@ def main():
         qdb = lmdb.open_db(LMDB.QUERIES, create=True, check_notexists=True)
         txn = lmdb.env.begin(qdb, write=True)
         try:
-            with pool.Pool(
-                initializer=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN)
-            ) as workers:
+            with pool.Pool(initializer=wrk_sigint) as workers:
                 if args.in_format == "text":
                     data_stream = read_lines(sys.stdin)
                     method = wrk_process_line

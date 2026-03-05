@@ -100,7 +100,9 @@ def module_init(args: Namespace) -> None:
     __dnsreplies_factory = DNSRepliesFactory(servers)
 
 
-def worker_init() -> None:
+def worker_init(args) -> None:
+    # MUST use multiprocessing forkserver
+    module_init(args)
     __worker_state.timeouts = {}
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     try:

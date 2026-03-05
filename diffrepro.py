@@ -2,7 +2,7 @@
 
 import argparse
 
-from respdiff import cli, repro, sendrecv
+from respdiff import cli, repro
 from respdiff.database import DNSRepliesFactory, LMDB
 from respdiff.dataformat import DiffReport, ReproData
 
@@ -23,7 +23,6 @@ def main():
     )
 
     args = parser.parse_args()
-    sendrecv.module_init(args)
     datafile = cli.get_datafile(args)
     report = DiffReport.from_json(datafile)
     restart_scripts = repro.get_restart_scripts(args.cfg)
@@ -45,6 +44,7 @@ def main():
         dstream = repro.query_stream_from_disagreements(lmdb, report)
         try:
             repro.reproduce_queries(
+                args,
                 dstream,
                 report,
                 dnsreplies_factory,
