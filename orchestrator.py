@@ -25,7 +25,6 @@ def main():
     args = parser.parse_args()
 
     multiprocessing.set_start_method("forkserver")
-    sendrecv.module_init(args)
 
     with LMDB(args.envdir) as lmdb:
         meta = MetaDatabase(lmdb, args.cfg["servers"]["names"], create=True)
