@@ -105,8 +105,6 @@ def wrk_lmdb_init(envdir):
 
 
 def main():
-    global wrk_lmdb
-
     cli.setup_logging()
     parser = argparse.ArgumentParser(
         description="compute diff from answers stored in LMDB and write diffs to LMDB"
@@ -123,21 +121,21 @@ def main():
 
     multiprocessing.set_start_method("forkserver")
 
-    with LMDB(args.envdir) as lmdb_:
+    with LMDB(args.envdir) as lmdb:
         # NOTE: To avoid an lmdb.BadRslotError, probably caused by weird
         # interaction when using multiple transaction / processes, open a separate
         # environment. Also, any dbs have to be opened before using MetaDatabase().
-        report = prepare_report(lmdb_, servers)
-        cli.check_metadb_servers_version(lmdb_, servers)
+        report = prepare_report(lmdb, servers)
+        cli.check_metadb_servers_version(lmdb, servers)
         # sanity check we have some answers
-        lmdb_.open_db(LMDB.ANSWERS)
+        lmdb.open_db(LMDB.ANSWERS)
         # prepare state shared by all workers
-        lmdb_.open_db(LMDB.DIFFS, create=True, drop=True)
+        lmdb.open_db(LMDB.DIFFS, create=True, drop=True)
 
-    with LMDB(args.envdir, readonly=True) as wrk_lmdb:
-        wrk_lmdb.open_db(LMDB.ANSWERS)
-        wrk_lmdb.open_db(LMDB.DIFFS)
-        qid_stream = wrk_lmdb.key_stream(LMDB.ANSWERS)
+    with LMDB(args.envdir, readonly=True) as lmdb:
+        lmdb.open_db(LMDB.ANSWERS)
+        lmdb.open_db(LMDB.DIFFS)
+        qid_stream = lmdb.key_stream(LMDB.ANSWERS)
 
         dnsreplies_factory = DNSRepliesFactory(servers)
         compare_func = partial(
@@ -148,7 +146,7 @@ def main():
         ) as p:
             for _ in p.imap_unordered(compare_func, qid_stream, chunksize=10):
                 pass
-        export_json(wrk_lmdb, datafile, report)
+        export_json(lmdb, datafile, report)
 
 
 if __name__ == "__main__":
