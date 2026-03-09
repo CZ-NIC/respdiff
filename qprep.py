@@ -142,10 +142,10 @@ def msg_from_text(text):
     Raises: ValueError or dns.exception.Exception on invalid input
     """
     try:
-        qname, qtype = text.split()
+        qname, qtype = text.rsplit(maxsplit=1)
     except ValueError as e:
         raise ValueError(
-            "space is only allowed as separator between qname qtype"
+            "input does not have white separated name and type", text
         ) from e
     qname = dns.name.from_text(qname.encode("ascii"))
     qtype = int_or_fromtext(qtype, dns.rdatatype.from_text)
