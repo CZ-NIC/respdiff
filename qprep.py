@@ -14,22 +14,33 @@ import dns.message
 import dns.rdatatype
 
 from respdiff import blacklist, cli
-from respdiff.database import LMDB, qid2key
+from respdiff.database import LMDB, qid2key, weight2val, DEFAULT_WEIGHT, SKIPPED_WEIGHT
 
 REPORT_CHUNKS = 10000
 
 
-def read_lines(instream):
+def read_lines(instream, with_weights: bool):
     """
-    Yield (line number, stripped line text, representation for logs). Skip empty lines.
+    Yield (line number, stripped line text, representation for logs, weight).
+    Skip empty lines.
     """
     i = 1
+    weight = DEFAULT_WEIGHT
     for line in instream:
         if i % REPORT_CHUNKS == 0:
             logging.info("Read %d lines", i)
-        line = line.strip()
+        if with_weights:
+            try:
+                line, weight = line.rsplit(maxsplit=1)
+                weight = weight2val(int(weight))
+            except ValueError:
+                logging.error("Line %d: invalid weight (%s)", i, repr(line))
+                line = None
+                weight = DEFAULT_WEIGHT
+        else:
+            line = line.rstrip()
         if line:
-            yield (i, line, line)
+            yield (i, line, line, weight)
         i += 1
 
 
@@ -56,54 +67,54 @@ def extract_wire(packet: bytes) -> bytes:
 def parse_pcap(pcap_file):
     """
     Filters dns query packets from pcap_file
-    Yield (packet number, packet as wire, representation for logs)
+    Yield (packet number, packet as wire, representation for logs, weight)
     """
     i = 1
     pcap_file = dpkt.pcap.Reader(pcap_file)
     for _, frame in pcap_file:
         if i % REPORT_CHUNKS == 0:
             logging.info("Read %d frames", i)
-        yield (i, frame, "frame no. {}".format(i))
+        yield (i, frame, "frame no. {}".format(i), DEFAULT_WEIGHT)
         i += 1
 
 
 def wrk_process_line(
-    args: Tuple[int, str, str]
-) -> Tuple[Optional[int], Optional[bytes]]:
+    args: Tuple[int, str, str, bytes],
+) -> Tuple[Optional[int], Optional[bytes], bytes]:
     """
     Worker: parse input line, creates a packet in binary format
 
     Skips over malformed inputs.
     """
-    qid, line, log_repr = args
+    qid, line, log_repr, weight = args
 
     try:
         msg = msg_from_text(line)
         if blacklist.is_blacklisted(msg):
             logging.debug('Blacklisted query "%s", skipping QID %d', log_repr, qid)
-            return None, None
-        return qid, msg.to_wire()
+            return None, None, SKIPPED_WEIGHT
+        return qid, msg.to_wire(), weight
     except (ValueError, struct.error, dns.exception.DNSException) as ex:
         logging.error(
             'Invalid query specification "%s": %s, skipping QID %d', line, ex, qid
         )
-        return None, None
+        return (None, None, SKIPPED_WEIGHT)
 
 
 def wrk_process_frame(
-    args: Tuple[int, bytes, str]
-) -> Tuple[Optional[int], Optional[bytes]]:
+    args: Tuple[int, bytes, str, bytes],
+) -> Tuple[Optional[int], Optional[bytes], bytes]:
     """
     Worker: convert packet from pcap to binary data
     """
-    qid, frame, log_repr = args
+    qid, frame, log_repr, weight = args
     wire = extract_wire(frame)
-    return wrk_process_wire_packet(qid, wire, log_repr)
+    return wrk_process_wire_packet(qid, wire, log_repr, weight)
 
 
 def wrk_process_wire_packet(
-    qid: int, wire_packet: bytes, log_repr: str
-) -> Tuple[Optional[int], Optional[bytes]]:
+    qid: int, wire_packet: bytes, log_repr: str, weight: bytes
+) -> Tuple[Optional[int], Optional[bytes], bytes]:
     """
     Worker: Return packet's data if it's not blacklisted
 
@@ -119,8 +130,8 @@ def wrk_process_wire_packet(
     else:
         if blacklist.is_blacklisted(msg):
             logging.debug('Blacklisted query "%s", skipping QID %d', log_repr, qid)
-            return None, None
-    return qid, wire_packet
+            return (None, None, SKIPPED_WEIGHT)
+    return qid, wire_packet, weight
 
 
 def wrk_sigint():
@@ -167,10 +178,10 @@ def main():
         "-f",
         "--in-format",
         type=str,
-        choices=["text", "pcap"],
+        choices=["text", "text-with-weights", "pcap"],
         default="text",
         help="define format for input data, default value is text\n"
-        'Expected input for "text" is: "<qname> <RR type>", '
+        'Expected input for "text" is: "<qname> <RR type>[ integer weight]", '
         "one query per line.\n"
         'Expected input for "pcap" is content of the pcap file.',
     )
@@ -189,11 +200,14 @@ def main():
 
     with LMDB(args.envdir) as lmdb:
         qdb = lmdb.open_db(LMDB.QUERIES, create=True, check_notexists=True)
+        wdb = lmdb.open_db(LMDB.WEIGHTS, create=True, check_notexists=True)
         txn = lmdb.env.begin(qdb, write=True)
         try:
             with pool.Pool(initializer=wrk_sigint) as workers:
-                if args.in_format == "text":
-                    data_stream = read_lines(sys.stdin)
+                if args.in_format.startswith("text"):
+                    data_stream = read_lines(
+                        sys.stdin, args.in_format == "text-with-weights"
+                    )
                     method = wrk_process_line
                 elif args.in_format == "pcap":
                     data_stream = parse_pcap(args.pcap_file)
@@ -201,10 +215,13 @@ def main():
                 else:
                     logging.error('unknown in-format, use "text" or "pcap"')
                     sys.exit(1)
-                for qid, wire in workers.imap(method, data_stream, chunksize=1000):
+                for qid, wire, weight in workers.imap(
+                    method, data_stream, chunksize=1000
+                ):
                     if qid is not None:
                         key = qid2key(qid)
                         txn.put(key, wire)
+                        txn.put(key, weight, db=wdb)
         except KeyboardInterrupt:
             logging.info("SIGINT received, exiting...")
             sys.exit(130)

@@ -21,16 +21,24 @@ import lmdb
 
 from .typing import ResolverID, QID, QKey, WireFormat
 
-
-BIN_FORMAT_VERSION = "2018-05-21"
+BIN_FORMAT_VERSION = "2026-03-09"
 
 
 def qid2key(qid: QID) -> QKey:
     return struct.pack("<I", qid)
 
 
+weight2val = qid2key
+
+
 def key2qid(key: QKey) -> QID:
     return struct.unpack("<I", key)[0]
+
+
+val2weight = key2qid
+
+DEFAULT_WEIGHT = weight2val(1)
+SKIPPED_WEIGHT = weight2val(0)
 
 
 class LMDB:
@@ -38,6 +46,7 @@ class LMDB:
     DIFFS = b"diffs"
     QUERIES = b"queries"
     META = b"meta"
+    WEIGHTS = b"weights"
 
     ENV_DEFAULTS = {
         "map_size": 10 * 1024**3,  # 10 G
@@ -198,7 +207,7 @@ class DNSReply:
         offset += cls.SIZEOF_INT
         (length,) = struct.unpack_from("<H", buff, offset)
         offset += cls.SIZEOF_SHORT
-        wire = buff[offset:(offset + length)]
+        wire = buff[offset : (offset + length)]
         offset += length
 
         if len(wire) != length:
