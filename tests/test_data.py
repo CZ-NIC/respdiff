@@ -15,7 +15,6 @@ from respdiff.dataformat import (
 )
 from respdiff.match import DataMismatch
 
-
 MISMATCH_DATA = [
     ("timeout", "answer"),
     (["A"], ["A", "CNAME"]),

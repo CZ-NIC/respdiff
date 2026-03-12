@@ -422,7 +422,9 @@ def print_differences_stats(report: DiffReport, reference: DiffReport = None) ->
         format_stats_line(
             "target disagrees",
             *get_stats_data(
-                len(report.summary), report.summary.usable_answers, ref_target_disagrees
+                sum(report.target_disagreements.qid_weight.values()),
+                report.summary.usable_answers,
+                ref_target_disagrees,
             ),
             additional="of not ignored answers"
         )

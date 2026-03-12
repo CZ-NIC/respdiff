@@ -173,6 +173,7 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
         self._fields = collections.defaultdict(
             lambda: collections.defaultdict(set)
         )  # type: Dict[FieldLabel, Dict[DataMismatch, Set[QID]]]
+        self.qid_weight = {}
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
@@ -184,6 +185,9 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
                     mismatch_data["exp_val"], mismatch_data["got_val"]
                 )
                 self._fields[field_label][mismatch] = set(mismatch_data["queries"])
+        self.qid_weight = {
+            int(key): val for key, val in restore_dict["qid_weight"].items()
+        }
 
     def save(self) -> Dict[str, Any]:
         fields = {}
@@ -207,12 +211,16 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
             {
                 "count": self.count,
                 "fields": fields,
+                "qid_weight": self.qid_weight,
             }
         )
         return restore_dict
 
-    def add_mismatch(self, field: FieldLabel, mismatch: DataMismatch, qid: QID) -> None:
+    def add_mismatch(
+        self, field: FieldLabel, mismatch: DataMismatch, qid: QID, weight: int
+    ) -> None:
         self._fields[field][mismatch].add(qid)
+        self.qid_weight[qid] = weight
 
     @property
     def field_labels(self) -> KeysView[FieldLabel]:
@@ -247,6 +255,9 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
             for qid_set in mismatches.values():
                 qids.update(qid_set)
         return qids
+
+    def weight(self, qid: QID):
+        return self.qid_weight[qid]
 
 
 class DisagreementsCounter(JSONDataObject):
@@ -291,8 +302,9 @@ class Summary(Disagreements):
             raise ValueError("QID {} already exists in Summary!".format(qid))
         self._fields[field][mismatch].add(qid)
 
-    @staticmethod
+    @classmethod
     def from_report(
+        cls,
         report: "DiffReport",
         field_weights: Sequence[FieldLabel],
         reproducibility_threshold: float = 1,
@@ -316,24 +328,24 @@ class Summary(Disagreements):
         if ignore_qids is None:
             ignore_qids = set()
 
-        summary = Summary()
+        summary = cls()
         summary.upstream_unstable = len(report.other_disagreements)
 
         for qid, diff in report.target_disagreements.items():
             if qid in ignore_qids:
-                summary.manual_ignore += 1
+                summary.manual_ignore += summary.weight(qid)
                 continue
             if not without_diffrepro and report.reprodata is not None:
                 reprocounter = report.reprodata[qid]
                 if reprocounter.retries > 0:
                     if reprocounter.retries != reprocounter.upstream_stable:
-                        summary.upstream_unstable += 1
+                        summary.upstream_unstable += summary.weight(qid)
                         continue  # filter unstable upstream
                     reproducibility = (
                         float(reprocounter.verified) / reprocounter.retries
                     )
                     if reproducibility < reproducibility_threshold:
-                        summary.not_reproducible += 1
+                        summary.not_reproducible += summary.weight(qid)
                         continue  # filter less reproducible than threshold
             # add mismatch to summary
             field, mismatch = diff.get_significant_field(field_weights)
@@ -350,6 +362,36 @@ class Summary(Disagreements):
             counter = Counter()  # type: Counter
             for mismatch, qids in self.get_field_mismatches(field):
                 counter[mismatch] = len(qids)
+            field_counters[field] = counter
+        return field_counters
+
+
+class WeightedSummary(Summary):
+    @classmethod
+    def from_report(
+        cls,
+        report: "DiffReport",
+        field_weights: Sequence[FieldLabel],
+        reproducibility_threshold: float = 1,
+        without_diffrepro: bool = False,
+        ignore_qids: Optional[Set[QID]] = None,
+    ) -> "WeightedSummary":
+        wsummary = super().from_report(
+            report,
+            field_weights,
+            reproducibility_threshold,
+            without_diffrepro,
+            ignore_qids,
+        )
+        wsummary.weight = report.target_disagreements.weight
+        return wsummary
+
+    def get_field_counters(self) -> Mapping[FieldLabel, Counter]:
+        field_counters = collections.defaultdict(Counter)  # type: Dict[str, Counter]
+        for field in self.field_labels:
+            counter = Counter()  # type: Counter
+            for mismatch, qids in self.get_field_mismatches(field):
+                counter[mismatch] = sum(self.weight(qid) for qid in qids)
             field_counters[field] = counter
         return field_counters
 

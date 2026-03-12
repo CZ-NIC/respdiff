@@ -19,7 +19,7 @@ from typing import (  # noqa
 import dns.message
 from respdiff import cli
 from respdiff.database import LMDB
-from respdiff.dataformat import DiffReport, Summary
+from respdiff.dataformat import DiffReport, Summary, WeightedSummary
 from respdiff.dnsviz import DnsvizGrok
 from respdiff.query import (
     convert_queries,
@@ -102,7 +102,7 @@ def main():
             ignore_qids.update(stats.queries.failing)
 
     report = DiffReport.from_json(datafile)
-    report.summary = Summary.from_report(
+    report.summary = WeightedSummary.from_report(
         report,
         field_weights,
         without_diffrepro=args.without_diffrepro,
@@ -141,12 +141,13 @@ def main():
     cli.print_differences_stats(report)
 
     if report.summary:  # when there are any differences to report
+        disagreements_weight = sum(report.target_disagreements.qid_weight.values())
         field_counters = report.summary.get_field_counters()
-        cli.print_fields_overview(field_counters, len(report.summary))
+        cli.print_fields_overview(field_counters, disagreements_weight)
         for field in field_weights:
             if field in report.summary.field_labels:
                 cli.print_field_mismatch_stats(
-                    field, field_counters[field], len(report.summary)
+                    field, field_counters[field], disagreements_weight
                 )
 
         # query details

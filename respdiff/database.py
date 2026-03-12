@@ -308,6 +308,7 @@ class MetaDatabase(Database):
     KEY_END_TIME = b"end_time"
     KEY_SERVERS = b"servers"
     KEY_NAME = b"name"
+    KEY_TOTAL_WEIGHT = b"total_weight"
 
     def __init__(
         self, lmdb_, servers: Sequence[ResolverID], create: bool = False
@@ -369,6 +370,12 @@ class MetaDatabase(Database):
 
     def read_end_time(self) -> Optional[int]:
         return self._read_timestamp(self.KEY_END_TIME)
+
+    def read_total_weight(self) -> Optional[int]:  # TODO
+        self._read_timestamp(self.KEY_TOTAL_WEIGHT)
+
+    def write_total_weight(self, total_weight: int) -> None:
+        self._write_timestamp(self.KEY_TOTAL_WEIGHT, total_weight)
 
     def _read_timestamp(self, key: bytes) -> Optional[int]:
         try:

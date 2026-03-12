@@ -16,7 +16,14 @@ from respdiff.dataformat import (
     FieldLabel,
     QID,
 )
-from respdiff.database import DNSRepliesFactory, DNSReply, key2qid, LMDB, MetaDatabase
+from respdiff.database import (
+    DNSRepliesFactory,
+    DNSReply,
+    key2qid,
+    LMDB,
+    MetaDatabase,
+    val2weight,
+)
 from respdiff.match import compare
 from respdiff.typing import ResolverID
 
@@ -57,16 +64,20 @@ def export_json(lmdb: LMDB, filename: str, report: DiffReport):
 
     # get diff data
     ddb = lmdb.get_db(LMDB.DIFFS)
+    wdb = lmdb.get_db(LMDB.WEIGHTS)
     with lmdb.env.begin(ddb) as txn:
         with txn.cursor() as diffcur:
             for key, diffblob in diffcur:
                 qid = key2qid(key)
+                weight = val2weight(txn.get(db=wdb, key=key))
                 others_agree, diff = pickle.loads(diffblob)
                 if not others_agree:
                     report.other_disagreements.queries.add(qid)
                 else:
                     for field, mismatch in diff.items():
-                        report.target_disagreements.add_mismatch(field, mismatch, qid)
+                        report.target_disagreements.add_mismatch(
+                            field, mismatch, qid, weight
+                        )
 
     # NOTE: msgdiff is the first tool in the toolchain to generate report.json
     #       thus it doesn't make sense to re-use existing report.json file
@@ -84,9 +95,19 @@ def export_json(lmdb: LMDB, filename: str, report: DiffReport):
 def prepare_report(lmdb_, servers: Sequence[ResolverID]) -> DiffReport:
     qdb = lmdb_.open_db(LMDB.QUERIES)
     adb = lmdb_.open_db(LMDB.ANSWERS)
+    wdb = lmdb_.open_db(LMDB.WEIGHTS)
+
     with lmdb_.env.begin() as txn:
-        total_queries = txn.stat(qdb)["entries"]
-        total_answers = txn.stat(adb)["entries"]
+        with txn.cursor(db=wdb) as wcur:
+            total_queries = sum(
+                val2weight(rawweight)
+                for rawweight in wcur.iternext(keys=False, values=True)
+            )
+        with txn.cursor(db=adb) as acur:
+            total_answers = sum(
+                val2weight(txn.get(db=wdb, key=answerkey))
+                for answerkey in acur.iternext(keys=True, values=False)
+            )
 
     meta = MetaDatabase(lmdb_, servers)
     start_time = meta.read_start_time()
@@ -135,6 +156,7 @@ def main():
     with LMDB(args.envdir, readonly=True) as lmdb:
         lmdb.open_db(LMDB.ANSWERS)
         lmdb.open_db(LMDB.DIFFS)
+        lmdb.open_db(LMDB.WEIGHTS)
         qid_stream = lmdb.key_stream(LMDB.ANSWERS)
 
         dnsreplies_factory = DNSRepliesFactory(servers)

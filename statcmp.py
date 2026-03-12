@@ -18,7 +18,6 @@ import matplotlib.ticker
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa
 
-
 COLOR_OK = "tab:blue"
 COLOR_GOOD = "tab:green"
 COLOR_BAD = "xkcd:bright red"
@@ -65,8 +64,8 @@ def plot_violin(
     )
     # set violin background color
     for pc in violin_parts["bodies"]:
-        pc.set_facecolor(COLOR_BG)
-        pc.set_edgecolor(COLOR_BG)
+        pc.set_facecolor(color)
+        pc.set_edgecolor(color)
 
     # draw axis markers
     for marker in markers:
@@ -106,7 +105,7 @@ def _axes_iter(axes, width: int):
 
 
 def eval_and_plot_single(
-    ax: matplotlib.axes.Axes, stats: Stats, label: str, samples: Sequence[float]
+    ax: matplotlib.axes.Axes, stats: Stats, label: str, samples: Sequence[float], color
 ) -> bool:
     markers = []
     below_min = False
@@ -148,13 +147,13 @@ def eval_and_plot_single(
     markers.append(AxisMarker(stats.max, 0.5, COLOR_BG))
     markers.append(AxisMarker(stats.threshold, 0.9, COLOR_THRESHOLD))
 
-    # select label color
-    if above_thr:
-        color = COLOR_BAD
-    elif below_min:
-        color = COLOR_GOOD
-    else:
-        color = COLOR_LABEL
+    #    # select label color
+    #    if above_thr:
+    #        color = COLOR_BAD
+    #    elif below_min:
+    #        color = COLOR_GOOD
+    #    else:
+    #        color = COLOR_LABEL
 
     plot_violin(ax, stats.samples, markers, label, color)
 
@@ -162,7 +161,7 @@ def eval_and_plot_single(
 
 
 def plot_overview(
-    sumstats: SummaryStatistics,
+    sumstatss: Sequence[SummaryStatistics],
     fields: Sequence[FieldLabel],
     summaries: Optional[Sequence[Summary]] = None,
     label: str = "fields_overview",
@@ -188,42 +187,51 @@ def plot_overview(
             OVERVIEW_Y_FIG * VIOLIN_FIGSIZE[1],
         ),
     )
-    ax_it = _axes_iter(axes, OVERVIEW_X_FIG)
+    import itertools
 
-    # target disagreements
-    assert sumstats.target_disagreements is not None
-    samples = [len(summary) for summary in summaries]
-    passed &= eval_and_plot_single(
-        next(ax_it), sumstats.target_disagreements, "target_disagreements", samples
-    )
+    # ax_it = itertools.repeat(_axes_iter(axes, OVERVIEW_X_FIG), 2)
 
-    # upstream unstable
-    assert sumstats.upstream_unstable is not None
-    samples = [summary.upstream_unstable for summary in summaries]
-    passed &= eval_and_plot_single(
-        next(ax_it), sumstats.upstream_unstable, "upstream_unstable", samples
-    )
-
-    # not 100% reproducible
-    assert sumstats.not_reproducible is not None
-    samples = [summary.not_reproducible for summary in summaries]
-    passed &= eval_and_plot_single(
-        next(ax_it), sumstats.not_reproducible, "not_reproducible", samples
-    )
-
-    # fields
-    assert sumstats.fields is not None
-    fcs = [summary.get_field_counters() for summary in summaries]
-    for field in fields:
-        if field not in sumstats.fields:
-            logging.warning('Field "%s" missing in statistics, omitting...', field)
-            continue
+    for sumstats, color in zip(sumstatss, [COLOR_GOOD, COLOR_LABEL]):
+        ax_it = _axes_iter(axes, OVERVIEW_X_FIG)
+        # target disagreements
+        assert sumstats.target_disagreements is not None
+        samples = [len(summary) for summary in summaries]
         passed &= eval_and_plot_single(
             next(ax_it),
-            sumstats.fields[field].total,
-            field,
-            [len(list(fc[field].elements())) for fc in fcs],
+            sumstats.target_disagreements,
+            "target_disagreements",
+            samples,
+            color,
         )
+
+        # upstream unstable
+        assert sumstats.upstream_unstable is not None
+        samples = [summary.upstream_unstable for summary in summaries]
+        passed &= eval_and_plot_single(
+            next(ax_it), sumstats.upstream_unstable, "upstream_unstable", samples, color
+        )
+
+        # not 100% reproducible
+        assert sumstats.not_reproducible is not None
+        samples = [summary.not_reproducible for summary in summaries]
+        passed &= eval_and_plot_single(
+            next(ax_it), sumstats.not_reproducible, "not_reproducible", samples, color
+        )
+
+        # fields
+        assert sumstats.fields is not None
+        fcs = [summary.get_field_counters() for summary in summaries]
+        for field in fields:
+            if field not in sumstats.fields:
+                logging.warning('Field "%s" missing in statistics, omitting...', field)
+                continue
+            passed &= eval_and_plot_single(
+                next(ax_it),
+                sumstats.fields[field].total,
+                field,
+                [len(list(fc[field].elements())) for fc in fcs],
+                color,
+            )
 
     # hide unused axis
     for ax in ax_it:
@@ -269,6 +277,11 @@ def main():
         default="fields_overview",
         help="Set plot label. It is also used for the filename.",
     )
+    parser.add_argument(
+        "--stats2",
+        type=cli.read_stats,
+        help="second statistics file",
+    )
 
     args = parser.parse_args()
     sumstats = args.stats
@@ -280,7 +293,9 @@ def main():
         sys.exit(1)
 
     logging.info("Start Comparison: %s", args.label)
-    passed = plot_overview(sumstats, field_weights, summaries, args.label)
+    passed = plot_overview(
+        [sumstats, args.stats2], field_weights, summaries, args.label
+    )
 
     if not passed:
         sys.exit(3)
