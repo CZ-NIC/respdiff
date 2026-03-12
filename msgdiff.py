@@ -73,6 +73,7 @@ def export_json(lmdb: LMDB, filename: str, report: DiffReport):
                 others_agree, diff = pickle.loads(diffblob)
                 if not others_agree:
                     report.other_disagreements.queries.add(qid)
+                    report.other_disagreements.weights[qid] = weight
                 else:
                     for field, mismatch in diff.items():
                         report.target_disagreements.add_mismatch(

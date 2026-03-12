@@ -263,11 +263,16 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
 class DisagreementsCounter(JSONDataObject):
     _ATTRIBUTES = {
         "queries": (set, list),
+        "weights": (
+            lambda indict: {int(key): value for key, value in indict.items()},
+            None,
+        ),
     }
 
     def __init__(self, _restore_dict: Mapping[str, int] = None) -> None:
         super().__init__()
-        self.queries = set()  # type: Set[QID]
+        self.queries = set()  # type: Set[QID]  # TODO now a duplicate
+        self.weights = dict()  # type: Dict[QID, int]
         if _restore_dict is not None:
             self.restore(_restore_dict)
 
@@ -329,7 +334,8 @@ class Summary(Disagreements):
             ignore_qids = set()
 
         summary = cls()
-        summary.upstream_unstable = len(report.other_disagreements)
+        summary.weight = report.target_disagreements.weight
+        summary.upstream_unstable = sum(report.other_disagreements.weights.values())
 
         for qid, diff in report.target_disagreements.items():
             if qid in ignore_qids:
