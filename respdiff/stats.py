@@ -239,7 +239,7 @@ class SummaryStatistics(JSONDataObject):
             self.upstream_unstable = Stats([s.upstream_unstable for s in summaries])
             self.usable_answers = Stats([s.usable_answers for s in summaries])
             self.not_reproducible = Stats([s.not_reproducible for s in summaries])
-            self.target_disagreements = Stats([len(s) for s in summaries])
+            self.target_disagreements = Stats([s.total_weight() for s in summaries])
             self.fields = FieldStatistics(summaries)
             self.queries = QueryStatistics.from_reports(usable_reports)
         elif _restore_dict is not None:

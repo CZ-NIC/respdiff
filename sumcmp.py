@@ -15,7 +15,6 @@ from respdiff.query import (
     get_query_iterator,
 )
 
-
 ANSWERS_DIFFERENCE_THRESHOLD_WARNING = 0.05
 
 
@@ -73,7 +72,9 @@ def main():
                 field_counters[field] = Counter()
 
         cli.print_fields_overview(
-            field_counters, len(report.summary), ref_field_counters
+            field_counters,
+            sum(report.target_disagreements.qid_weight.values()),
+            ref_field_counters,
         )
 
         for field in field_weights:

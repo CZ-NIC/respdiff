@@ -24,3 +24,4 @@ EOF
   ./diffsum.py "$ENVDIR"
   ./histogram.py "$ENVDIR"
 done
+./sumstat.py "${ENVDIRBASE}"{1..2}/report.json

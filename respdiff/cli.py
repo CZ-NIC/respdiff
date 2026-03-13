@@ -381,7 +381,9 @@ def print_differences_stats(report: DiffReport, reference: DiffReport = None) ->
     ref_manual_ignore = getattr(ref_summary, "manual_ignore", None)
     ref_upstream_unstable = getattr(ref_summary, "upstream_unstable", None)
     ref_not_reproducible = getattr(ref_summary, "not_reproducible", None)
-    ref_target_disagrees = len(ref_summary) if ref_summary is not None else None
+    ref_target_disagrees = (
+        sum(reference.target_disagreements.qid_weight.values()) if reference else None
+    )
 
     if report.summary is None:
         raise RuntimeError("Report doesn't containt necassary data!")

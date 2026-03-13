@@ -178,7 +178,11 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
             self.restore(_restore_dict)
 
     def restore(self, restore_dict: Mapping[str, Any]) -> None:
+        # print(restore_dict)
         super().restore(restore_dict)
+
+        #        from IPython.core.debugger import set_trace
+        #        set_trace()
         for field_label, field_data in restore_dict["fields"].items():
             for mismatch_data in field_data["mismatches"]:
                 mismatch = DataMismatch(
@@ -259,6 +263,12 @@ class Disagreements(collections.abc.Mapping, JSONDataObject):
     def weight(self, qid: QID):
         return self.qid_weight[qid]
 
+    def total_weight(self):
+        # from IPython.core.debugger import set_trace
+
+        # set_trace()
+        return sum(self.qid_weight.values())
+
 
 class DisagreementsCounter(JSONDataObject):
     _ATTRIBUTES = {
@@ -334,7 +344,7 @@ class Summary(Disagreements):
             ignore_qids = set()
 
         summary = cls()
-        summary.weight = report.target_disagreements.weight
+        summary.qid_weight = report.target_disagreements.qid_weight
         summary.upstream_unstable = sum(report.other_disagreements.weights.values())
 
         for qid, diff in report.target_disagreements.items():
@@ -373,25 +383,6 @@ class Summary(Disagreements):
 
 
 class WeightedSummary(Summary):
-    @classmethod
-    def from_report(
-        cls,
-        report: "DiffReport",
-        field_weights: Sequence[FieldLabel],
-        reproducibility_threshold: float = 1,
-        without_diffrepro: bool = False,
-        ignore_qids: Optional[Set[QID]] = None,
-    ) -> "WeightedSummary":
-        wsummary = super().from_report(
-            report,
-            field_weights,
-            reproducibility_threshold,
-            without_diffrepro,
-            ignore_qids,
-        )
-        wsummary.weight = report.target_disagreements.weight
-        return wsummary
-
     def get_field_counters(self) -> Mapping[FieldLabel, Counter]:
         field_counters = collections.defaultdict(Counter)  # type: Dict[str, Counter]
         for field in self.field_labels:
@@ -496,7 +487,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
             lambda x: Disagreements(_restore_dict=x),
             lambda x: x.save(),
         ),
-        "summary": (lambda x: Summary(_restore_dict=x), lambda x: x.save()),
+        "summary": (lambda x: WeightedSummary(_restore_dict=x), lambda x: x.save()),
         "reprodata": (lambda x: ReproData(_restore_dict=x), lambda x: x.save()),
     }
 

@@ -6,7 +6,7 @@ import sys
 from typing import Optional, Sequence
 
 from respdiff import cli
-from respdiff.dataformat import Summary
+from respdiff.dataformat import WeightedSummary as Summary
 from respdiff.stats import Stats, SummaryStatistics
 from respdiff.typing import FieldLabel
 
@@ -283,6 +283,9 @@ def main():
         help="second statistics file",
     )
 
+    # from IPython.core.debugger import set_trace
+
+    # set_trace()
     args = parser.parse_args()
     sumstats = args.stats
     field_weights = args.cfg["report"]["field_weights"]
