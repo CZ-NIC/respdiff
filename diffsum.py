@@ -130,7 +130,7 @@ def main():
                     ):
                         ignore_qids.add(qid)
 
-        report.summary = Summary.from_report(
+        report.summary = WeightedSummary.from_report(
             report,
             field_weights,
             without_diffrepro=args.without_diffrepro,

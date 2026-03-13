@@ -499,7 +499,7 @@ class DiffReport(JSONDataObject):  # pylint: disable=too-many-instance-attribute
         total_answers: Optional[int] = None,
         other_disagreements: Optional[DisagreementsCounter] = None,
         target_disagreements: Optional[Disagreements] = None,
-        summary: Optional[Summary] = None,
+        summary: Optional[WeightedSummary] = None,
         reprodata: Optional[ReproData] = None,
         _restore_dict: Optional[Mapping[str, Any]] = None,
     ) -> None:

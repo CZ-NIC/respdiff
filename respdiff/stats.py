@@ -9,7 +9,7 @@ import numpy
 import scipy.stats
 
 from .cfg import ALL_FIELDS
-from .dataformat import Counter, DiffReport, JSONDataObject, Summary
+from .dataformat import Counter, DiffReport, JSONDataObject, WeightedSummary
 from .qstats import QueryStatistics
 
 
@@ -167,7 +167,7 @@ class FieldStatistics(dict, JSONDataObject):
 
     def __init__(
         self,
-        summaries_list: Optional[Sequence[Summary]] = None,
+        summaries_list: Optional[Sequence[WeightedSummary]] = None,
         _restore_dict: Optional[Mapping[str, Any]] = None,
     ) -> None:
         super().__init__()

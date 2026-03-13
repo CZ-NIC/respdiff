@@ -10,7 +10,7 @@ from tabulate import tabulate
 
 from .cfg import read_cfg
 from .database import MetaDatabase
-from .dataformat import DiffReport, FieldLabel, InvalidFileFormat, Summary
+from .dataformat import DiffReport, FieldLabel, InvalidFileFormat, WeightedSummary
 from .match import DataMismatch
 from .stats import SummaryStatistics
 
@@ -52,7 +52,7 @@ def read_report(filename: str, skip_empty: bool = False) -> Optional[DiffReport]
 
 def load_summaries(
     reports: Sequence[DiffReport], skip_empty: bool = False
-) -> Sequence[Summary]:
+) -> Sequence[WeightedSummary]:
 
     summaries = []
     for report in reports:
